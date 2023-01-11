@@ -1,0 +1,94 @@
+{% include "header.html" %}
+{% include "sidebar.html" %}
+{% include "menufooternav.html" %}
+{% include "topnavigation.html" %}
+
+<!-- page content -->
+<div class="right_col" role="main">
+  <div class="">
+    <div class="page-title">
+      <div class="title_left">
+        <h3>List <small>of users</small></h3>
+      </div>
+    </div>
+
+    <div class="clearfix"></div>
+
+    <div class="container">
+        <!-- Example row of columns -->
+        <div class="row">
+          {% with messages = get_flashed_messages() %}
+            {% if messages %}
+              {% for message in messages %}
+                  {{ message }}
+              {% endfor %}
+            {% endif %}
+          {% endwith %}
+            <div class="card" id="output">
+                <div class="card-body">
+                    <a class="btn btn-sm btn-success" href="/usersadd" title="Add" ><i class="glyphicon glyphicon-pencil"></i> Add Another User</a>
+                    <br />
+                    <br />
+                      <table id="datast" class="table table-striped" style="width:100%;">
+                        <thead>
+                          <tr>
+                            <th scope="col">Status</th>
+                            <th scope="col">Firstname</th>
+                            <th scope="col">Lastname</th>
+                            <th scope="col">Email</th>
+                            <th scope="col">Role</th>
+                            <th style="width:200px;">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {% if output %}
+                            {% for ngo in output %}
+                            <tr>
+                              <td>
+                                {% if ngo.disable == False %}
+                                  <a class="btn btn-sm btn-success" href="/usersactive?id={{ ngo.docid }}" title="active" ></i> Active</a>
+                                {% else %}
+                                  <a class="btn btn-sm btn-danger" href="/usersactive?id={{ ngo.docid }}" title="inactive" >Inactive</a>
+                                {% endif %}
+                              </td>
+                              <td>{{(ngo.firstName)}}</td>
+                              <td>{{ ngo.lastName }}</td>
+                              <td>{{ ngo.email }}</td> 
+                              <td>{{ ngo.role }}</td>
+                              <td>
+                                <a class="btn btn-sm btn-success" href="/usersedit?id={{ ngo.id }}" title="Edit" ><i class="glyphicon glyphicon-pencil"></i> Edit</a>
+                                <a class="btn btn-sm btn-danger" href="/usersdelete?id={{ ngo.id }}" title="Delete"><i class="glyphicon glyphicon-pencil"></i> Delete</a>
+                              </td>
+                            </tr>
+                            {% endfor %}
+                          {% endif %}      
+                        </tbody>
+                      </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <hr>
+      </div> <!-- /container -->
+</div>
+
+    {% block scripts %}
+
+    <script>
+        $(document).ready(function () {
+          $('#datast').DataTable({
+            columns: [
+                {data: 'disable'},
+                {data: 'firtsname'},
+                {data: 'lastname'},
+                {data: 'email'},
+                {data: 'role'},
+                {data: 'action', orderable: false}
+            ],
+          });
+        });
+    </script>
+  
+    {% endblock scripts %}
+
+    {% include "footertable.html" %}

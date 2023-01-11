@@ -1,0 +1,94 @@
+{% include "header.html" %}
+{% include "sidebar.html" %}
+{% include "menufooternav.html" %}
+{% include "topnavigation.html" %}
+
+<!-- page content -->
+<div class="right_col" role="main">
+  <div class="">
+    <div class="page-title">
+      <div class="title_left">
+        <h3>List <small>of all counters</small></h3>
+      </div>
+    </div>
+
+    <div class="clearfix"></div>
+
+    <div class="container-fluid">
+        <!-- Example row of columns -->
+        <div class="row">
+          {% with messages = get_flashed_messages() %}
+            {% if messages %}
+              {% for message in messages %}
+                  {{ message }}
+              {% endfor %}
+            {% endif %}
+          {% endwith %}
+            <div class="card" id="output">
+                <div class="card-body">
+                    <a class="btn btn-sm btn-success" href="/addlist" title="Add" ><i class="glyphicon glyphicon-pencil"></i> Add Another Counter</a>
+                    <br />
+                    <br />
+                      <table id="datast" class="table table-striped">
+                        <thead>
+                          <tr>
+                            <th scope="col">Counter Name</th>
+                            <th scope="col">NRO</th>
+                            <th scope="col">Counter</th>
+                            <th scope="col">URL</th>
+                            <th scope="col">Contact</th>
+                            <th scope="col">Campaign</th>
+                            <th scope="col">End point</th>
+                            <th style="width:200px;">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {% if output %}
+                            {% for ngo in output %}
+                            <tr>
+                              <td>{{ ngo.id }}</td>
+                              <td>{{ ngo.nro }}</td>
+                              <td>{{'{:,}'.format(ngo.count)}}</td>
+                              <td><a href="{{ ngo.url }}" target="new"><strong>{{ ngo.url }}</strong></a></td>
+                              <td>{{ ngo.contactpoint }}</td>
+                              <td>{{ ngo.campaign }}</td> 
+                              <td><b>/count?id={{ ngo.id }}</b></td>
+                              <td>
+                                <a class="btn btn-sm btn-success" href="/listedit?id={{ ngo.id }}" title="Edit" ><i class="glyphicon glyphicon-pencil"></i> Edit</a>
+                                <a class="btn btn-sm btn-danger" href="/listdelete?id={{ ngo.id }}" title="Delete"><i class="glyphicon glyphicon-pencil"></i> Delete</a>
+                              </td>
+                            </tr>
+                            {% endfor %}
+                          {% endif %}      
+                        </tbody>
+                      </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <hr>
+      </div> <!-- /container -->
+    </div>
+
+    {% block scripts %}
+
+    <script>
+        $(document).ready(function () {
+          $('#datast').DataTable({
+            columns: [
+                {data: 'id'},
+                {data: 'nro'},
+                {data: 'count'},
+                {data: 'url'},
+                {data: 'contactpoint'},
+                {data: 'campaign'},
+                null,
+                {data: 'action', orderable: false}
+            ],
+          });
+        });
+    </script>
+  
+    {% endblock scripts %}
+
+    {% include "footertable.html" %}

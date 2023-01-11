@@ -1,0 +1,78 @@
+
+{% include "header.html" %}
+{% include "sidebar.html" %}
+{% include "menufooternav.html" %}
+{% include "topnavigation.html" %}
+
+
+<!-- page content -->
+<div class="right_col" role="main">
+  <div class="">
+    <div class="page-title">
+      <div class="title_left">
+        <h3>Edit <small> Qrcode</small></h3>
+      </div>
+    </div>
+
+    <div class="clearfix"></div>
+      <div class="container">
+        <form action="/qrcodeupdate" method="post">
+          <input type="hidden" name="id" value="{{ id }}">
+              <hr>
+              <div class="form-group">
+                <label for="qrcodename">Qrcode Name`</label>  
+                <input class="form-control" name="qrcodename"  value="{{ ngo.qrcodename }}" ></input>
+              </div>
+                <hr>
+              <div class="form-group">
+                <label for="description">Description</label>  
+                <input type="text" class="form-control" name="description" value="{{ ngo.description }}"></input>
+              </div>
+              <hr>
+              <div class="form-group">
+                <label for="location">Location</label>  
+                <input type="text" class="form-control" name="location" value="{{ ngo.location }}"></input>
+              </div>
+              <hr>
+              <div class="form-group">
+                <label for="campaign">Campaign</label>  
+                <input type="text" class="form-control" name="campaign" value="{{ ngo.campaign }}"></input>
+              </div>
+              <hr>
+              <div class="form-group">
+                  <label for="description">Version</label>  
+                  <input type="text" class="form-control" name="version" value="{{ ngo.version }}"></input>
+              </div>
+              <hr>
+              <div class="form-group">
+                <label for="qrcode">Qr code</label>
+                <input type="text" class="form-control" name="qrcode" value="{{ ngo.qrcode }}"></input>
+              </div>
+                <hr>
+              <div class="form-group">
+                <label for="boxsize">Box Size</label>
+                <input type="text" class="form-control" name="boxsize" value="{{ ngo.boxsize }}"></input>
+              </div>
+              <div class="form-group">
+                <label for="border">Border Size</label>
+                <input type="text" class="form-control" name="border" value="{{ ngo.border }}"></input>
+              </div>
+              <div class="form-group">
+                <label for="fill_color">Fill Coloer</label>
+                <input type="text" class="form-control" name="fill_color" value="{{ ngo.fill_color }}"></input>
+              </div>
+              <div class="form-group">
+                <label for="back_color">Back Color</label>
+                <input type="text" class="form-control" name="back_color" value="{{ ngo.back_color }}"></input>
+              </div>
+
+              <br>
+                <br>
+                <input type="submit" class="btn btn-primary" value="Update"></input>
+            </form>
+            </div>
+        <hr>
+      </div> <!-- /container -->
+    </div>
+
+    {% include "footer.html" %}

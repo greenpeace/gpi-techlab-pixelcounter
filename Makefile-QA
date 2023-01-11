@@ -1,0 +1,143 @@
+.PHONY: test_all
+.ONESHELL:
+.NOTPARALLEL:
+.EXPORT_ALL_VARIABLES:
+SHELL := /bin/bash
+
+ifeq ($(OS),Windows_NT)
+		OS_TYPE = WIN
+else
+		UNAME_S := $(shell uname -s)
+		OS_RELEASE := $(shell cat /etc/os-release | grep PRETTY_NAME)
+		ifeq ($(UNAME_S),Linux)
+				ifeq ($(findstring Alpine,$(OS_RELEASE)),Alpine)
+						OS_TYPE = ALPINE
+				else
+						OS_TYPE = LINUX
+				endif
+		endif
+		ifeq ($(UNAME_S),Darwin)
+				OS_TYPE = MAC
+		endif
+endif
+
+# Set dir paths from make file locations
+MAKE_FILE_PATH := $(abspath $(lastword $(MAKEFILE_LIST)))
+CURRENT_DIR := $(notdir $(patsubst %/,%,$(dir $(MAKE_FILE_PATH))))
+FULL_CURRENT_DIR := $(abspath	$(lastword $(dir $(MAKEFILE_LIST))))
+
+OS_SCRIPTS_DIR := /os-scripts
+
+# set if running on gitlab CI server
+ifeq ($(FULL_CURRENT_DIR),$(CI_PROJECT_DIR))
+	 APPS_DIR := $(CI_PROJECT_DIR)
+	 DOCS_DIR := $(abspath $(lastword $(dir $(MAKEFILE_LIST)))../docs)
+endif
+
+# set if running on local machine or other
+ifeq ($(CURRENT_DIR),global-proj-config-global-iac-terraform)
+	 APPS_DIR := $(FULL_CURRENT_DIR)
+	 DOCS_DIR := $(abspath $(lastword $(dir $(MAKEFILE_LIST)))./docs)
+endif
+
+ifeq ($(OS_TYPE),$(filter $(OS_TYPE),LINUX))
+	 BASH_SCRIPTS_DIR := $(OS_SCRIPTS_DIR)/bash-shell-scripts
+endif
+
+ifeq ($(OS_TYPE),$(filter $(OS_TYPE),MAC))
+	 BASH_SCRIPTS_DIR := $(OS_SCRIPTS_DIR)/mac-shell-scripts
+endif
+
+ifeq ($(OS_TYPE),$(filter $(OS_TYPE),ALPINE))
+	 BASH_SCRIPTS_DIR := $(OS_SCRIPTS_DIR)/alpine-shell-scripts
+endif
+
+unexport GOOGLE_APPLICATION_CREDENTIALS
+GOOGLE_CREDENTIALS := Unset
+
+# Can be read from environment
+VAULT_LDAP_PATH ?= global-ldap
+VAULT_TOKENS_DIR ?= $(APPS_DIR)
+VAULT_SERVICE_ACCOUNT_KEY_NAME ?= terraform-project-editor
+VAULT_APPROLE_ROLE_NAME ?= terraform-read
+VAULT_APPROLE_ROLE_ID ?= d76db1ac-94cd-2c07-87ac-d99d96fae331
+VAULT_APPROLE_TOKEN_FILE := $(VAULT_TOKENS_DIR)/$(VAULT_APPROLE_ROLE_NAME)_token.txt
+VAULT_APPROLE_LEASE_FILE := $(VAULT_TOKENS_DIR)/$(VAULT_APPROLE_ROLE_NAME)_lease.txt
+
+TERRAFORM_SUB_DIR ?= terraform
+ifeq ($(TERRAFORM_SUB_DIR),notset)
+	 TERRAFORM_CODE_DIR := $(APPS_DIR)
+else
+	 TERRAFORM_CODE_DIR := $(APPS_DIR)/$(TERRAFORM_SUB_DIR)
+endif
+
+TERRAFORM_VERSION ?= 0.14.8
+TF_STATE_FILE_NAME ?= $(TF_VAR_Greenpeace_Environment)
+TF_IN_AUTOMATION := yes
+TF_WORKSPACE := $(TF_STATE_FILE_NAME)
+TF_VAR_Service_Accounts_Dir=$(VAULT_TOKENS_DIR)
+
+BUCKET_SERVICE_ACCOUNT ?= sa_tfst_bucket
+BUCKET_SERVICE_ACCOUNT_LEASE_FILE := $(VAULT_TOKENS_DIR)/$(BUCKET_SERVICE_ACCOUNT)_lease.txt
+
+SERVICE_ACCOUNT ?= qa
+SERVICE_ACCOUNT_JSON_FILE := $(VAULT_TOKENS_DIR)/$(TF_VAR_Greenpeace_Environment)_$(SERVICE_ACCOUNT)_key.json
+SERVICE_ACCOUNT_LEASE_FILE := $(VAULT_TOKENS_DIR)/$(TF_VAR_Greenpeace_Environment)_$(SERVICE_ACCOUNT)_lease.txt
+
+default_test: check_all test_all
+
+test_all: test_env
+
+check_all: check_vault_addr check_vault_token check_executables check_terraform_version
+
+test_env:
+	@echo "Test Environment for Terrafrom Initialization and Setup"
+	@echo "====================================================="
+	@echo "VAULT_ADDR: "$${VAULT_ADDR}
+	@echo "VAULT_TOKENS_DIR: "$${VAULT_TOKENS_DIR}
+
+	@echo "MAKE_FILE_PATH: "$${MAKE_FILE_PATH}
+	@echo "FULL_CURRENT_DIR: "$${FULL_CURRENT_DIR}
+	@echo "CURRENT_DIR: "$${CURRENT_DIR}
+	@echo "OS_SCRIPTS_DIR: "$${OS_SCRIPTS_DIR}
+
+check_vault_addr:
+	@echo "Check VAULT_ADDR set"
+	@echo "====================="
+ifndef VAULT_ADDR
+	$(error VAULT_ADDR Environment variable not set. A vault address is require for some operations)
+else
+	@echo "VAULT_ADDR Environment variable set to: "$${VAULT_ADDR}
+endif
+
+check_executables:
+	@echo "Check executables in path terraform vault jq curl tfenv"
+EXECUTABLES = terraform vault jq curl
+K := $(foreach exec,$(EXECUTABLES),$(if $(shell which $(exec)),some string,$(error "No $(exec) in PATH")))
+
+check_terraform_version:
+	tfenv use $${TERRAFORM_VERSION}
+	if [ "$$?" -ne 0 ]; then
+		tfenv install $${TERRAFORM_VERSION}
+	fi
+
+check_vault_token:
+	bash $(BASH_SCRIPTS_DIR)/check_vault_token.sh
+
+auth_approle:
+	bash $(BASH_SCRIPTS_DIR)/auth_approle.sh
+
+auth_bucket: auth_approle
+	bash $(BASH_SCRIPTS_DIR)/gp-test-auth_bucket.sh
+
+auth_gcp: auth_approle
+	bash $(BASH_SCRIPTS_DIR)/auth_gcp.sh
+
+test01:
+	@echo "Test01 list files"
+	@echo "==============="
+	ls -l
+
+clean_all:
+	@echo "Clean All Tests"
+	@echo "==============="

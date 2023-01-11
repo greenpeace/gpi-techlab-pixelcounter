@@ -1,0 +1,146 @@
+# Template gitlab-ci.yml Terraform Project Template
+# v0.0.1
+
+image: registry.greenpeace.org/gp/git/git-devops/docker_images/alpine-ops-gitlab-runner/alpine-ops-runner:v0.2.10
+
+include:
+   - project: 'gp/git/global-apps/gitlab/global-gitlab-ci-jobs'
+     ref: master
+     file: 
+     # Stage (dependencies) Setup Jobs
+       - '/dependencies/dependencies_get_greenpeace_root_ca_crt.yml'
+       -  '/dependencies/dependencies_get_gitlab_project_wiki_artifact.yml'
+     # Stage (code-style-quality) Code style and Quality Jobs
+       - '/code-style-quality/code_style_terraform_check.yml'
+     # Stage (setup) Setup Jobs
+       - '/setup/setup_terraform_greenpeace_environment_test.yml'
+     # Stage (lint) Lint Jobs
+       - '/lint/lint_secret_analyzer.yml'
+       - '/lint/lint_terraform_validate_GP_Env_test.yml'
+     # Stage (terraform-plan) Terraform Plan Jobs
+       - '/terraform-plan/make_init_terraform_plan.yml'
+       - '/terraform-plan/make_init_terraform_drift_detection_prod_json.yml'
+     # Stage (review-deploy) Review Deploy Jobs
+       - '/review-deploy/make_terraform_review_release_json.yml'
+       - '/review-deploy/make_terraform_review_destroy.yml'
+       - '/review-deploy/grafana_add_deploy_review_annotation.yml'
+     # Stage (QA-review-deploy) QA Review Release Jobs
+       - '/QA-review-deploy/chef_inspec_post_deploy_scan_review.yml'
+     # Stage (deploy-test-release) Deploy Test Release Jobs
+       - '/deploy-test-release/deploy_test_release_json.yml'
+       - '/deploy-test-release/destroy_test_release.yml'
+       - '/deploy-test-release/grafana_add_deploy_test_annotation.yml'
+     # Stage (QA-test-deploy) QA Test Release Jobs
+       - '/QA-test-deploy/chef_inspec_post_deploy_scan_test.yml'
+     # Stage (deploy-production-release) Deploy Production Release Jobs
+       - '/deploy-production-release/deploy_production_release_json.yml'
+       - '/deploy-production-release/destroy_production_release.yml'
+       - '/deploy-production-release/grafana_add_deploy_production_annotation.yml'
+     # Stage (QA-prod-deploy) QA Production Release Jobs
+       - '/QA-prod-deploy/chef_inspec_post_deploy_scan_prod.yml'
+     # Stage (documentation) Production Release Documentation
+       - '/documentation/wiki_artifact_sync_Wiki-Home-Page_file_to_wiki_home_page.yml'
+       - '/documentation/wiki_artifact_review_terraform_graph.yml'
+       - '/documentation/wiki_artifact_review_terraform_list.yml'
+       - '/documentation/wiki_artifact_prod_terraform_graph.yml'
+       - '/documentation/wiki_artifact_prod_terraform_list.yml'
+       - '/documentation/set_drift_detection_scheduled_pipeline.yml'
+     # Stage (wiki-update) Update Gitlab Project Wiki's Jobs
+       - '/wiki-update/gitlab_update_project_wiki_artifact.yml'
+       - '/wiki-update/gitlab_update_changelog.yml'
+     # Stage (release) Tagged Release Job
+       - '/release/auto-semantic-release.yml'
+     # Stage (cleanup) Cleanup Jobs
+       - '/cleanup/clean_up on_terraform_greenpeace_environment_review.yml'
+       - '/cleanup/clean_up on_terraform_greenpeace_environment_test.yml'
+       - '/cleanup/clean_up_on_deploy.yml'
+
+stages:
+   - dependencies
+   - code-style-quality
+   - setup
+   - lint
+   - security-gate
+   - terraform-plan
+   - review-deploy
+   - QA-review-deploy
+   - deploy-test-release
+   - QA-test-deploy
+   - deploy-staging-release
+   - QA-staging-deploy
+   - deploy-production-release
+   - QA-prod-deploy
+   - documentation
+   - wiki-update
+   - release
+   - cleanup
+
+variables:
+# Vault Settings CI Environment Variables
+   VAULT_TOKENS_DIR: ${CI_PROJECT_DIR}/makefile-tokens-dir
+   JWT_TOKEN: "/var/run/secrets/kubernetes.io/serviceaccount/token"
+# Make file and CI file Environment Variables
+   TERRAFORM_VERSION: "1.2.6"
+   TF_PLUGIN_CACHE_DIR: ${CI_PROJECT_DIR}/makefile-terraform-dir
+   VAULT_GCP_ROLE_NAME: terraform-project-editor
+   GCP_SERVICE_ACCOUNT_SUFFIX: terraform-deploy
+   TERRAFORM_STATE_BUCKET_NAME: tfsf-it-operations
+   TERRAFORM_STATE_BUCKET_DIR: ${CI_PROJECT_NAME}
+# Default CI/CD environment variables for possible use in Terraform Code
+   TF_VAR_KUBE_NAMESPACE: ${KUBE_NAMESPACE}
+   TF_VAR_CI_COMMIT_DESCRIPTION: ${CI_COMMIT_DESCRIPTION}
+   TF_VAR_CI_COMMIT_REF_NAME: ${CI_COMMIT_REF_NAME}
+   TF_VAR_CI_COMMIT_REF_SLUG: ${CI_COMMIT_REF_SLUG}
+   TF_VAR_CI_COMMIT_TAG: ${CI_COMMIT_TAG}
+   TF_VAR_CI_ENVIRONMENT_NAME: ${CI_ENVIRONMENT_NAME}
+   TF_VAR_CI_ENVIRONMENT_SLUG: ${CI_ENVIRONMENT_SLUG}
+   TF_VAR_CI_ENVIRONMENT_URL: ${CI_ENVIRONMENT_URL}
+   TF_VAR_CI_PROJECT_PATH_SLUG: ${CI_PROJECT_PATH_SLUG}
+   TF_VAR_CI_PROJECT_NAME: ${CI_PROJECT_NAME} # Should be code safe
+   TF_VAR_CI_PROJECT_TITLE: ${CI_PROJECT_TITLE} # Name Displayed in the GitLab web interface.
+   TF_VAR_GITLAB_USER_EMAIL: ${GITLAB_USER_EMAIL}
+   TF_VAR_GITLAB_USER_LOGIN: ${GITLAB_USER_LOGIN}
+   TF_VAR_GITLAB_USER_NAME: ${GITLAB_USER_NAME}
+# Labels defined environment variables for possible use in Terraform Code
+   TF_VAR_label_service_name: ${CI_PROJECT_NAME}
+   TF_VAR_label_service_component: ${CI_PROJECT_NAME}
+   TF_VAR_label_service_owner: to-be-investigated
+   TF_VAR_label_business_contact: to-be-investigated
+   TF_VAR_label_budget_code: to-be-investigated
+   TF_VAR_label_tech_contact: to-be-investigated
+   TF_VAR_label_release_id: ${CI_COMMIT_REF_NAME} # The branch or tag name for which project is built
+# Gitlab CI/CD User Defined environment variables for possible use in Terraform Code
+   TF_VAR_CI_example_id: ${CI_ENV_example_id} # Terraform Varable Passed from Gitlab CI/CD Varable
+# User defined environment variables for possible use in Terraform Code
+   TF_VAR_example_id: example_id # Terraform Varable passed from gitlab CI Yaml
+
+before_script:
+   - mkdir -p ${VAULT_TOKENS_DIR}
+   - mkdir -p ${TF_PLUGIN_CACHE_DIR}
+   - if [ -f "/makefiles/Make-Terraform" ]; then make -f /makefiles/Make-Terraform template_render; fi
+
+Run terraform-instance-test QA:
+#Run QA and test onm review instance
+
+   stage: QA-review-deploy
+   
+   tags:
+      - Namespace Vault Auth
+      
+   variables:
+      TF_VAR_Greenpeace_Environment: test
+      project_Instance: test
+
+   script:
+      - echo "Test project configurations"
+      - make -f Makefile-QA clean_all
+      - make -f Makefile-QA test01
+
+   only:
+      - /^investigation-.*$/
+      - /^issue-.*$/
+      - /^review-.*$/
+      - /^feature-.*$/
+      - /^update-.*$/
+      - /^bug-.*$/
+      - qa-only

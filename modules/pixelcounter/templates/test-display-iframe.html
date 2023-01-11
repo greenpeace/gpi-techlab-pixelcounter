@@ -1,0 +1,40 @@
+{% include "header.html" %}
+{% include "sidebar.html" %}
+{% include "menufooternav.html" %}
+{% include "topnavigation.html" %}
+
+<!-- page content -->
+<div class="right_col" role="main">
+  <div class="">
+    <div class="page-title">
+      <div class="title_left">
+        <h3>Edit <small>a counter</small></h3>
+      </div>
+    </div>
+    <div class="container">
+        <!-- https://greenpeace.github.io/gpes-petition-counter-sandbox/ -->
+        <meta charset="utf-8" />
+        <title>Show counter as iframe</title>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Rubik:300,400,500,700,900|Work+Sans:400,500,600,700" />
+        <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js" defer></script>
+        <style>
+            h1 {
+                font-family: "Rubik", sans-serif;
+            }
+            p {
+                font-family: "Work sans", sans-serif;
+            }
+        </style>
+        <div class="row top-buffer">
+            <iframe src="https://pixelcounter.greenpeace.org/count?id=testcounter" width="1" height="1" frameborder=0 style="overflow:hidden;" scrolling="no"></iframe>
+        </div>
+        <h1>This is how you put the code for an iframe</h1>
+        <pre>
+            <code>
+                &lt;iframe src="https://pixelcounter.greenpeace.org/count?id=testcounter" width="1" height="1" frameborder=0 style="overflow:hidden;" scrolling="no"&gt;</iframe>
+            </code>
+        </pre>
+    </div>
+</div>
+<hr>
+    {% include "footer.html" %}

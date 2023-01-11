@@ -1,0 +1,18 @@
+.wd-xl{
+    width: 428px;
+  }
+  
+  .block-center { margin: 0 auto; }
+
+  .bg {
+    /* The image used */
+    background-image: url("/static/images/greenpeace-espy.jpg");
+    background-size: 100% 100%;
+    width: 100%;
+    height: 110vh;
+    
+    /* Center and scale the image nicely */
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+  }

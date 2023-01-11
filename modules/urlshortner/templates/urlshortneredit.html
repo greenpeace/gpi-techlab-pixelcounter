@@ -1,0 +1,50 @@
+
+{% include "header.html" %}
+{% include "sidebar.html" %}
+{% include "menufooternav.html" %}
+{% include "topnavigation.html" %}
+
+
+<!-- page content -->
+<div class="right_col" role="main">
+  <div class="">
+    <div class="page-title">
+      <div class="title_left">
+        <h3>Edit <small>urlshortners</small></h3>
+      </div>
+    </div>
+
+    <div class="clearfix"></div>
+      <div class="container">
+            <form action="/urlshortnerupdate" method="post">
+              <input type="hidden" name="id" value="{{ id }}">
+              <hr>
+              <div class="form-group">
+                <label for="domain">Short Link Name</label>  
+                <input name="domain" class="form-control" value="{{ ngo.domain }}"></input>
+              </div>
+                <hr>
+              <div class="form-group">
+                <label for="url">URL</label>  
+                <input type="text" class="form-control" name="url" value="{{ ngo.url }}"></input>
+              </div> 
+                <hr>
+              <div class="form-group">
+                <label for="language">Language</label>
+                <input type="text" class="form-control" name="language" value="{{ ngo.language }}"></input>
+              </div>
+                <hr>
+              <div class="form-group">
+                <label for="contactpoint">Country</label>
+                <input type="text" class="form-control" name="country" value="{{ ngo.country }}"></input>
+              </div>
+                <br>
+                <br>
+                <input type="submit" class="btn btn-primary" value="Update"></input>
+            </form>
+            </div>
+        <hr>
+      </div> <!-- /container -->
+    </div>
+
+    {% include "footer.html" %}

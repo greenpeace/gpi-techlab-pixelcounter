@@ -1,0 +1,81 @@
+{% include "header.html" %}
+{% include "sidebar.html" %}
+{% include "menufooternav.html" %}
+{% include "topnavigation.html" %}
+
+<!-- page content -->
+<div class="right_col" role="main">
+  <div class="">
+    <div class="page-title">
+      <div class="title_left">
+        <h3>List <small>of allowed domains or IP address</small></h3>
+      </div>
+    </div>
+
+    <div class="clearfix"></div>
+
+<!--blog start-->
+
+    <div class="container-fluid">
+        <!-- Example row of columns -->
+        <div class="row">
+          {% with messages = get_flashed_messages() %}
+            {% if messages %}
+              {% for message in messages %}
+                  {{ message }}
+              {% endfor %}
+            {% endif %}
+          {% endwith %}
+            <div class="card" id="output">
+                <div class="card-body">
+                    <a class="btn btn-sm btn-success" href="/allowedlistadd" title="Add" ><i class="glyphicon glyphicon-pencil"></i> Add Another Domain</a>
+                    <br />
+                    <br />
+                      <table id="datast" class="table table-striped">
+                        <thead>
+                          <tr>
+                            <th scope="col">Id</th>
+                            <th scope="col">Domain Name</th>
+                            <th style="width:200px;">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {% if allowed %}
+                            {% for ngo in allowed %}
+                            <tr>
+                              <td>{{ ngo.id }}</td>
+                              <td>{{ ngo.domain }}</td>
+                              <td>
+                                <a class="btn btn-sm btn-success" href="/allowedlistedit?id={{ ngo.id }}" title="Edit" ><i class="glyphicon glyphicon-pencil"></i> Edit</a>
+                                <a class="btn btn-sm btn-danger" href="/allowedlistdelete?id={{ ngo.id }}" title="Delete"><i class="glyphicon glyphicon-pencil"></i> Delete</a>
+                              </td>
+                            </tr>
+                            {% endfor %}
+                          {% endif %}      
+                        </tbody>
+                      </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <hr>
+      </div> <!-- /container -->
+  </div>
+
+    {% block scripts %}
+
+    <script>
+        $(document).ready(function () {
+          $('#datast').DataTable({
+            columns: [
+                {data: 'id'},
+                {data: 'url'},
+               {data: 'action', orderable: false}
+            ],
+          });
+        });
+    </script>
+  
+    {% endblock scripts %}
+
+    {% include "footertable.html" %}

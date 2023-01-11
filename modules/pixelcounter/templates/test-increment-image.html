@@ -1,0 +1,33 @@
+{% include "header.html" %}
+{% include "sidebar.html" %}
+{% include "menufooternav.html" %}
+{% include "topnavigation.html" %}
+
+<!-- page content -->
+<div class="right_col" role="main">
+  <div class="">
+    <div class="page-title">
+      <div class="title_left">
+        <h3>The counter<small> has been incremented loading a 1 pixel image</small></h3>
+      </div>
+    </div>
+
+    <div class="clearfix"></div>
+    
+    <div class="container">
+        <div class="row top-buffer">
+            <img src="/count_pixel?id=testcounter" alt="" />
+        </div>
+    </div>
+    <div class="container">
+        <p>This is how you create the &lt;image&gt; counter</p>
+        <pre>
+            <code>
+                &lt;img src="https://pixelcounter.greenpeace.org/count_pixel?id=testcounter" alt="" /&gt;
+            </code>
+        </pre>
+    </div>
+</div>
+
+<hr>
+{% include "footer.html" %}

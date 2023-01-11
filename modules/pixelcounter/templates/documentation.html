@@ -1,0 +1,182 @@
+{% include "header.html" %}
+{% include "sidebar.html" %}
+{% include "menufooternav.html" %}
+{% include "topnavigation.html" %}
+
+<!-- page content -->
+<div class="right_col" role="main">
+    <div class="clearfix"></div>
+
+  <div class="container-fluid">
+    <div class="row">
+      
+      <div class="col">
+        <nav id="navbar">
+          <ul class="nav flex-column">
+           <header-doc>Pixelcounter Documentation </header-doc>
+            <li class="nav-item">
+              <a class="nav-link introduction" href="#Introduction">Introduction</a>
+            </li>
+            <li class="nav-item">
+             <a class="nav-link layout" href="#Layout">Count a page view</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link content" href="#Content">Get a counter</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link components" href="#Components">With Javascript</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link components" href="#test">How to Test</a>
+            </li>
+        </ul>
+     </nav>
+    </div>
+        
+    <div class="col-md-9">
+        <main id="main-doc">    
+          <div class="head-box">
+            <h1>How to Use Pixel Counter</h1>
+          </div>
+          
+            <section class="main-section" id="Introduction">
+              <header-doc><h2>Introduction</h2></header-doc>
+                <article>
+                  <p>Pixelcounter allows you to set up counters and with an api call update the counter and to read the counter value.</p>
+                  <p> The pixel counter  will collate the Petition signatures across all of the different Greenpeace NROs and provide a “unique count” for the campaign.</p>
+            </article>
+          </section>
+        1
+        <section class="main-section" id="Layout">
+          <header-doc><h2>Count a page view</h2></header-doc>
+            <article>
+            <h3>Count</h3>
+            <p>The count route used for pixel image to increase a count using a GET request</p>
+            <pre>API endpoint <code>/count?id=&lt;counter_name&gt;</code></pre>
+            <p>example: <pre><code>http://localhost:8080/count?id=&lt;counter_name&gt;</code></pre></p>
+            <p>This is how you wrap it in an iframe</p>
+            <pre>
+              <code>
+                &lt;iframe src="&lt;domain name&gt;/count?id=testcounter" width="1" height="1" frameborder=0 style="overflow:hidden;" scrolling="no">&lt;/iframe&gt;
+              </code>
+            </pre>
+            <br>
+            <br>
+            <p>When using this API Endpoint, the totals of all counters gets incremented as well</p>
+          </article>    
+        </section>
+        
+          <section class="main-section" id="Content">
+            <header-doc><h2>Get signups</h2></header-doc>
+            <article>
+              <h3>Counter</h3>
+              <p> The Petition Counter is available via the following HTTP endpoint: </p>
+                <p>The API endpoint allows the user to get the endpoint total defined  by id</p>
+                <pre>
+                <p>API endpoint</p><code>/signup?id=&lt;counter name&gt;</code>            
+                  <p>example:</p><code>http://localhost:8080/signups?id=&lt;counter_name&gt;</code>
+              </pre>
+              <h3>Response</h3>
+              <p>The response will be a JSON object with the following fields:</p>
+              <pre>
+                <code>
+                  {
+                    "unique_count": &lt;total&gt;,
+                    "id": &lt;counter_name&gt;
+                  }
+                </code>
+              </pre>
+        </article> 
+        </section>
+                
+        <section class="main-section" id="Components">
+              <header-doc><h2>With Javascript</h2></header-doc>
+                <article>
+                  <h3>javascript</h3>
+                  <p> The Petition Counter is available via the following HTTP endpoint: 
+                  </p>
+        <pre>
+          <code>
+            /* ******************************************* */
+            /* CUSTOM VARIABLES - CHANGE FOR YOUR CAMPAIGN */
+            /* ******************************************* */
+            
+            /* Set the Identifier for the Ticket HTML Element */
+            var tickerElementId = "#ticker";
+            
+            /* Set the campaign for the global petition counter */
+            var countername = "testcounter";
+            
+            
+            /* ***************************** */
+            /* START OF SCRIPT - DO NOT EDIT */
+            /* ***************************** */
+            
+            /* Get Petition Count */
+            var counterBaseUrl = 'https://pixelcounter.greenpeace.org/signup';
+            
+            $.ajax({
+                type: "GET",
+                url: counterBaseUrl + ?id=counteranme,
+                dataType: "json",
+                success: function(response) {
+                  ticker(response.unique_count, tickerElementId);
+                }
+              });
+              
+              function numberWithCommas(x) {
+                return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+            }
+              
+            function ticker(n, identifier) {
+                  /* Update the value */
+                  $(identifier).text(n);
+                  /* Perform animation */
+                  $(identifier).each(function() {
+                    $(this).prop('Counter', 0).animate({
+                      Counter: $(this).text()
+                    }, {
+                      duration: 2000,
+                      easing: 'swing',
+                      step: function(now) {
+                        $(this).text(Math.ceil(now));
+                      },
+                      /* Add comma */
+                      complete: function() {
+                        $(identifier).text(numberWithCommas(n));
+                      }
+                    });
+                  });
+            } 
+          </code>
+        </pre>
+            
+          </article>
+        </section> 
+
+        <section class="main-section" id="test">
+          <header-doc><h2>How to Test</h2></header-doc>
+          <article>
+              <h1>Counter tests</h1>
+              <ul>
+                  <li><a class="nav-link" href="{{ url_for('pixelcounterblue.testodometer') }}">Show counter (normal)</a></li>
+                  <li><a class="nav-link" href="{{ url_for('pixelcounterblue.testincrementiframe') }}">Show counter (iframe)</a></li>
+              </ul>
+              <p>Use only ONE of the methods below to increment the counter when there is a signature on your system.</p>
+              <ol>
+                  <li><a class="nav-link" href="{{ url_for('pixelcounterblue.testincrementiframe') }}">Increment the counter using iframe (pixel)</a></li>       
+                  <li><a class="nav-link" href="{{ url_for('pixelcounterblue.testincrementimage') }}">Increment the counter using an image (pixel)</a></li>
+                  <li><a class="nav-link" href="{{ url_for('pixelcounterblue.testincrementscript') }}">Increment the counter using Javascript code</a></li>
+              </ol>
+          </article>
+        </section> 
+      </main>
+    </div>
+    <iframe src="/count?id=testcounter&email_hash=0c7e6a405862e402eb76a70f8a26fc732d07c32931e9fae9ab1582911d2e8a3b" width="1" height="1" frameborder=0 style="overflow:hidden;" scrolling="no"></iframe>
+
+    <iframe src="/count?id=testcounter" width="1" height="1" frameborder=0 style="overflow:hidden;" scrolling="no"></iframe>
+  </div>
+</div>
+    
+{% include "footer.html" %}
+    

@@ -1,0 +1,45 @@
+{% include "header.html" %}
+{% include "sidebar.html" %}
+{% include "menufooternav.html" %}
+{% include "topnavigation.html" %}
+
+<!-- page content -->
+<div class="right_col" role="main">
+  <div class="">
+    <div class="page-title">
+      <div class="title_left">
+        <h3>Edit <small>a counter</small></h3>
+      </div>
+    </div>
+    <div class="container">
+        <div class="row top-buffer">
+            <img></img>
+            <h1>The counter has been incremented by running javascript</h1>
+            <script>
+                {
+                    const container = document.getElementsByTagName("body")[0];
+                    const conversion = document.createElement("img");
+                    conversion.src = "https://pixelcounter.greenpeace.org/count_pixel?id=testcounter";
+                    container.appendChild(conversion);
+                }
+            </script>
+
+            <hr>
+            <p>This is how you increment the counter with javascript</p>
+            <pre>
+                <code>
+                    &lt;script&gt;
+                        {
+                            const container = document.getElementsByTagName("body")[0];
+                            const conversion = document.createElement("img");
+                            conversion.src = "/count_pixel?id=testcounter";
+                            container.appendChild(conversion);
+                        }
+                    &lt;script&gt;
+                </code>
+            </pre>
+        </div>
+    </div>
+</div>
+<hr>
+{% include "footer.html" %}

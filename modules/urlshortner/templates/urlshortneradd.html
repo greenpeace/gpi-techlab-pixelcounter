@@ -1,0 +1,61 @@
+{% include "header.html" %}
+{% include "sidebar.html" %}
+{% include "menufooternav.html" %}
+{% include "topnavigation.html" %}
+
+
+<!-- page content -->
+<div class="right_col" role="main">
+  <div class="">
+    <div class="page-title">
+      <div class="title_left">
+        <h3>Add <small>urlshortner</small></h3>
+      </div>
+
+      <div class="title_right">
+        <div class="col-md-5 col-sm-5 col-xs-12 form-group pull-right top_search">
+          <div class="input-group">
+            <input type="text" class="form-control" placeholder="Search for...">
+            <span class="input-group-btn">
+              <button class="btn btn-secondary" type="button">Go!</button>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="clearfix"></div>
+    
+      <div class="container">
+            <form action="/urlshortnercreate" method="post">
+              <hr>
+              <div class="form-group">
+                <label for="domain">Short Link Name</label>  
+                <input class="form-control" name="domain" placeholder="Short Link (e.g mail) - if you leave blank system will generate a random short link"></input>
+              </div>
+                <hr>
+              <div class="form-group">
+                <label for="url">Url</label>
+                <input type="text" class="form-control" name="url" placeholder="URL to shorten" required></input>
+              </div>
+                <hr>
+              <div class="form-group">
+                <label for="language">Language</label>
+                <input type="text" class="form-control" name="language" placeholder="The page languages of the URL link - you can leave blank"></input>
+              </div>
+                <hr>
+              <div class="form-group">
+                <label for="country">Country</label>
+                <input type="text" class="form-control" name="country"  placeholder="For what Country - you can leave blank"></input>
+              </div>
+                <br>
+                <br>
+                <input type="submit" class="btn btn-primary" value="Add"></input>
+            </form>
+            </div>
+        <hr>
+      </div> <!-- /container -->
+    </div>
+
+    {% include "footer.html" %}
+    

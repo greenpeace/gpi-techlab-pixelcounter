@@ -1,0 +1,131 @@
+{% include "header.html" %}
+{% include "sidebar.html" %}
+{% include "menufooternav.html" %}
+{% include "topnavigation.html" %}
+
+<!-- page content -->
+<div class="right_col" role="main">
+  <div class="">
+    <div class="page-title">
+      <div class="title_left">
+        <h3>Show <small>Counter</small></h3>
+      </div>
+    </div>
+<div class="container">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Rubik:300,400,500,700,900|Work+Sans:400,500,600,700" 8/>
+<!--  <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js" defer></script>-->
+
+    <!-- Get the Counter -->
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/odometer@0.4.8/themes/odometer-theme-default.min.css" />
+        <style>
+            .odometer.odometer-auto-theme,
+            .odometer {
+                font-size: 25px;
+                font-family: "Rubik", sans-serif;
+                font-weight: 600;
+            }
+            .odometer.odometer-auto-theme .odometer-digit,
+            .odometer .odometer-digit {
+                color: #444;
+                border: 1px solid #ddd;
+            }
+        </style>
+        <script src="https://cdn.jsdelivr.net/npm/odometer@0.4.8/odometer.min.js" defer></script>
+        <div class="row top-buffer">
+            <div id="odometer2container"><span id="odometer2" class="odometer2"></span> Signups</div>
+        </div>
+    <script>
+        /* jshint browser: true, esversion: 6 */
+        /* global Odometer, odometer, jQuery, analytics, console */
+        document.addEventListener("DOMContentLoaded", function() {
+            $.ajax({
+                url: "https://pixelcounter.greenpeace.org/signups?id=testcounter",
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                type: "POST", /* or type:"GET" or type:"PUT" */
+                dataType: "json",
+                data: {
+                },
+                success: function(data){
+                    const counterValue = Number(data.unique_count);
+                    const el = document.querySelector('.odometer2');
+                    const odometer = new Odometer({
+                        el: el,
+                        format: '.ddd.ddd',
+                        value: counterValue - Math.round( counterValue / 10 ),
+                        duration: 2000,
+                    });
+                    odometer.update(counterValue);
+                },
+                error: function(){
+                    console.log("Error getting the number of signups");
+                },
+                timeout: 6000 // sets timeout to 6 seconds            
+                });
+        });
+    </script>
+        <p>This is how you create the odometer counter</p>
+        <pre>
+          <code>
+
+            &lt;link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Rubik:300,400,500,700,900|Work+Sans:400,500,600,700" 8/&gt;
+            &lt;script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js" defer&gt;&lt;/script&gt;
+
+            &lt;!-- Get the Counter --&gt;
+            &lt;link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/odometer@0.4.8/themes/odometer-theme-default.min.css" &gt;
+            &lt;style&gt;
+                    .odometer.odometer-auto-theme,
+                    .odometer {
+                        font-size: 25px;
+                        font-family: "Rubik", sans-serif;
+                        font-weight: 600;
+                    }
+                    .odometer.odometer-auto-theme .odometer-digit,
+                    .odometer .odometer-digit {
+                        color: #444;
+                        border: 1px solid #ddd;
+                    }
+                &lt;/style&gt;
+                &lt;script src="https://cdn.jsdelivr.net/npm/odometer@0.4.8/odometer.min.js" defer&gt;&lt;/script&gt;
+                    &lt;div class="row top-buffer"&gt;
+                        &lt;div id="odometer2container"&gt;&lt;span id="odometer2" class="odometer2"&gt;&lt;/span> Signups&lt;/div&gt;
+                    &lt;/div&gt;
+                &lt;script&gt;
+                /* jshint browser: true, esversion: 6 */
+                /* global Odometer, odometer, jQuery, analytics, console */
+                document.addEventListener("DOMContentLoaded", function() {
+                    $.ajax({
+                        url: "https://pixelcounter.greenpeace.org/signups?id=testcounter",
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        type: "POST", /* or type:"GET" or type:"PUT" */
+                        dataType: "json",
+                        data: {
+                        },
+                        success: function(data){
+                            const counterValue = Number(data.unique_count);
+                            const el = document.querySelector('.odometer2');
+                            const odometer = new Odometer({
+                                el: el,
+                                format: '.ddd.ddd',
+                                value: counterValue - Math.round( counterValue / 10 ),
+                                duration: 2000,
+                            });
+                            odometer.update(counterValue);
+                        },
+                        error: function(){
+                            console.log("Error getting the number of signups");
+                        },
+                        timeout: 6000 // sets timeout to 6 seconds            
+                        });
+                });        
+                &lt;/script&gt;
+            </code>
+        </pre>
+    </div>
+</div>
+<hr>
+
+{% include "footer.html" %}
