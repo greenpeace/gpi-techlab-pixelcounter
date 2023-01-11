@@ -63,11 +63,11 @@ def qrcodecreate():
         data = {
             u'active': True,
             u'date_created': datenow(),
-            u'filenameurl': f'https://storage.googleapis.com/stateless-torbjorn-zetterlund/qrcode/{qrcodefilename}',
+            u'filenameurl': f'https://storage.googleapis.com/pixelcounter_bucket/qrcode/{qrcodefilename}',
             u'filename': qrcodefilename,
             u'qrcodename': request.form.get('qrcodename'),
             u'description': request.form.get('description'),
-            u'location': request.form.get('location'),
+            u'type': request.form.get('type'),
             u'campaign': request.form.get('campaign'),            
             u'qrcode': request.form.get('qrcode'),
             u'version': (int)(request.form.get('version')),
@@ -140,8 +140,14 @@ def qrcode():
             qrcodelink = qrcode_ref.document(id).get()
             return jsonify(u'{}'.format(qrcodelink.to_dict()['count'])), 200
         else:
-            all_qrcodelinks = []     
-            for doc in qrcode_ref.stream():
+            all_qrcodelinks = []
+            # Firestore where with or             
+            for doc in qrcode_ref.where("uuid", "==", session["google_id"]).where('type','==','local').stream():
+                don = doc.to_dict()
+                don["docid"] = doc.id
+                all_qrcodelinks.append(don)
+            
+            for doc in qrcode_ref.where('type','==','global').stream():
                 don = doc.to_dict()
                 don["docid"] = doc.id
                 all_qrcodelinks.append(don)

@@ -29,10 +29,18 @@
               </div>
               <hr>
               <div class="form-group">
-                <label for="location">Location</label>  
-                <input type="text" class="form-control" name="location" placeholder="Add a location for the qrcode"></input>
+                <label for="qrcode">Qr code</label>
+                <input type="text" class="form-control" name="qrcode" placeholder="The text, url that goes in your qrcode image" required></input>
               </div>
-              <hr>
+                <hr>
+              <div class="form-group">
+                <label for="type">Type</label>
+                <select id="type" name="type" class="form-control">
+                  <option selected>Select Type</option>
+                  <option value="global">Global&nbsp;QRcode</option>
+                  <option value="local">Local&nbsp;QRcode</option>
+                </select>
+              </div>
               <hr>
               <div class="form-group">
                 <label for="campaign">Campaign</label>  
@@ -44,11 +52,6 @@
                   <input type="text" class="form-control" name="version" placeholder="1 being the smallest and 40 being the largest. Version 1 will create a 21X21 matrix QR Code" required></input>
               </div>
               <hr>
-              <div class="form-group">
-                <label for="qrcode">Qr code</label>
-                <input type="text" class="form-control" name="qrcode" placeholder="The text, url that goes in your qrcode image" required></input>
-              </div>
-                <hr>
               <div class="form-group">
                 <label for="boxsize">Box Size</label>
                 <input type="text" class="form-control" name="boxsize"  placeholder="This parameter controls the number of pixels in each box of the QR code" required></input>

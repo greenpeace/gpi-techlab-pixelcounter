@@ -30,10 +30,25 @@
               </div>
               <hr>
               <div class="form-group">
-                <label for="location">Location</label>  
+                <label for="location">Type</label>  
                 <input type="text" class="form-control" name="location" value="{{ ngo.location }}"></input>
               </div>
+
+              <div class="form-group">
+                <label for="type">Type</label>
+                <select id="type" name="type" class="form-control">
+                  <option value="global" 
+                  {% if ngo.type == 'global' %} selected {% endif %}>Global</option>
+                  <option value="local" 
+                  {% if ngo.type == 'local' %} selected {% endif %}>Local</option>
+                  </select>
+              </div>
               <hr>
+              <div class="form-group">
+                <label for="qrcode">Qr code</label>
+                <input type="text" class="form-control" name="qrcode" value="{{ ngo.qrcode }}"></input>
+              </div>
+                <hr>
               <div class="form-group">
                 <label for="campaign">Campaign</label>  
                 <input type="text" class="form-control" name="campaign" value="{{ ngo.campaign }}"></input>
@@ -45,11 +60,6 @@
               </div>
               <hr>
               <div class="form-group">
-                <label for="qrcode">Qr code</label>
-                <input type="text" class="form-control" name="qrcode" value="{{ ngo.qrcode }}"></input>
-              </div>
-                <hr>
-              <div class="form-group">
                 <label for="boxsize">Box Size</label>
                 <input type="text" class="form-control" name="boxsize" value="{{ ngo.boxsize }}"></input>
               </div>
@@ -58,7 +68,7 @@
                 <input type="text" class="form-control" name="border" value="{{ ngo.border }}"></input>
               </div>
               <div class="form-group">
-                <label for="fill_color">Fill Coloer</label>
+                <label for="fill_color">Fill Color</label>
                 <input type="text" class="form-control" name="fill_color" value="{{ ngo.fill_color }}"></input>
               </div>
               <div class="form-group">

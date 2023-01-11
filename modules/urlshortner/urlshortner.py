@@ -88,6 +88,7 @@ def urlshortnercreate():
             u'click': 0,
             u'uniqueclick': 0,
             u'short': request.host_url + short,
+            u'type': request.form.get('type'),
             u'uuid': session["google_id"],
             u'user': session["name"]
         }
@@ -112,7 +113,12 @@ def urlshortner():
             return jsonify(u'{}'.format(urlshortnerlink.to_dict()['count'])), 200
         else:
             all_urlshortnerlinks = []     
-            for doc in molnurl_ref.stream():
+            for doc in molnurl_ref.where("uuid", "==", session["google_id"]).where('type','==','local').stream():
+                don = doc.to_dict()
+                don["docid"] = doc.id
+                all_urlshortnerlinks.append(don)
+            
+            for doc in molnurl_ref.where('type','==','global').stream():
                 don = doc.to_dict()
                 don["docid"] = doc.id
                 all_urlshortnerlinks.append(don)
@@ -225,6 +231,7 @@ def urlshortnerupdate():
             u'language': request.form.get('language'),
             u'country': request.form.get('country'),
             u'short': request.host_url + short,
+            u'type': request.form.get('type'),
             u'uuid': session["google_id"],
             u'user': session["name"]
         }
@@ -275,9 +282,9 @@ def urlredirect(id):
             })
 
             try:
-#                if system.bigquery.exist_dataset_table(table_id, dataset_id, project_id, system.bigquery.schema_shortnerstats):
-#                    system.bigquery.insert_rows_bq(table_id, dataset_id, project_id, urlshortnerstats_bq)
-#                logging.info("Info: record written to BigQUery")
+                if system.bigquery.exist_dataset_table(table_id, dataset_id, project_id, system.bigquery.schema_shortnerstats):
+                    system.bigquery.insert_rows_bq(table_id, dataset_id, project_id, urlshortnerstats_bq)
+                logging.info("Info: record written to BigQUery")
                 #print('{{"Info: url: {} request response time in hh:mm:ss {} ."}}'.format(url, time.strftime("%H:%M:%S", time.gmtime(time.time()))))
                 # Slack Notification
                 #payload = '{{"text":"Info: url: {} request response time in hh:mm:ss {} ."}}'.format(url, time.strftime("%H:%M:%S", time.gmtime(time.time())))

@@ -38,7 +38,15 @@
                 <label for="url">Url</label>
                 <input type="text" class="form-control" name="url" placeholder="URL to shorten" required></input>
               </div>
-                <hr>
+              <div class="form-group">
+                <label for="type">Type</label>
+                <select id="type" name="type" class="form-control">
+                  <option selected>Select Type</option>
+                  <option value="global">Global</option>
+                  <option value="local">Local</option>
+                </select>
+              </div>
+              <hr>
               <div class="form-group">
                 <label for="language">Language</label>
                 <input type="text" class="form-control" name="language" placeholder="The page languages of the URL link - you can leave blank"></input>

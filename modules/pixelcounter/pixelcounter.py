@@ -117,6 +117,7 @@ def createlist():
             u'count': int(request.form.get('count')),
             u'contactpoint': request.form.get('contactpoint'),
             u'campaign': request.form.get('campaign'),
+            u'type': request.form.get('type'),
             u'uuid': session["google_id"],
             u'user': session["name"]
         }
@@ -140,7 +141,19 @@ def read():
             counter = counter_ref.document(id).get()
             return jsonify(u'{}'.format(counter.to_dict()['count'])), 200
         else:
-            all_counters = [doc.to_dict() for doc in counter_ref.stream()]
+#            all_counters = [doc.to_dict() for doc in counter_ref.stream()]
+            
+            all_counters = []     
+            for doc in counter_ref.where("uuid", "==", session["google_id"]).where('type','==','local').stream():
+                don = doc.to_dict()
+                don["docid"] = doc.id
+                all_counters.append(don)
+            
+            for doc in counter_ref.where('type','==','global').stream():
+                don = doc.to_dict()
+                don["docid"] = doc.id
+                all_counters.append(don)
+            
             return render_template('list.html', output=all_counters)
     except Exception as e:
         return f"An Error Occured: {e}"
@@ -203,6 +216,7 @@ def updateform():
             u'count': int(request.form.get('count')),
             u'contactpoint': request.form.get('contactpoint'),
             u'campaign': request.form.get('campaign'),
+            u'type': request.form.get('type'),
             u'uuid': session["google_id"],
             u'user': session["name"]
         }
