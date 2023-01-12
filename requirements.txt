@@ -16,3 +16,7 @@ requests
 requests-oauthlib
 # library for qrcode
 qrcode
+# additional details
+pytz
+BeautifulSoup4
+pillow

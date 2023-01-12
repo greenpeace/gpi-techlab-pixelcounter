@@ -69,7 +69,7 @@ def urlshortnercreate():
                 flash(f'An Error Occured: The short link name is already in use')
                 return redirect(url_for('urlshortnerblue.urlshortner'))            
             else:
-                short =request.form.get('domain')
+                short = request.form.get('domain')
         else:
             message = id
             message_bytes = message.encode('ascii')
