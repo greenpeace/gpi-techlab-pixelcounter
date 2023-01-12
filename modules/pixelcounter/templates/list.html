@@ -36,6 +36,7 @@
                             <th scope="col">NRO</th>
                             <th scope="col">Counter</th>
                             <th scope="col">URL</th>
+                            <th scope="col">Type</th>
                             <th scope="col">Contact</th>
                             <th scope="col">Campaign</th>
                             <th scope="col">End point</th>
@@ -49,7 +50,8 @@
                               <td>{{ ngo.id }}</td>
                               <td>{{ ngo.nro }}</td>
                               <td>{{'{:,}'.format(ngo.count)}}</td>
-                              <td><a href="{{ ngo.url }}" target="new"><strong>{{ ngo.url }}</strong></a></td>
+                              <td><a href="{{ ngo.url }}" target="new"><strong>Visit</strong></a></td>
+                              <td>{{ ngo.type }}</td>
                               <td>{{ ngo.contactpoint }}</td>
                               <td>{{ ngo.campaign }}</td> 
                               <td><b>/count?id={{ ngo.id }}</b></td>
@@ -80,6 +82,7 @@
                 {data: 'nro'},
                 {data: 'count'},
                 {data: 'url'},
+                {data: 'type'},
                 {data: 'contactpoint'},
                 {data: 'campaign'},
                 null,

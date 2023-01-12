@@ -40,6 +40,7 @@
                             <th scope="col">Date</th>
                             <th scope="col">URL</th>
                             <th scope="col">Short Url</th>
+                            <th scope="col">Type</th>
                             <th style="width:200px;">Action</th>
                           </tr>
                         </thead>
@@ -67,6 +68,7 @@
                                   {{ ngo.short }}
                                 </a>
                               </td>
+                              <td>{{ ngo.type }}</td>
                               <td>
                                 <a class="btn btn-sm btn-success" href="/urlshortneredit?id={{ ngo.docid }}" title="Edit" ><i class="glyphicon glyphicon-pencil"></i> Edit</a>
                                 <a class="btn btn-sm btn-danger" href="/urlshortnerdelete?id={{ ngo.docid }}" title="Delete">Delete</a>
@@ -94,6 +96,7 @@
                 {data: 'date'},
                 {data: 'url'},
                 {data: 'short'},
+                {data: 'type'},
                 {data: 'action', orderable: false}
             ],
           });

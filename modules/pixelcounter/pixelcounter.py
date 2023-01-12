@@ -110,21 +110,27 @@ def createlist():
     try:
         id = request.form.get('id')
         
-        data = {
-            u'id': request.form.get('id'),
-            u'nro': request.form.get('nro'),
-            u'url': request.form.get('url'),
-            u'count': int(request.form.get('count')),
-            u'contactpoint': request.form.get('contactpoint'),
-            u'campaign': request.form.get('campaign'),
-            u'type': request.form.get('type'),
-            u'uuid': session["google_id"],
-            u'user': session["name"]
-        }
-        
-        counter_ref.document(id).set(data)
-        flash('Data Succesfully Submitted')
-        return redirect(url_for('pixelcounterblue.read'))
+        # Check if id already exixst # check if short exist 
+        docshort = counter_ref.where('id', '==', request.form.get('id')).get()
+        if (len(list(docshort))):
+            flash(f'An Error Occured: The counter name has already been taken')
+            return redirect(url_for('pixelcounterblue.read'))            
+        else:
+            data = {
+                u'id': request.form.get('id'),
+                u'nro': request.form.get('nro'),
+                u'url': request.form.get('url'),
+                u'count': int(request.form.get('count')),
+                u'contactpoint': request.form.get('contactpoint'),
+                u'campaign': request.form.get('campaign'),
+                u'type': request.form.get('type'),
+                u'uuid': session["google_id"],
+                u'user': session["name"]
+            }
+            
+            counter_ref.document(id).set(data)
+            flash('Data Succesfully Submitted')
+            return redirect(url_for('pixelcounterblue.read'))
     except Exception as e:
         flash('An Error Occvured', {e})
         return redirect(url_for('pixelcounterblue.addlist'))
@@ -140,9 +146,7 @@ def read():
         if id:
             counter = counter_ref.document(id).get()
             return jsonify(u'{}'.format(counter.to_dict()['count'])), 200
-        else:
-#            all_counters = [doc.to_dict() for doc in counter_ref.stream()]
-            
+        else:            
             all_counters = []     
             for doc in counter_ref.where("uuid", "==", session["google_id"]).where('type','==','local').stream():
                 don = doc.to_dict()
@@ -258,11 +262,10 @@ def counter():
             # Add Counter
             id = request.args.get('id')  
             counter_ref.document(id).update({u'count': Increment(1)})
-            counter_ref.document('totals').update({u'count': Increment(1)})
-#            return base64.b64decode(b'='), 200       
+            counter_ref.document('totals').update({u'count': Increment(1)})    
             return jsonify({"success": True}), 200
     except Exception as e:
-        return f"An Error Occured: {e}"
+        return f"An Error Occured: {e}", 500
 
 @pixelcounterblue.route('/count_pixel', methods=['GET','POST',])
 @cross_origin()
@@ -295,7 +298,7 @@ def count_pixel():
             filename = 'static/images/onepixel.gif'
             return send_file(filename, mimetype='image/gif')
     except Exception as e:
-        return f"An Error Occured: {e}"
+        return f"An Error Occured: {e}", 500
 
 ##
 # The count route used for pixel image to increase a count using a GET request
@@ -332,7 +335,7 @@ def count():
             counter_ref.document('totals').update({u'count': Increment(1)})
             return base64.b64decode(b'='), 200
     except Exception as e:
-        return f"An Error Occured: {e}"
+        return f"An Error Occured: {e}", 500
     
 ##
 # The API endpoint allows the user to get the endpoint total defined  by id
@@ -364,7 +367,7 @@ def signups():
         output = counter.to_dict()['count']
         return jsonify({"unique_count": output, "id": id}), 200
     except Exception as e:
-        return f"An Error Occured: {e}" 
+        return f"An Error Occured: {e}", 500
 
 #
 # API Route add a counter by ID - requires json file body with id and count

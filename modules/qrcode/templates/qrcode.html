@@ -39,6 +39,7 @@
                             <th scope="col">Date Created</th>
                             <th scope="col">Qr code</th>
                             <th scope="col">Description</th>
+                            <th scope="col">Type</th>
                             <th style="width:200px;">Action</th>
                           </tr>
                         </thead>
@@ -64,6 +65,7 @@
                               <td>{{ ngo.date_created }}</td>
                               <td>{{ ngo.qrcode }}</td>
                               <td>{{ ngo.description }}</td>
+                              <td>{{ ngo.type }}</td>
                               <td>
                                 <a class="btn btn-sm btn-success" href="/qrcodeedit?id={{ ngo.docid }}" title="Edit" ><i class="glyphicon glyphicon-pencil"></i> Edit</a>
                                 <a class="btn btn-sm btn-danger" href="/qrcodedelete?id={{ ngo.docid }}" title="Delete">Delete</a>
@@ -91,6 +93,7 @@
                 {data: 'date_creted'},
                 {data: 'qrcode'},
                 {data: 'description'},
+                {data: 'type'},
                 {data: 'action', orderable: false}
             ],
           });
