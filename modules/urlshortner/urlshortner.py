@@ -1,4 +1,5 @@
 from flask import Blueprint, g, request, session, jsonify, url_for, redirect, render_template, flash
+from flask_cors import CORS,cross_origin
 # to get meta details from an url
 import requests
 from bs4 import BeautifulSoup
@@ -45,21 +46,27 @@ def urlshortneradd():
 #
 @urlshortnerblue.route("/urlshortnercreate", methods=['POST'], endpoint='urlshortnercreate')
 @login_is_required
+@cross_origin()
 def urlshortnercreate():
-    try:
-        
+    try: 
         # Get the URL from the form and make a request to get data from it
         url = request.form.get('url')
-        # Request URL and get meta data
-        response = requests.get(url)
-        soup = BeautifulSoup(response.text)
-        # Find the title and description from the URL of the redirect
-        title = soup.find("meta",  property="og:title")
-        description = soup.find("meta",  property="og:description")
-        meta_tag = soup.find('meta', attrs={'name': 'description'})
-
+        title = ""
+        description = ""
+        try:
+            # Request URL and get meta data
+            response = requests.get(url)
+            soup = BeautifulSoup(response.text)
+            # Find the title and description from the URL of the redirect
+            title = soup.find("meta",  property="og:title")
+            description = soup.find("meta",  property="og:description")
+            meta_tag = soup.find('meta', attrs={'name': 'description'})
+        except Exception as e:
+            flash('Data Succesfully Submitted')
+        
+        #generates id
         doc_ref = molnurl_ref.document()
-        id = doc_ref.id #generates id
+        id = doc_ref.id
 
         # CHeck if system generate short name or user provided shortname
         if request.form.get('domain') != "":
@@ -80,7 +87,7 @@ def urlshortnercreate():
             u'active': True,
             u'date': datenow(),
             u'meta_title': title["content"] if title else "No meta title given",
-            u'meta_description': description["content"] if title else "No meta title given",
+            u'meta_description': description["content"] if description else "No meta title given",
             u'domain': request.form.get('domain'),
             u'url': request.form.get('url'),
             u'language': request.form.get('language'),
@@ -194,6 +201,7 @@ def urlshortneractive():
 #
 @urlshortnerblue.route("/urlshortnerupdate", methods=['POST', 'PUT'], endpoint='urlshortnerupdate')
 @login_is_required
+@cross_origin()
 def urlshortnerupdate():
     try:
         id = request.form['id']
@@ -203,13 +211,15 @@ def urlshortnerupdate():
         
         # Get the URL from the form and make a request to get data from it
         url = request.form.get('url')
-        
-        response = requests.get(url)
-        soup = BeautifulSoup(response.text)
+        try:
+            response = requests.get(url)
+            soup = BeautifulSoup(response.text)
 
-        # Find the title and description from the URL of the redirect
-        title = soup.find("meta",  property="og:title")
-        description = soup.find("meta",  property="og:description")
+            # Find the title and description from the URL of the redirect
+            title = soup.find("meta",  property="og:title")
+            description = soup.find("meta",  property="og:description")
+        except Exception as e:
+            flash('Data Succesfully Submitted')
         
         # CHeck if system generate short name or user provided shortname
         if request.form.get('domain') != "":
