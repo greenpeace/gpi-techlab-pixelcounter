@@ -10,3 +10,11 @@ frontpageblue = Blueprint('frontpageblue', __name__)
 @frontpageblue.route("/")
 def index():
     return render_template('login.html', **locals())
+
+#
+# API Route Default displays a webpage
+#
+@frontpageblue.route("/howtouse")
+def howtouse():
+    return render_template('howtouse.html', **locals())
+
