@@ -35,7 +35,7 @@ flow = Flow.from_client_secrets_file(
             ],
     #and the redirect URI is the point where the user will end up after the authorization
     #redirect_uri="http://127.0.0.1:8080/callback"
-    redirect_uri="https://pixelcounter.greenpeace.org/callback"   
+    redirect_uri="https://counter.greenpeace.org/callback"   
 )
 
 #

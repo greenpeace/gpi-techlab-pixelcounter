@@ -94,7 +94,7 @@ def urlshortnercreate():
             u'country': request.form.get('country'),            
             u'click': 0,
             u'uniqueclick': 0,
-            u'short': request.host_url + short,
+            u'short': short,
             u'type': request.form.get('type'),
             u'uuid': session["google_id"],
             u'user': session["name"]
@@ -240,7 +240,7 @@ def urlshortnerupdate():
             u'url': request.form.get('url'),
             u'language': request.form.get('language'),
             u'country': request.form.get('country'),
-            u'short': request.host_url + short,
+            u'short': short,
             u'type': request.form.get('type'),
             u'uuid': session["google_id"],
             u'user': session["name"]
@@ -256,8 +256,8 @@ def urlshortnerupdate():
 @urlshortnerblue.route('/<id>', methods=['POST', 'GET', 'PUT'], endpoint='urlredirect')
 def urlredirect(id):
     try:
-        short = request.host_url + id
-        for doc in molnurl_ref.where(u'short', u'==', short).stream():
+        #short = request.host_url + id
+        for doc in molnurl_ref.where(u'short', u'==', id).stream():
             url = u'{}'.format(doc.to_dict()['url'])
             # Add Counter
             molnurl_ref.document(doc.id).update({u'click': Increment(1)})
