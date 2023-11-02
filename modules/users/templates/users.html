@@ -1,0 +1,26 @@
+<!-- List users, add user using jinja template -->  
+
+
+
+<html>
+  <head>
+    <title>Users List</title>
+  </head>
+  <body>
+    <h1>Users List</h1>
+
+    {% for user in users %}
+      <ul>
+        <li>{{ user }}</li>
+      </ul>
+    {% endfor %}
+
+    {% if add_user %}
+      <form action="/add_user" method="post">
+        <input type="text" name="username" placeholder="Enter username">
+        <input type="submit" value="Add User">  
+      </form>  
+    {% endif %}
+
+  </body>  
+</html

@@ -1,4 +1,4 @@
-from flask import Blueprint, g, request, session, jsonify, url_for, redirect, render_template, flash
+from flask import Blueprint, g, request, session, jsonify, url_for, redirect, render_template, flash, abort
 from flask_cors import CORS,cross_origin
 # to get meta details from an url
 import requests
@@ -26,8 +26,6 @@ from modules.auth.auth import login_is_required
 from system.setenv import project_id
 from system.getsecret import getsecrets
 
-# Get the secret for Service Account
-app_secret_key_newsdesk = getsecrets("app_secret_key",project_id)
 # Get the secret for dataset
 dataset_id = getsecrets("urlshortner_stats_dataset_id",project_id)
 # Get the secret for table
@@ -261,47 +259,51 @@ def urlredirect(id):
             url = u'{}'.format(doc.to_dict()['url'])
             # Add Counter
             molnurl_ref.document(doc.id).update({u'click': Increment(1)})
-            
-            # remove all elements list
-            # Create list for BigQuery save
-            urlshortnerstats_bq = []
-            # Create BQ json string
-            urlshortnerstats_bq.append({
-                'short': id if id else '',
-                'date': datenow(),
-                'docid': doc.id if doc.id else '',
-                'host': request.host if request.host else '',
-                'host_url': request.host_url if request.host_url else '',
-                'ip_address': request.remote_addr if request.remote_addr else '',
-                'requested_url': request.url if request.url else '',
-                'referer_page': request.referrer if request.referrer else '',
-                'schema': request.scheme if request.scheme else '',
-                'routing_exception': request.routing_exception if request.routing_exception else '',
-                'origin': request.origin if request.origin else '',
-                'method': request.method if request.method else '',
-                'full_path': request.full_path if request.full_path else '',
-                'user_agent': request.headers.get('User-Agent') if request.headers.get('User-Agent') else '',
-                'language': request.headers.get('Accept-Language') if request.headers.get('Accept-Language') else '',
-                'user_agent_language': request.user_agent.language if request.user_agent.language else '',
-                'browser': request.user_agent.browser if request.user_agent.browser else '',
-                'platform': request.user_agent.platform if request.user_agent.platform else '',
-                'version': request.user_agent.version if request.user_agent.version else '',
-                'user_agent_string': request.user_agent.string if request.user_agent.string else '',
-                'page_name': request.path if request.path else '',
-                'query_string': request.query_string if request.query_string else ''
-            })
-
-            try:
-                if system.bigquery.exist_dataset_table(table_id, dataset_id, project_id, system.bigquery.schema_shortnerstats):
-                    system.bigquery.insert_rows_bq(table_id, dataset_id, project_id, urlshortnerstats_bq)
-                logging.info("Info: record written to BigQUery")
-                #print('{{"Info: url: {} request response time in hh:mm:ss {} ."}}'.format(url, time.strftime("%H:%M:%S", time.gmtime(time.time()))))
-                # Slack Notification
-                #payload = '{{"text":"Info: url: {} request response time in hh:mm:ss {} ."}}'.format(url, time.strftime("%H:%M:%S", time.gmtime(time.time())))
-                return redirect(url, code=307)
-            except Exception as e:
-                logging.error("Error: Writing data to BigQuery")
-                return redirect(url_for('frontpageblue.index'))                
+            # writetobigquery(doc)
+            # Redirect 
+            print("Redirecting to: {}".format(url))
+            return redirect(url, code=307)
+        abort(404)
     except Exception as e:
-#        return f"An Error Occured: {e}"
+        print("An error occurred: {}".format(e))
         return redirect(url_for('frontpageblue.index'))
+    
+def writetobigquery(doc):
+    # Create list for BigQuery save
+    urlshortnerstats_bq = []
+    # Create BQ json string
+    urlshortnerstats_bq.append({
+        'short': id if id else '',
+        'date': datenow(),
+        'docid': doc.id if doc.id else '',
+        'host': request.host if request.host else '',
+        'host_url': request.host_url if request.host_url else '',
+        'ip_address': request.remote_addr if request.remote_addr else '',
+        'requested_url': request.url if request.url else '',
+        'referer_page': request.referrer if request.referrer else '',
+        'schema': request.scheme if request.scheme else '',
+        'routing_exception': request.routing_exception if request.routing_exception else '',
+        'origin': request.origin if request.origin else '',
+        'method': request.method if request.method else '',
+        'full_path': request.full_path if request.full_path else '',
+        'user_agent': request.headers.get('User-Agent') if request.headers.get('User-Agent') else '',
+        'language': request.headers.get('Accept-Language') if request.headers.get('Accept-Language') else '',
+        'user_agent_language': request.user_agent.language if request.user_agent.language else '',
+        'browser': request.user_agent.browser if request.user_agent.browser else '',
+        'platform': request.user_agent.platform if request.user_agent.platform else '',
+        'version': request.user_agent.version if request.user_agent.version else '',
+        'user_agent_string': request.user_agent.string if request.user_agent.string else '',
+        'page_name': request.path if request.path else '',
+        'query_string': request.query_string if request.query_string else ''
+    })
+
+    try:
+        if system.bigquery.exist_dataset_table(table_id, dataset_id, project_id, system.bigquery.schema_shortnerstats):
+            system.bigquery.insert_rows_bq(table_id, dataset_id, project_id, urlshortnerstats_bq)
+        logging.info("Info: record written to BigQUery")
+        #print('{{"Info: url: {} request response time in hh:mm:ss {} ."}}'.format(url, time.strftime("%H:%M:%S", time.gmtime(time.time()))))
+        # Slack Notification
+        #payload = '{{"text":"Info: url: {} request response time in hh:mm:ss {} ."}}'.format(url, time.strftime("%H:%M:%S", time.gmtime(time.time())))
+    except Exception as e:
+        logging.error("Error: Writing data to BigQuery")
+        return redirect(url_for('frontpageblue.index')) 

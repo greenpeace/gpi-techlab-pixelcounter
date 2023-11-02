@@ -10,7 +10,9 @@ from flask import Flask, render_template
 # Internal imports
 from system.getsecret import getsecrets
 
-# Import Modules
+# Markup
+from markupsafe import Markup
+
 # Import Authorization
 from modules.auth.auth import authsblue
 # Import pixelcounterblue
@@ -40,6 +42,15 @@ def internal_server_error(e):
 # Initialize Flask App
 app = Flask(__name__)
 
+# Logging server calls
+app.logger.setLevel(logging.INFO)
+logging.basicConfig(format='%(levelname)s:%(message)s')
+
+# New Line filter from \n to <br>
+def nl2br(value):
+    """Converts newlines in a string to HTML line breaks."""
+    return Markup(value.replace('\n', '<br>\n'))
+
 # register frontpage
 app.register_blueprint(frontpageblue)
 # Register AUTh Module
@@ -58,10 +69,6 @@ app.secret_key = app_secret_key
 
 logging.info("Start processing Function")
 
-# Register Error Handlers
-app.register_error_handler(404, page_not_found)
-app.register_error_handler(500, internal_server_error)
-
 #
 # 404 Page not found    
 #
@@ -77,11 +84,18 @@ def not_found_error(error):
 def internal_error(error):
     logging.info(f'500 System Error')
     return render_template('500.html'), 500
+  
+@app.route('/favicon.ico')
+def favicon():
+    return ''
 
-#
+#    
 # Setting up to serve on port 8080
 #
 port = int(os.environ.get('PORT', 8080))
 if __name__ == '__main__':
-    from waitress import serve
-    serve(app, host="0.0.0.0", port=port)
+    logging.getLogger().setLevel("DEBUG")
+    app.run(host='0.0.0.0', port=8080, debug=True)
+#    from waitress import serve
+#    serve(app, host="0.0.0.0", port=port)
+

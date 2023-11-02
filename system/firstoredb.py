@@ -22,3 +22,11 @@ emailhash_ref = db.collection(u'amialhash')
 qrcode_ref = db.collection(u'qrcode')
 # shorten url
 molnurl_ref = db.collection(u'moln-url')
+# shorten url
+users_ref = db.collection(u'users')
+# Data colelction to store all documents that should be used for indexing for vector
+blogpost_ref = db.collection(u'blog')
+
+# CRM to track any request from contactform
+crm_ref = db.collection("legalcrm")
+

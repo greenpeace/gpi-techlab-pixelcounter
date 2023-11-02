@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<!-- meta tags -->
+<meta charset="utf-8">
+<meta name="description" content="Greenpeace International" />
+<meta name="keywords" content="aggregate news, AI content writing, search on keywords" />
+<meta name="author" content="greenpeace.org">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+
+<!-- Title -->
+<title>Greenpeace Leagal Case Tracker</title>
+
+<!-- Favicon Icon -->
+<link rel="shortcut icon" href="{{ url_for('static', filename='images/favicon.ico') }}" />
+
+<!-- inject css start -->
+<!--== bootstrap -->
+<link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet" type="text/css" />
+<!--== animate -->
+<link href="{{ url_for('static', filename='css/animate.css') }}" rel="stylesheet" type="text/css" />
+<!--== line-awesome -->
+<link href="{{ url_for('static', filename='css/line-awesome.min.css') }}" rel="stylesheet" type="text/css" />
+<!--== themify-icons -->
+<link href="{{ url_for('static', filename='css/themify-icons.css') }}" rel="stylesheet" type="text/css" />
+<!--== magnific-popup -->
+<link href="{{ url_for('static', filename='css/magnific-popup.css') }}" rel="stylesheet" type="text/css" />
+<!--== owl.carousel -->
+<link href="{{ url_for('static', filename='css/owl.carousel.css') }}" rel="stylesheet" type="text/css" />
+<!--== lightslider -->
+<link href="{{ url_for('static', filename='css/lightslider.min.css') }}" rel="stylesheet" type="text/css" />
+<!--== spacing -->
+<link href="{{ url_for('static', filename='css/spacing.css') }}" rel="stylesheet" type="text/css" />
+<!--== theme.min -->
+<link href="{{ url_for('static', filename='css/theme.min.css') }}" rel="stylesheet" />
+
+<!-- inject css end -->
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-LLRTWL335N');
+  </script>
+
+</head>
+
+<body class="bg-light">
+
+<!-- page wrapper start -->
+
+<div class="page-wrapper">
+  
+<!-- preloader start -->
+
+<div id="ht-preloader">
+  <div class="loader clear-loader">
+    <span></span>
+    <p>Greenpeace</p>
+  </div>
+</div>
+
+<!-- preloader end -->
+
+<!--header start-->
+
+<header class="site-header navbar-dark">
+  <div id="header-wrap" class="position-absolute w-100 z-index-1">
+    <div class="container">
+      <div class="row">
+        <!--menu start-->
+        <div class="col"> 
+          <nav class="navbar navbar-expand-lg">
+            <a class="navbar-brand logo text-white h2 mb-0" href="{{ url_for('frontpageblue.index') }}">
+              <img class="img-fluid" src="{{ url_for('static', filename='images/greenpeace-163x50.png') }}" alt="">
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-expanded="false" aria-label="Toggle navigation"> <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+              <ul class="navbar-nav ms-auto">
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('frontpageblue.index') }}">Home</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('frontpageblue.contactus') }}">Contacts</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('authsblue.login') }}">Login</a></li>
+              </ul>
+            </div>
+          </nav>  
+        </div>
+        <!--menu end-->
+      </div>
+    </div>
+  </div>
+</header>
+
+<!--header end-->
+
