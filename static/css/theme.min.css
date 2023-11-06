@@ -455,7 +455,7 @@ header .navbar-nav .nav-item {
   position: relative; }
 
 .navbar-dark #header-wrap.fixed-header {
-  background: #1360ef !important; }
+  background: #66CC00 !important; }
 
 .navbar-light .navbar-nav .nav-link.active, .navbar-light .navbar-nav .nav-link:focus, .navbar-light .navbar-nav .nav-link:hover {
   color: #1360ef; }

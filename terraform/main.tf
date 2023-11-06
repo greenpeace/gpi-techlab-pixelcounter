@@ -57,7 +57,6 @@ resource "google_artifact_registry_repository_iam_member" "docker_pusher_iam" {
   ]
 }
 
-
 resource "null_resource" "docker_build" {
 
 triggers = {
@@ -98,8 +97,8 @@ resource "google_cloud_run_service" "pixelcounter" {
         }
         resources {
             limits = {
-              "memory" = "1G"
-              "cpu" = "1"
+              "memory" = "2G"
+              "cpu" = "2"
             }
         }
       }
@@ -107,7 +106,7 @@ resource "google_cloud_run_service" "pixelcounter" {
     metadata {
       annotations = {
           "autoscaling.knative.dev/minScale" = "0"
-          "autoscaling.knative.dev/maxScale" = "1"
+          "autoscaling.knative.dev/maxScale" = "2"
       }
     }
   }

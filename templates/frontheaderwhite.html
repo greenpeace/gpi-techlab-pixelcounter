@@ -4,15 +4,15 @@
 
 <!-- meta tags -->
 <meta charset="utf-8">
-<meta name="description" content="Greenpeace International" />
-<meta name="keywords" content="aggregate news, AI content writing, search on keywords" />
-<meta name="author" content="greenpeace.org">
+<meta name="description" content="News Portal" />
+<meta name="keywords" content="aggregate news, AI content writing, search on keywords, dashboard social news views" />
+<meta name="author" content="socialclimate.tech">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
 
 <!-- Title -->
-<title>Greenpeace Leagal Case Tracker</title>
+<title>TechCamp 2023</title>
 
 <!-- Favicon Icon -->
 <link rel="shortcut icon" href="{{ url_for('static', filename='images/favicon.ico') }}" />
@@ -44,8 +44,17 @@
     gtag('js', new Date());
     gtag('config', 'G-LLRTWL335N');
   </script>
-
 </head>
+
+<style>
+  .text-blue {
+    color: #1360ef !important;
+  }
+
+  .navbar-blue {
+    color: #1360ef !important;
+  }
+</style>
 
 <body class="bg-light">
 
@@ -58,7 +67,7 @@
 <div id="ht-preloader">
   <div class="loader clear-loader">
     <span></span>
-    <p>Greenpeace</p>
+    <p>TechCamp 2023</p>
   </div>
 </div>
 
@@ -66,21 +75,23 @@
 
 <!--header start-->
 
-<header class="site-header navbar-dark">
+<header class="site-header navbar-blue">
   <div id="header-wrap" class="position-absolute w-100 z-index-1">
     <div class="container">
       <div class="row">
         <!--menu start-->
         <div class="col"> 
           <nav class="navbar navbar-expand-lg">
-            <a class="navbar-brand logo text-white h2 mb-0" href="{{ url_for('frontpageblue.index') }}">
-              <img class="img-fluid" src="{{ url_for('static', filename='images/greenpeace-163x50.png') }}" alt="">
+            <a class="navbar-brand logo text-blue h2 mb-0" href="{{ url_for('frontpageblue.index') }}">
+              Tech<span class="text-blue fw-bold">Camp</span>2023.
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-expanded="false" aria-label="Toggle navigation"> <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
               <ul class="navbar-nav ms-auto">
-                <li class="nav-item"><a class="nav-link" href="{{ url_for('frontpageblue.index') }}">Home</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('frontpageblue.index') }}">Home</a></li>                
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('frontpageblue.aboutus') }}">About&nbsp;Us</a></li>
+                <li class="nav-item"><a class="nav-link" href="{{ url_for('frontpageblue.contactus') }}">Contact</a></li>
                 <li class="nav-item"><a class="nav-link" href="{{ url_for('authsblue.login') }}">Login</a></li>
               </ul>
             </div>

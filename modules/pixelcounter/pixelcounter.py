@@ -313,27 +313,30 @@ def count():
         for doc in allowedorigion_ref.stream():
             allowed_origin_list.append(doc.to_dict()['domain'])
         #print("Remot Host Address: ", request.environ['REMOTE_HOST'])
-        if 'REMOTE_ADDR' in request.environ and request.environ['REMOTE_ADDR'] in allowed_origin_list:
-            # On allowed lsut, check if ID was passed to URL query
-            email_hash = request.args.get('email_hash')
-            if email_hash is not None:
-                docRef = emailhash_ref.where('email_hash', '==', email_hash).get()
-                documents = [d for d in docRef]
-                # Check if hash value already exixsts in the database
-                if len(documents):
-                    # If exists, don not increase count by 1
-                    return base64.b64decode(b'='), 200
-                else:
-                    # Add hashed email to database
-                    data = {
-                        u'email_hash': email_hash,
-                    }
-                    emailhash_ref.document().set(data)
-            # Add Counter
-            id = request.args.get('id')  
-            counter_ref.document(id).update({u'count': Increment(1)})
-            counter_ref.document('totals').update({u'count': Increment(1)})
-            return base64.b64decode(b'='), 200
+        try:
+            if 'REMOTE_HOST' in request.environ and request.environ['REMOTE_HOST'] in allowed_origin_list:
+                # On allowed lsut, check if ID was passed to URL query
+                email_hash = request.args.get('email_hash')
+                if email_hash is not None:
+                    docRef = emailhash_ref.where('email_hash', '==', email_hash).get()
+                    documents = [d for d in docRef]
+                    # Check if hash value already exixsts in the database
+                    if len(documents):
+                        # If exists, don not increase count by 1
+                        return base64.b64decode(b'='), 200
+                    else:
+                        # Add hashed email to database
+                        data = {
+                            u'email_hash': email_hash,
+                        }
+                        emailhash_ref.document().set(data)
+                # Add Counter
+                id = request.args.get('id')  
+                counter_ref.document(id).update({u'count': Increment(1)})
+                counter_ref.document('totals').update({u'count': Increment(1)})
+                return base64.b64decode(b'='), 200
+        except Exception as e:
+            return f"An Error Occured: {e}", 500
     except Exception as e:
         return f"An Error Occured: {e}", 500
     

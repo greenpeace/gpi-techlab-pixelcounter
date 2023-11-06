@@ -1,7 +1,6 @@
 # Dockerfile
 FROM python:3.10-slim
 RUN apt-get update -y
-RUN apt-get install -y python3-pip python-dev build-essential
 
 WORKDIR /app
 
