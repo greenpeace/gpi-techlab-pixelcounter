@@ -4,6 +4,7 @@ from flask import Blueprint, g, request, session, send_file, jsonify, url_for, r
 from flask_cors import CORS,cross_origin
 # Install Google Libraries
 from google.cloud.firestore import Increment
+
 # Journalist firestore collection
 from system.firstoredb import counter_ref
 from system.firstoredb import allowedorigion_ref
@@ -243,7 +244,24 @@ def counter():
         allowed_origin_list = []
         for doc in allowedorigion_ref.stream():
             allowed_origin_list.append(doc.to_dict()['domain'])
-        if 'REMOTE_HOST' in request.environ and request.environ['REMOTE_HOST'] in allowed_origin_list:
+            
+        print(request.environ)
+
+        remote_address = None
+
+        # Check if HTTP_X_FORWARDED_FOR is set
+        if 'HTTP_X_FORWARDED_FOR' in request.environ:
+            forwarded_for = request.environ['HTTP_X_FORWARDED_FOR']
+            if forwarded_for in allowed_origin_list:
+                remote_address = forwarded_for
+
+        # If HTTP_X_FORWARDED_FOR is not set or not allowed, use REMOTE_ADDR
+        if remote_address is None and 'REMOTE_ADDR' in request.environ:
+            remote_address = request.environ['REMOTE_ADDR']
+
+        # Now remote_address contains the appropriate remote address
+
+        if remote_address is not None:
             # On allowed lsut, check if ID was passed to URL query
             email_hash = request.args.get('email_hash')
             if email_hash is not None:
@@ -264,6 +282,9 @@ def counter():
             counter_ref.document(id).update({u'count': Increment(1)})
             counter_ref.document('totals').update({u'count': Increment(1)})    
             return jsonify({"success": True}), 200
+        logging.info("No Match Allowed Lists")
+        return f"Not in allowed list", 400
+
     except Exception as e:
         return f"An Error Occured: {e}", 500
 
@@ -275,16 +296,33 @@ def count_pixel():
         allowed_origin_list = []
         for doc in allowedorigion_ref.stream():
             allowed_origin_list.append(doc.to_dict()['domain'])
-        if 'REMOTE_HOST' in request.environ and request.environ['REMOTE_HOST'] in allowed_origin_list:
+        
+        print(request.environ)
+
+        remote_address = None
+
+        # Check if HTTP_X_FORWARDED_FOR is set
+        if 'HTTP_X_FORWARDED_FOR' in request.environ:
+            forwarded_for = request.environ['HTTP_X_FORWARDED_FOR']
+            if forwarded_for in allowed_origin_list:
+                remote_address = forwarded_for
+
+        # If HTTP_X_FORWARDED_FOR is not set or not allowed, use REMOTE_ADDR
+        if remote_address is None and 'REMOTE_ADDR' in request.environ:
+            remote_address = request.environ['REMOTE_ADDR']
+
+        # Now remote_address contains the appropriate remote address
+
+        if remote_address is not None:
             # On allowed lsut, check if ID was passed to URL query
-            email_hash = request.args.get('email_hash')
+            email_hash = request.args.get('email_hash')            
             if email_hash is not None:
                 docRef = emailhash_ref.where('email_hash', '==', email_hash).get()
                 documents = [d for d in docRef]
                 # Check if hash value already exixsts in the database
                 if len(documents):
                     # If exists, don not increase count by 1
-                    return base64.b64decode(b'='), 200
+                    return '', 200
                 else:
                     # Add hashed email to database
                     data = {
@@ -297,6 +335,9 @@ def count_pixel():
             counter_ref.document('totals').update({u'count': Increment(1)})
             filename = 'static/images/onepixel.gif'
             return send_file(filename, mimetype='image/gif')
+        # Add a default response if none of the conditions are met
+        logging.info("No Match Allowed Lists")
+        return f"Not in allowed list", 400
     except Exception as e:
         return f"An Error Occured: {e}", 500
 
@@ -312,9 +353,23 @@ def count():
         allowed_origin_list = []
         for doc in allowedorigion_ref.stream():
             allowed_origin_list.append(doc.to_dict()['domain'])
-        #print("Remot Host Address: ", request.environ['REMOTE_HOST'])
         try:
-            if 'REMOTE_HOST' in request.environ and request.environ['REMOTE_HOST'] in allowed_origin_list:
+            print(request.environ)
+
+            remote_address = None
+
+            # Check if HTTP_X_FORWARDED_FOR is set
+            if 'HTTP_X_FORWARDED_FOR' in request.environ:
+                forwarded_for = request.environ['HTTP_X_FORWARDED_FOR']
+                if forwarded_for in allowed_origin_list:
+                    remote_address = forwarded_for
+
+            # If HTTP_X_FORWARDED_FOR is not set or not allowed, use REMOTE_ADDR
+            if remote_address is None and 'REMOTE_ADDR' in request.environ:
+                remote_address = request.environ['REMOTE_ADDR']
+
+            # Now remote_address contains the appropriate remote address
+            if remote_address is not None:
                 # On allowed lsut, check if ID was passed to URL query
                 email_hash = request.args.get('email_hash')
                 if email_hash is not None:
@@ -323,7 +378,7 @@ def count():
                     # Check if hash value already exixsts in the database
                     if len(documents):
                         # If exists, don not increase count by 1
-                        return base64.b64decode(b'='), 200
+                        return '', 200
                     else:
                         # Add hashed email to database
                         data = {
@@ -334,7 +389,11 @@ def count():
                 id = request.args.get('id')  
                 counter_ref.document(id).update({u'count': Increment(1)})
                 counter_ref.document('totals').update({u'count': Increment(1)})
+                logging.info("Counter Been Updated")
                 return base64.b64decode(b'='), 200
+            # Add a default response if none of the conditions are met
+            logging.info("No Match Allowed Lists")
+            return f"Not in allowed list", 400
         except Exception as e:
             return f"An Error Occured: {e}", 500
     except Exception as e:

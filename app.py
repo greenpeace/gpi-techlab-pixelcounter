@@ -7,27 +7,17 @@ from werkzeug.exceptions import abort
 # Third-party libraries
 from flask import Flask, render_template
 
-# Internal imports
-from system.getsecret import getsecrets
-
 # Markup
 from markupsafe import Markup
 
-# Import Authorization
-from modules.auth.auth import authsblue
-# Import pixelcounterblue
-from modules.pixelcounter.pixelcounter import pixelcounterblue
-# Import from Dashboard
-from modules.dashboard.dashboard import dashboardblue
-# Import Frontpage
-from modules.frontpage.frontpage import frontpageblue
-# from qrcode
-from modules.qrcode.qrcode import qrcodeblue
-# from qrcode
-from modules.urlshortner.urlshortner import urlshortnerblue
+# Internal imports
+from system.getsecret import getsecrets
+from system.gcpclientinit import initialize_gcp_client
 
 # Import project id
 from system.setenv import project_id
+# Initialize the GCP client using the secure secret value
+#firestore_client = initialize_gcp_client(project_id)
 
 # Get the secret for Service Account
 app_secret_key = getsecrets("app_secret_key",project_id)
@@ -52,16 +42,22 @@ def nl2br(value):
     return Markup(value.replace('\n', '<br>\n'))
 
 # register frontpage
+from modules.frontpage.frontpage import frontpageblue
 app.register_blueprint(frontpageblue)
 # Register AUTh Module
+from modules.auth.auth import authsblue
 app.register_blueprint(authsblue)
 # Register AUTh Module
+from modules.pixelcounter.pixelcounter import pixelcounterblue
 app.register_blueprint(pixelcounterblue)
 # Dashboard
+from modules.dashboard.dashboard import dashboardblue
 app.register_blueprint(dashboardblue)
 # qrcode
+from modules.qrcode.qrcode import qrcodeblue
 app.register_blueprint(qrcodeblue)
 # url shortner
+from modules.urlshortner.urlshortner import urlshortnerblue
 app.register_blueprint(urlshortnerblue)
 
 #it is necessary to set a password when dealing with OAuth 2.0

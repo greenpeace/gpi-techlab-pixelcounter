@@ -1,8 +1,9 @@
 # Get the Flask Files Required
 import os
 from flask import Blueprint, g, session, request, url_for, redirect, render_template, abort, flash
-import pathlib
 import requests
+import json
+
 # Get Google Login with oauth
 from google.oauth2 import id_token
 from google_auth_oauthlib.flow import Flow
@@ -11,6 +12,7 @@ from pip._vendor import cachecontrol
 import random
 import string
 import uuid
+import logging
 from datetime import datetime, timedelta
 
 from system.firstoredb import users_ref
@@ -23,25 +25,30 @@ authsblue = Blueprint('authsblue', __name__)
 
 # Get the secret for Service Account
 client_secret = getsecrets("client-secret-key",project_id)
-app_secret_key_newsdesk = getsecrets("app_secret_key",project_id)
 restrciteddomain = getsecrets("restrciteddomain",project_id)
+# Retrieve the secret values
+secret_value = getsecrets("client_secret_file", project_id)
+client_secret_dict = json.loads(secret_value)
+
+scopes = ["https://www.googleapis.com/auth/userinfo.profile", 
+            "https://www.googleapis.com/auth/userinfo.email",
+            "openid"
+]
 
 #this is to set our environment to https because OAuth 2.0 only supports https environments
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+
 #enter your client id you got from Google console
 GOOGLE_CLIENT_ID = client_secret
-#set the path to where the .json file you got Google console is
-client_secrets_file = os.path.join(pathlib.Path(__file__).parent, "client_secret.json")
+
 #Flow is OAuth 2.0 a class that stores all the information on how we want to authorize our users
-flow = Flow.from_client_secrets_file( 
-    client_secrets_file=client_secrets_file,
-    scopes=["https://www.googleapis.com/auth/userinfo.profile", 
-            "https://www.googleapis.com/auth/userinfo.email",
-            "openid"
-            ],
-    #and the redirect URI is the point where the user will end up after the authorization
-    #redirect_uri="http://127.0.0.1:8080/callback"
-    redirect_uri="https://counter.greenpeace.org/callback"
+# Set up a Flow object
+# Use the production redirect_uri if it's set
+flow = Flow.from_client_config(
+    client_config=client_secret_dict,
+    scopes=scopes,
+    redirect_uri="http://127.0.0.1:8080/callback"
+    #redirect_uri="https://counter.greenpeace.org/callback"
 )
 
 #
@@ -75,7 +82,7 @@ def callback():
     flow.fetch_token(authorization_response=request.url)
 
     if session.get("state") != request.args.get("state"):
-        print("Callback route not reached!")
+        logging.info("Callback route not reached!")
         abort(500)  # State does not match!
 
     # Remove the state from the session

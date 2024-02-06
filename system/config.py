@@ -6,7 +6,7 @@ for env_variable in ["PROJECT", "ENTITY", "ENVIRONMENT"]:
     if env_variable not in environ:
         raise Exception(f"{env_variable} not found in environment")
 
-APP_NAME = "editorportaleditorportal"
+APP_NAME = "pixelcounter"
 APP_VERSION = "0.0.1"
 
 PROJECT = environ["PROJECT"]
