@@ -7,6 +7,7 @@ from system.firstoredb import qrcode_ref
 from system.date import datenow
 # locals
 import os
+import jwt
 
 from system.getsecret import getsecrets
 # Import project id
@@ -39,7 +40,7 @@ def qrcodecreate():
     import qrcode
     qrcodefilename = (f'{request.form.get("qrcodename")}.png')
     try:
-        #Creating an instance of qrcode
+        # Creating an instance of qrcode
         qr = qrcode.QRCode(
                 version=1,
                 box_size=(int)(request.form.get('boxsize')),
@@ -48,7 +49,7 @@ def qrcodecreate():
         qr.make(fit=True)
         img = qr.make_image(fill=request.form.get('fill_color'), back_color=request.form.get('back_color'))
         img.save(qrcodefilename)
-        
+
         # Set up a connection to your Google Cloud Storage bucket
         client = storage.Client()
         bucket = client.bucket(bucketname)
@@ -58,8 +59,11 @@ def qrcodecreate():
             # Create a new Cloud Storage blob
             blob = bucket.blob(f'qrcode/' + f'{qrcodefilename}')
             # Upload the image file to the blob
-            blob.upload_from_file(file)        
-        
+            blob.upload_from_file(file)
+
+        jwt_token = session.get('jwt_token')
+        decoded_data = jwt.decode(jwt_token, 'secret_key', algorithms=['HS256'])
+
         data = {
             u'active': True,
             u'date_created': datenow(),
@@ -75,10 +79,10 @@ def qrcodecreate():
             u'border': (int)(request.form.get('border')),
             u'fill_color': request.form.get('fill_color'),
             u'back_color': request.form.get('back_color'),
-            u'uuid': session["google_id"],
-            u'user': session["name"]
+            u'uuid': decoded_data.get('google_id'),
+            u'user': decoded_data.get('name')
         }
-        
+
         qrcode_ref.document().set(data)
         # Remove local file
         os.remove(qrcodefilename)       
@@ -99,8 +103,9 @@ def qrcodeupdate():
         id = request.form['id']
         qrcode_ref.document(id).update(request.form)
         qrcodefilename = (f'{request.form.get("qrcodename")}.png')
+
+        # Creating an instance of qrcode
         
-        #Creating an instance of qrcode
         qr = qrcode.QRCode(
                 version=1,
                 box_size=(int)(request.form.get('boxsize')),
@@ -109,7 +114,7 @@ def qrcodeupdate():
         qr.make(fit=True)
         img = qr.make_image(fill=request.form.get('fill_color'), back_color=request.form.get('back_color'))
         img.save(qrcodefilename)
-        
+
         # Set up a connection to your Google Cloud Storage bucket
         client = storage.Client()
         bucket = client.bucket(bucketname)
@@ -120,7 +125,7 @@ def qrcodeupdate():
             blob = bucket.blob(f'qrcode/' + f'{qrcodefilename}')
             # Upload the image file to the blob
             blob.upload_from_file(file)
-        
+
         # Remove local file
         os.remove(qrcodefilename)    
         # Return to the list
@@ -134,6 +139,9 @@ def qrcodeupdate():
 @login_is_required
 def qrcode():
     try:
+        jwt_token = session.get('jwt_token')
+        decoded_data = jwt.decode(jwt_token, 'secret_key', algorithms=['HS256'])
+        
         # Check if ID was passed to URL query
         id = request.args.get('id')    
         if id:
@@ -142,16 +150,16 @@ def qrcode():
         else:
             all_qrcodelinks = []
             # Firestore where with or             
-            for doc in qrcode_ref.where("uuid", "==", session["google_id"]).where('type','==','local').stream():
+            for doc in qrcode_ref.where("uuid", "==", decoded_data.get('google_id')).where('type','==','local').stream():
                 don = doc.to_dict()
                 don["docid"] = doc.id
                 all_qrcodelinks.append(don)
-            
+
             for doc in qrcode_ref.where('type','==','global').stream():
                 don = doc.to_dict()
                 don["docid"] = doc.id
                 all_qrcodelinks.append(don)
-            
+
             return render_template('qrcode.html', output=all_qrcodelinks)
     except Exception as e:
         return f"An Error Occured: {e}"

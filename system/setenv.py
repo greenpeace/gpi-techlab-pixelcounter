@@ -1,11 +1,12 @@
 import os
-# Import the getsecrets function from the system module
-from system.getsecret import getsecrets
-
-# Try retrieving the project_id from Secret Manager
+# configure local or cloud
 try:
-    project_id = getsecrets("project_id", "make-smthng-website")
-except:
-    # Set the project_id if not found in Secret Manager
-    os.environ['GCP_PROJECT'] = "make-smthng-website"
+    # Get the sites environment credentials
+    project_id = os.environ["GCP_PROJECT"]
+except Exception as e:
+    # Set Local Environment Variables (Local)
+    print(e)
+    # Set Local Environment Variables (Local)
+    os.environ['GCP_PROJECT'] = 'make-smthng-website'
+    # Get project id to intiate
     project_id = os.environ["GCP_PROJECT"]

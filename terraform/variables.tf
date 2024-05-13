@@ -1,10 +1,10 @@
 variable "entity" {
   type = string
-  default = "pixelcounter"
+  default = "pixelcounter-test"
 }
 variable "environment" {
   type = string
-  default = "dev"
+  default = "test"
 }
 variable "gcp_region" {
   type = string
@@ -12,7 +12,7 @@ variable "gcp_region" {
 }
 variable "image_name" {
   type = string
-  default = "pixelcounter"
+  default = "pixelcounter-test"
 }
 variable "project_id" {
   type = string
@@ -22,11 +22,11 @@ variable "project_id" {
 variable "repository" {
   description = "The name of the Artifact Registry repository to be created"
   type        = string
-  default     = "pixelcounter"
+  default     = "pixelcounter-test"
 }
 
 variable "docker_image" {
   description = "The name of the Docker image in the Artifact Registry repository to be deployed to Cloud Run"
   type        = string
-  default     = "gpipixelcounter"
+  default     = "gpipixelcounter-test"
 }

@@ -16,6 +16,6 @@ terraform {
       bucket = "msw-terraform-state"
       # Structure:
       # state/<application/<entity>/<environment>/
-      prefix = "state/makesmthngwebsite/test/"
+      prefix = "state/makesmthngwebsite/pixelcounter/test"
     }
 }

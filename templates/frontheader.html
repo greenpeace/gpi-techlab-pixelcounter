@@ -12,7 +12,7 @@
 <link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
 
 <!-- Title -->
-<title>Greenpeace Leagal Case Tracker</title>
+<title>Greenpeace Pixel Counter Tracker</title>
 
 <!-- Favicon Icon -->
 <link rel="shortcut icon" href="{{ url_for('static', filename='images/favicon.ico') }}" />
@@ -36,6 +36,19 @@
 <link href="{{ url_for('static', filename='css/spacing.css') }}" rel="stylesheet" type="text/css" />
 <!--== theme.min -->
 <link href="{{ url_for('static', filename='css/theme.min.css') }}" rel="stylesheet" />
+
+<link rel="manifest" href="/manifest.json">
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register("/sw.js").then(function(registration) {
+        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+      }, function(err) {
+        console.log('ServiceWorker registration failed: ', err);
+      });
+    });
+  }
+</script>
 
 <!-- inject css end -->
   <script>

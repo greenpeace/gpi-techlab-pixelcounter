@@ -86,16 +86,7 @@
     {% block scripts %}
       <script>
         $(document).ready(function () {
-          $('#listdata').DataTable({      
-            columns: [
-                {data: 'active'},
-                {data: 'filename'},
-                {data: 'date_creted'},
-                {data: 'qrcode'},
-                {data: 'description'},
-                {data: 'type'},
-                {data: 'action', orderable: false}
-            ],
+          $('#listdata').DataTable({
           });
         });
       </script>

@@ -27,7 +27,7 @@ resource "time_sleep" "wait_30_seconds" {
 #    Google Artifact Registry Repository    #
 #############################################
 # Create Artifact Registry Repository for Docker containers
-resource "google_artifact_registry_repository" "my_docker_repo" {
+resource "google_artifact_registry_repository" "test_docker_repo" {
   provider = google-beta
   location = var.gcp_region
   repository_id = var.repository
@@ -37,7 +37,7 @@ resource "google_artifact_registry_repository" "my_docker_repo" {
 }
 
 # Create a service account
-resource "google_service_account" "docker_pusher" {
+resource "google_service_account" "docker_pusher_test" {
   provider = google-beta
   account_id   = "docker-pusher"
   display_name = "Docker Container Pusher"
@@ -47,13 +47,13 @@ resource "google_service_account" "docker_pusher" {
 # Give service account permission to push to the Artifact Registry Repository
 resource "google_artifact_registry_repository_iam_member" "docker_pusher_iam" {
   provider = google-beta
-  location = google_artifact_registry_repository.my_docker_repo.location
-  repository =  google_artifact_registry_repository.my_docker_repo.repository_id
+  location = google_artifact_registry_repository.test_docker_repo.location
+  repository =  google_artifact_registry_repository.test.docker_repo.repository_id
   role   = "roles/artifactregistry.writer"
-  member = "serviceAccount:${google_service_account.docker_pusher.email}"
+  member = "serviceAccount:${google_service_account.docker_pusher_test.email}"
   depends_on = [
-    google_artifact_registry_repository.my_docker_repo,
-    google_service_account.docker_pusher
+    google_artifact_registry_repository.test_docker_repo,
+    google_service_account.docker_pusher_test
   ]
 }
 
@@ -70,8 +70,8 @@ provisioner "local-exec" {
   }
     depends_on =[
     time_sleep.wait_30_seconds,
-    google_artifact_registry_repository.my_docker_repo,
-    google_service_account.docker_pusher
+    google_artifact_registry_repository.test_docker_repo,
+    google_service_account.docker_pusher_test
   ]
 }
 
@@ -82,9 +82,9 @@ resource "google_project_service" "cloud_run" {
 }
 
 # Deploy image to Cloud Run
-resource "google_cloud_run_service" "pixelcounter" {
+resource "google_cloud_run_service" "pixelcounter-test" {
   provider = google-beta
-  name     = "pixelcounter"
+  name     = "pixelcounter-test"
   location = var.gcp_region
   #autogenerate_revision_name = true
 
@@ -131,39 +131,14 @@ data "google_iam_policy" "all_users_policy" {
 
 # Enable public access on Cloud Run service
 resource "google_cloud_run_service_iam_policy" "all_users_policy" {
-  location    = google_cloud_run_service.pixelcounter.location
-  project     = google_cloud_run_service.pixelcounter.project
-  service     = google_cloud_run_service.pixelcounter.name
+  location    = google_cloud_run_service.pixelcounter-test.location
+  project     = google_cloud_run_service.pixelcounter-test.project
+  service     = google_cloud_run_service.pixelcounter-test.name
   policy_data = data.google_iam_policy.all_users_policy.policy_data
-}
-
-# SECRETS
-resource "google_secret_manager_secret" "pixelcounter" {
-  project   = var.project_id
-  secret_id = "pixelcounter_token"
-
-  replication {
-    user_managed {
-      replicas {
-        location = "europe-west1"
-      }
-      replicas {
-        location = "europe-north1"
-      }
-    }
-  }
-
-  labels = {
-    app         = local.app_name
-    entity      = var.entity
-    environment = var.environment
-    source      = "pixel_token"
-  }
 }
 
 resource "google_service_account" "function" {
   account_id   = "${local.app_name}-${var.entity}-${var.environment}"
-  display_name = "Pixelcounter Service Account"
+  display_name = "Pixelcounter Test Service Account"
   project      = var.project_id
 }
-

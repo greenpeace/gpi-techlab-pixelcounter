@@ -55,9 +55,15 @@
                                   <a class="btn btn-sm btn-danger" href="/urlshortneractive?id={{ ngo.docid }}" title="Edit" >Inactive</a>
                                 {% endif %}
                               </td>
-                              <td>{{ ngo.meta_title }}</td>
-                              <td>{{ ngo.click }}</td>
-                              <td>{{ ngo.date }}</td>
+                              <td>
+                                {{ ngo.meta_title }}
+                              </td>
+                              <td>
+                                {{ ngo.click }}
+                              </td>
+                              <td>
+                                {{ ngo.date }}
+                              </td>
                               <td>
                                 <a href="{{ ngo.url }}" target="_blank">
                                   {{ ngo.url }}
@@ -88,17 +94,7 @@
     {% block scripts %}
       <script>
         $(document).ready(function () {
-          $('#listdata').DataTable({      
-            columns: [
-                {data: 'active'},
-                {data: 'meta_title'},
-                {data: 'click'},
-                {data: 'date'},
-                {data: 'url'},
-                {data: 'short'},
-                {data: 'type'},
-                {data: 'action', orderable: false}
-            ],
+          $('#listdata').DataTable({
           });
         });
       </script>

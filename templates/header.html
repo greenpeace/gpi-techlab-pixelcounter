@@ -11,7 +11,7 @@
 
     <link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
 
-    <title>Pixel Counter</title>
+    <title>Greenpeace Pixel Counter</title>
     
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Rubik:300,400,500,700,900|Work+Sans:400,500,600,700" 8/>
     <!-- Bootstrap -->
@@ -35,6 +35,19 @@
 
     <!--<script src="{{ url_for('static', filename='js/main.js') }}"></script> -->
     <!-- Template Section of the header to intiate datatables -->
+
+    <link rel="manifest" href="/manifest.json">
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register("/sw.js").then(function(registration) {
+            console.log('ServiceWorker registration successful with scope: ', registration.scope);
+          }, function(err) {
+            console.log('ServiceWorker registration failed: ', err);
+          });
+        });
+      }
+    </script>
 
    <!-- <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/jszip-2.5.0/dt-1.11.3/b-2.0.1/b-colvis-2.0.1/b-html5-2.0.1/cr-1.5.4/datatables.min.css"/>-->
 
