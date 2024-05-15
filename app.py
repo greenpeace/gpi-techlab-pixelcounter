@@ -133,7 +133,7 @@ def internal_error(error):
 def favicon():
     return ''
 
-#    
+# 
 # Setting up to serve on port 8080
 #
 

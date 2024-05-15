@@ -36,6 +36,7 @@
                           <tr>
                             <th scope="col">Id</th>
                             <th scope="col">Domain Name</th>
+                            <th scope="col">IP Address</th>
                             <th style="width:200px;">Action</th>
                           </tr>
                         </thead>
@@ -45,6 +46,7 @@
                             <tr>
                               <td>{{ ngo.id }}</td>
                               <td>{{ ngo.domain }}</td>
+                              <td>{{ ngo.ipaddress }}</td>
                               <td>
                                 <a class="btn btn-sm btn-success" href="/allowedlistedit?id={{ ngo.id }}" title="Edit" ><i class="glyphicon glyphicon-pencil"></i> Edit</a>
                                 <a class="btn btn-sm btn-danger" href="/allowedlistdelete?id={{ ngo.id }}" title="Delete"><i class="glyphicon glyphicon-pencil"></i> Delete</a>
@@ -67,11 +69,6 @@
     <script>
         $(document).ready(function () {
           $('#datast').DataTable({
-            columns: [
-                {data: 'id'},
-                {data: 'url'},
-               {data: 'action', orderable: false}
-            ],
           });
         });
     </script>

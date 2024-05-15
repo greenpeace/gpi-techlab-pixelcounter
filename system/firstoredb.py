@@ -16,6 +16,8 @@ db = firestore.client()
 counter_ref = db.collection(u'counters')
 # Allowed origion collection
 allowedorigion_ref = db.collection(u'allowedorigion')
+# Allowed certain allowed urls shoudl be dissalowed 
+disallowedorigion_ref = db.collection(u'disallowedorigion')
 # Allowed origion collection
 emailhash_ref = db.collection(u'amialhash')
 # qrcode

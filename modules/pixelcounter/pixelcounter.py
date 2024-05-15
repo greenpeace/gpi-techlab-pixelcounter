@@ -1,21 +1,32 @@
 import base64
 # Get the Flask Files Required
-from flask import Blueprint, request, session, send_file, jsonify, url_for, redirect, render_template, flash
-from flask_cors import CORS,cross_origin
+from flask import (
+    Blueprint,
+    request,
+    session,
+    send_file,
+    jsonify,
+    url_for,
+    redirect,
+    render_template,
+    flash
+)
+from flask_cors import CORS, cross_origin
 # Install Google Libraries
 from google.cloud.firestore import Increment
 
 # Journalist firestore collection
 from system.firstoredb import counter_ref
 from system.firstoredb import allowedorigion_ref
+from system.firstoredb import disallowedorigion_ref
 from system.firstoredb import emailhash_ref
+from modules.auth.auth import login_is_required
 # Import logging
 import logging
 import jwt
 
-pixelcounterblue = Blueprint('pixelcounterblue', __name__, template_folder='templates')
-
-from modules.auth.auth import login_is_required
+pixelcounterblue = Blueprint('pixelcounterblue',
+                             __name__, template_folder='templates')
 
 CORS(pixelcounterblue)
 
@@ -67,7 +78,8 @@ def addlist():
 #
 # API Route add a counter by ID - requires json file body with id and count
 #
-@pixelcounterblue.route("/documentation", methods=['GET'], endpoint='documentation')
+@pixelcounterblue.route("/documentation", methods=['GET'],
+                        endpoint='documentation')
 @login_is_required
 def documentation():
     return render_template('documentation.html', **locals())
@@ -75,7 +87,8 @@ def documentation():
 #
 # API Route add a counter by ID - requires json file body with id and count
 #
-@pixelcounterblue.route("/testincrementiframe", methods=['GET'], endpoint='testincrementiframe')
+@pixelcounterblue.route("/testincrementiframe", methods=['GET'],
+                        endpoint='testincrementiframe')
 @login_is_required
 def testincrementiframe():
     return render_template('test-display-iframe.html', **locals())
@@ -83,7 +96,8 @@ def testincrementiframe():
 #
 # API Route add a counter by ID - requires json file body with id and count
 #
-@pixelcounterblue.route("/testincrementimage", methods=['GET'], endpoint='testincrementimage')
+@pixelcounterblue.route("/testincrementimage", methods=['GET'],
+                        endpoint='testincrementimage')
 @login_is_required
 def testincrementimage():
     return render_template('test-increment-image.html', **locals())
@@ -91,7 +105,8 @@ def testincrementimage():
 #
 # API Route add a counter by ID - requires json file body with id and count
 #
-@pixelcounterblue.route("/testincrementscript", methods=['GET'], endpoint='testincrementscript')
+@pixelcounterblue.route("/testincrementscript", methods=['GET'],
+                        endpoint='testincrementscript')
 @login_is_required
 def testincrementscript():
     return render_template('test-increment-script.html', **locals())
@@ -99,7 +114,8 @@ def testincrementscript():
 #
 # API Route add a counter by ID - requires json file body with id and count
 #
-@pixelcounterblue.route("/testodometer", methods=['GET'], endpoint='testodometer')
+@pixelcounterblue.route("/testodometer", methods=['GET'],
+                        endpoint='testodometer')
 @login_is_required
 def testodometer():
     return render_template('test-odometer.html', **locals())
@@ -107,7 +123,8 @@ def testodometer():
 #
 # API Route add a counter by ID - requires json file body with id and count
 #
-@pixelcounterblue.route("/createlist", methods=['POST'], endpoint='createlist')
+@pixelcounterblue.route("/createlist", methods=['POST'],
+                        endpoint='createlist')
 @login_is_required
 def createlist():
     try:
@@ -271,8 +288,6 @@ def count_pixel():
         for doc in allowedorigion_ref.stream():
             allowed_origin_list.append(doc.to_dict()['domain'])
 
-        print(request.environ)
-
         remote_address = None
 
         # Check if HTTP_X_FORWARDED_FOR is set
@@ -387,7 +402,6 @@ def countdonation():
         for doc in allowedorigion_ref.stream():
             allowed_origin_list.append(doc.to_dict()['domain'])
         try:
-            print(request.environ)
 
             remote_address = None
 
@@ -404,14 +418,20 @@ def countdonation():
             # Now remote_address contains the appropriate remote address
             if remote_address is not None:
                 # On allowed lsut, check if ID was passed to URL query
-                donation = request.args.get('donation')
-                if donation is not None:
+                amount = request.args.get('donation')
+                if amount is not None:
+                    # Add Counter
+                    id = request.args.get('id')
+                    amount_int = int(amount)
+                    counter_ref.document(id).update({u'count': Increment(amount_int)})
+                    counter_ref.document('totals').update({u'count': Increment(1)})
+                else:
                     # Add Counter
                     id = request.args.get('id')  
-                    counter_ref.document(id).update({u'count': Increment(donation)})
+                    counter_ref.document(id).update({u'count': Increment(1)})
                     counter_ref.document('totals').update({u'count': Increment(1)})
-                    logging.info("Counter Been Updated")
-                    return base64.b64decode(b'='), 200
+                logging.info("Counter Been Updated")
+                return base64.b64decode(b'='), 200
             # Add a default response if none of the conditions are met
             logging.info("No Match Allowed Lists")
             return f"Not in allowed list", 400
@@ -458,6 +478,7 @@ def count():
                     # Check if hash value already exixsts in the database
                     if len(documents):
                         # If exists, don not increase count by 1
+                        logging.info("Email hash Exist")
                         return '', 200
                     else:
                         # Add hashed email to database
@@ -480,7 +501,7 @@ def count():
                 return base64.b64decode(b'='), 200
             # Add a default response if none of the conditions are met
             logging.info("No Match Allowed Lists")
-            return f"Not in allowed list", 400
+            return "Not in allowed list", 400
         except Exception as e:
             return f"An Error Occured: {e}", 500
     except Exception as e:
@@ -499,12 +520,12 @@ def signup():
         if request.method == "POST":
             id = request.form['id']
             counter = counter_ref.document(id).get()
-            output = f"{ counter.to_dict()['count'] }"            
+            output = f"{ counter.to_dict()['count'] }"          
             return render_template('signups.html', output=output)
-        return render_template('signups.html', output="Not NGO name has been given")
+        return render_template('signups.html', output="No NRO name has been given")
     except Exception as e:
-        return render_template('signups.html', output="An Error Occured: {e}")
-        
+        return render_template('signups.html', output="An Error Occured: {}" + e)
+
 ##
 # The API endpoint allows the user to get the endpoint total defined  by id
 # API endpoint /signup?id=<id>
@@ -527,7 +548,8 @@ def signups():
 #
 
 
-@pixelcounterblue.route("/allowedlistadd", methods=['GET'], endpoint='allowedlistadd')
+@pixelcounterblue.route("/allowedlistadd", methods=['GET'],
+                        endpoint='allowedlistadd')
 @login_is_required
 def allowedlistadd():
     return render_template('allowedlistadd.html', **locals())
@@ -537,7 +559,8 @@ def allowedlistadd():
 #
 
 
-@pixelcounterblue.route("/allowedlist", methods=['GET'], endpoint='allowedlist')
+@pixelcounterblue.route("/allowedlist", methods=['GET'],
+                        endpoint='allowedlist')
 @login_is_required
 def allowedlist():
     try:
@@ -556,16 +579,18 @@ def allowedlist():
 #
 
 
-@pixelcounterblue.route("/allowedlistcreate", methods=['POST'], endpoint='allowedlistcreate')
+@pixelcounterblue.route("/allowedlistcreate", methods=['POST'],
+                        endpoint='allowedlistcreate')
 @login_is_required
 def allowedlistcreate():
     try:
         id = request.form.get('id')        
         data = {
             u'id': request.form.get('id'),
-            u'domain': request.form.get('domain')
+            u'domain': request.form.get('domain'),
+            u'ipaddress': request.form.get('ipaddress')
         }
-        
+
         allowedorigion_ref.document(id).set(data)
         flash('Data Succesfully Submitted')
         return redirect(url_for('pixelcounterblue.allowedlist'))
@@ -579,14 +604,16 @@ def allowedlistcreate():
 #
 
 
-@pixelcounterblue.route("/allowedlistupdate", methods=['POST', 'PUT'], endpoint='allowedlistupdate')
+@pixelcounterblue.route("/allowedlistupdate", methods=['POST', 'PUT'],
+                        endpoint='allowedlistupdate')
 @login_is_required
 def allowedlistupdate():
     try:
         id = request.form['id']
         data = {
             u'id': request.form.get('id'),
-            u'domain': request.form.get('domain')
+            u'domain': request.form.get('domain'),
+            u'ipaddress': request.form.get('ipaddress')
         }
         allowedorigion_ref.document(id).update(data)
         return redirect(url_for('pixelcounterblue.allowedlist'))
@@ -598,7 +625,8 @@ def allowedlistupdate():
 #
 
 
-@pixelcounterblue.route("/allowedlistedit", methods=['GET'], endpoint='allowedlistedit')
+@pixelcounterblue.route("/allowedlistedit", methods=['GET'],
+                        endpoint='allowedlistedit')
 @login_is_required
 def allowedlistedit():
     try:
@@ -620,13 +648,128 @@ def allowedlistedit():
 #
 
 
-@pixelcounterblue.route("/allowedlistdelete", methods=['GET', 'DELETE'], endpoint='allowedlistdelete')
+@pixelcounterblue.route("/allowedlistdelete", methods=['GET', 'DELETE'],
+                        endpoint='allowedlistdelete')
 def allowedlistdelete():
     try:
         # Check for ID in URL query
         id = request.args.get('id')
         allowedorigion_ref.document(id).delete()
         return redirect(url_for('pixelcounterblue.allowedlist'))
+    except Exception as e:
+        return f"An Error Occured: {e}"
+    
+#
+# API Route add a counter by ID - requires json file body with id and count
+#
+
+
+@pixelcounterblue.route("/disallowedlistadd", methods=['GET'],
+                        endpoint='disallowedlistadd')
+@login_is_required
+def disallowedlistadd():
+    return render_template('disallowedlistadd.html', **locals())
+ 
+#
+# API Route list all or a speific counter by ID - requires json file body with id and count
+#
+
+
+@pixelcounterblue.route("/disallowedlist", methods=['GET'],
+                        endpoint='disallowedlist')
+@login_is_required
+def disallowedlist():
+    try:
+        disallowedlist = []     
+        for doc in disallowedorigion_ref.stream():
+            don = doc.to_dict()
+            don["docid"] = doc.id
+            disallowedlist.append(don)
+
+        return render_template('disallowedlist.html', allowed=disallowedlist)
+    except Exception as e:
+        return f"An Error Occured: {e}"
+    
+#
+# API Route add a counter by ID - requires json file body with id and count
+#
+
+
+@pixelcounterblue.route("/disallowedlistcreate", methods=['POST'],
+                        endpoint='disallowedlistcreate')
+@login_is_required
+def disallowedlistcreate():
+    try:
+        id = request.form.get('id')        
+        data = {
+            u'id': request.form.get('id'),
+            u'domain': request.form.get('domain')
+        }
+        
+        disallowedorigion_ref.document(id).set(data)
+        flash('Data Succesfully Submitted')
+        return redirect(url_for('pixelcounterblue.disallowedlist'))
+    except Exception as e:
+        flash('An Error Occvured')
+        return f"An Error Occured: {e}"
+
+#
+# API Route Update a counter by ID - requires json file body with id and count
+# API endpoint /update?id=<id>&count=<count>
+#
+
+
+@pixelcounterblue.route("/disallowedlistupdate", methods=['POST', 'PUT'],
+                        endpoint='disallowedlistupdate')
+@login_is_required
+def disallowedlistupdate():
+    try:
+        id = request.form['id']
+        data = {
+            u'id': request.form.get('id'),
+            u'domain': request.form.get('domain')
+        }
+        disallowedorigion_ref.document(id).update(data)
+        return redirect(url_for('pixelcounterblue.disallowedlist'))
+    except Exception as e:
+        return f"An Error Occured: {e}"    
+    
+#
+# API Route list all or a speific counter by ID - requires json file body with id and count
+#
+
+
+@pixelcounterblue.route("/disallowedlistedit", methods=['GET'],
+                        endpoint='disallowedlistedit')
+@login_is_required
+def disallowedlistedit():
+    try:
+        disallowedlists = []
+        # Check if ID was passed to URL query
+        id = request.args.get('id')
+        disallowedlist = disallowedorigion_ref.document(id).get()
+        don = disallowedlist.to_dict()
+        don["docid"] = disallowedlist.id
+        disallowedlists.append(don)
+
+        return render_template('disallowedlistedit.html', ngo=don)
+    except Exception as e:
+        return f"An Error Occured: {e}"
+
+#
+# API Route Delete a counter by ID /delete?id=<id>
+# API Enfpoint /delete?id=<id>
+#
+
+
+@pixelcounterblue.route("/disallowedlistdelete", methods=['GET', 'DELETE'],
+                        endpoint='disallowedlistdelete')
+def disallowedlistdelete():
+    try:
+        # Check for ID in URL query
+        id = request.args.get('id')
+        disallowedorigion_ref.document(id).delete()
+        return redirect(url_for('pixelcounterblue.disallowedlist'))
     except Exception as e:
         return f"An Error Occured: {e}"
 

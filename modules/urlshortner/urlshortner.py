@@ -294,7 +294,8 @@ def urlshortnerupdate():
         return redirect(url_for('urlshortnerblue.urlshortner'))
 
 
-@urlshortnerblue.route('/<id>', methods=['POST', 'GET', 'PUT'], endpoint='urlredirect')
+@urlshortnerblue.route('/<id>', methods=['POST', 'GET', 'PUT'], 
+                       endpoint='urlredirect')
 def urlredirect(id):
     try:
         # short = request.host_url + id
