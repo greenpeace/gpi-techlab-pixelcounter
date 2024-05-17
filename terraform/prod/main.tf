@@ -66,7 +66,7 @@ always_run = timestamp()
 
 provisioner "local-exec" {
     working_dir = path.module
-    command     = "docker buildx build --platform linux/amd64 --push -t ${local.image} ../."
+    command     = "docker buildx build --platform linux/amd64 --push -t ${local.image} ../../."
   }
     depends_on =[
     time_sleep.wait_30_seconds,

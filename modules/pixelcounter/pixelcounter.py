@@ -20,10 +20,12 @@ from system.firstoredb import counter_ref
 from system.firstoredb import allowedorigion_ref
 from system.firstoredb import disallowedorigion_ref
 from system.firstoredb import emailhash_ref
+from system.utils import resolve_ip_from_domain
 from modules.auth.auth import login_is_required
 # Import logging
 import logging
 import jwt
+from urllib.parse import urlparse
 
 pixelcounterblue = Blueprint('pixelcounterblue',
                              __name__, template_folder='templates')
@@ -344,8 +346,6 @@ def counter():
         for doc in allowedorigion_ref.stream():
             allowed_origin_list.append(doc.to_dict()['domain'])
 
-        print(request.environ)
-
         remote_address = None
 
         # Check if HTTP_X_FORWARDED_FOR is set
@@ -453,60 +453,118 @@ def count():
         # Check if Remote Host is in the allowed list        
         allowed_origin_list = []
         for doc in allowedorigion_ref.stream():
-            allowed_origin_list.append(doc.to_dict()['domain'])
+            allowed_origin_list.append(doc.to_dict())
+
+        # check if the allowed url matches a pattern in disallowed list
+        disallowed_origin_list = []
+        for disdoc in disallowedorigion_ref.stream():
+            disallowed_origin_list.append(disdoc.to_dict())
+
+        # Define disallowed patterns
+        disallowed_patterns = ['/wp-admin/', '/admin/', '/edit/']  
+
         try:
 
+            print(request.environ)
+            print(request.headers)
             remote_address = None
 
             # Check if HTTP_X_FORWARDED_FOR is set
             if 'HTTP_X_FORWARDED_FOR' in request.environ:
                 forwarded_for = request.environ['HTTP_X_FORWARDED_FOR']
-                if forwarded_for in allowed_origin_list:
-                    remote_address = forwarded_for
+                # Split the forwarded for string to get the actual IP address
+                remote_address = forwarded_for.split(',')[0]
 
             # If HTTP_X_FORWARDED_FOR is not set or not allowed, use REMOTE_ADDR
             if remote_address is None and 'REMOTE_ADDR' in request.environ:
                 remote_address = request.environ['REMOTE_ADDR']
 
+            # Get the domain from the 'Host' header
+            request_domain = request.headers.get('Host')
+
+            # Get the referrer from the 'Referer' header
+            referrer_url = request.headers.get('Referer')
+            if referrer_url:
+                parsed_referrer = urlparse(referrer_url)
+                referrer_domain = parsed_referrer.netloc.split(':')[0]
+                referrer_path = parsed_referrer.path
+                full_referrer_uri = referrer_url
+                referrer_ip = resolve_ip_from_domain(referrer_domain)
+            else:
+                referrer_domain = None
+                referrer_path = None
+                full_referrer_uri = None
+                referrer_ip = None
+
+            # Log the headers for debugging purposes
+            logging.info(f"Headers: {request.headers}")
+            logging.info(f"Remote Address: {remote_address}")
+            logging.info(f"Referrer URL: {referrer_url}")
+            logging.info(f"Full Referrer URI: {full_referrer_uri}")
+            logging.info(f"Referrer IP: {referrer_ip}")
+
             # Now remote_address contains the appropriate remote address
             if remote_address is not None:
+                # Get the domain from the 'Host' header
+                request_domain = request.headers.get('Host').split(':')[0]
+                request_path = request.path
                 # On allowed lsut, check if ID was passed to URL query
-                email_hash = request.args.get('email_hash')
-                if email_hash is not None:
-                    docRef = emailhash_ref.where('email_hash', '==', email_hash).get()
-                    documents = [d for d in docRef]
-                    # Check if hash value already exixsts in the database
-                    if len(documents):
-                        # If exists, don not increase count by 1
-                        logging.info("Email hash Exist")
-                        return '', 200
-                    else:
-                        # Add hashed email to database
-                        data = {
-                            u'email_hash': email_hash,
-                        }
-                        emailhash_ref.document().set(data)
-                # Add Counter
-                id = request.args.get('id')
-                amount = request.args.get('donation')
-                if amount is not None:
-                    # Convert amount to integer
-                    amount_int = int(amount)
-                    counter_ref.document(id).update({u'count': Increment(amount_int)})
-                    counter_ref.document('totals').update({u'count': Increment(1)})                    
-                else:
-                    counter_ref.document(id).update({u'count': Increment(1)})
-                    counter_ref.document('totals').update({u'count': Increment(1)})
-                logging.info("Counter Been Updated")
-                return base64.b64decode(b'='), 200
+                # Check if the request domain matches any domain in the allowed list
+                for allowed_origin in allowed_origin_list:
+                    if ('domain' in allowed_origin and request_domain == allowed_origin['domain']) or \
+                            ('ipaddress' in allowed_origin and remote_address == allowed_origin['ipaddress']):
+                        # Check if the request path matches any disallowed patterns
+                        for pattern in disallowed_patterns:
+                            if pattern in request_path:
+                                # Log and reject the request
+                                logging.info("Disallowed URL accessed")
+                                return "Disallowed URL", 403
+                        # On allowed list, check if ID was passed to URL query                
+                        email_hash = request.args.get('email_hash')
+                        if email_hash is not None:
+                            docRef = emailhash_ref.where('email_hash', '==', email_hash).get()
+                            documents = [d for d in docRef]
+                            # Check if hash value already exixsts in the database
+                            if len(documents):
+                                # If exists, don not increase count by 1
+                                logging.info("Email hash Exist")
+                                return '', 200
+                            else:
+                                # Add hashed email to database
+                                data = {
+                                    u'email_hash': email_hash,
+                                }
+                                emailhash_ref.document().set(data)
+                        # Add Counter
+                        id = request.args.get('id')
+                        amount = request.args.get('donation')
+                        if amount is not None:
+                            # Convert amount to integer
+                            amount_int = int(amount)
+                            counter_ref.document(id).update({u'count': Increment(amount_int)})
+                            counter_ref.document('totals').update({u'count': Increment(1)})                    
+                        else:
+                            counter_ref.document(id).update({u'count': Increment(1)})
+                            counter_ref.document('totals').update({u'count': Increment(1)})
+                        logging.info("Counter Been Updated")
+                        return base64.b64decode(b'='), 200
+            
+            # Check if the request domain matches any domain in the disallowed list
+            for disallowed_origin in disallowed_origin_list:
+                if request_domain == disallowed_origin['domain'] or remote_address == disallowed_origin['ipaddress']:
+                    logging.info("Request from disallowed origin")
+                    return "Request from disallowed origin", 403
+                
             # Add a default response if none of the conditions are met
             logging.info("No Match Allowed Lists")
             return "Not in allowed list", 400
         except Exception as e:
+            logging.error("Error: []" + e)
             return f"An Error Occured: {e}", 500
     except Exception as e:
-        return f"An Error Occured: {e}", 500
-    
+        logging.error("No Match Allowed Lists []" + e)
+        return f"Error no access firestore: {e}", 500
+
 ##
 # The API endpoint allows the user to get the endpoint total defined  by id
 # API endpoint /signup?id=<id>

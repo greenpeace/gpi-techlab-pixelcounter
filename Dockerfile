@@ -8,7 +8,7 @@ COPY . /app
 
 ENV PYTHONUNBUFFERED=1 \
     #GOOGLE_APPLICATION_CREDENTIALS=key.json \
-    GCP_PROJECT="gpi-ai-1"
+    GCP_PROJECT="make-smthng-website"
 
 RUN pip install --upgrade pip
 # Add a dummy argument to invalidate cache for pip install step

@@ -59,8 +59,10 @@ os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
 GOOGLE_CLIENT_ID = client_secret
 
+# for test environment - https://pixelcounter-test-nv4os546dq-lz.a.run.app/callback
+# for prod environment - https://counter.greenpeace.org/callback
 redirect_uri = (
-    "https://counter.greenpeace.org/callbackk" if is_production else
+    "https://pixelcounter-test-nv4os546dq-lz.a.run.app/callback" if is_production else
     "http://127.0.0.1:8080/callback"
 )
 
