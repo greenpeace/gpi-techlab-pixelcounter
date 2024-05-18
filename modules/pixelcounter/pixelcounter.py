@@ -292,44 +292,73 @@ def count_pixel():
         # Check if Remote Host is in the allowed list        
         allowed_origin_list = []
         for doc in allowedorigion_ref.stream():
-            allowed_origin_list.append(doc.to_dict()['domain'])
+            allowed_origin_list.append(doc.to_dict())
+
+        # check if the allowed url matches a pattern in disallowed list            
+        disallowed_patterns = []
+        for disdoc in disallowedorigion_ref.stream():
+            disallowed_patterns.append(disdoc.to_dict().get('pattern'))
 
         remote_address = None
 
         # Check if HTTP_X_FORWARDED_FOR is set
         if 'HTTP_X_FORWARDED_FOR' in request.environ:
             forwarded_for = request.environ['HTTP_X_FORWARDED_FOR']
-            if forwarded_for in allowed_origin_list:
-                remote_address = forwarded_for
+            # Split the forwarded for string to get the actual IP address
+            remote_address = forwarded_for.split(',')[0]
 
         # If HTTP_X_FORWARDED_FOR is not set or not allowed, use REMOTE_ADDR
         if remote_address is None and 'REMOTE_ADDR' in request.environ:
             remote_address = request.environ['REMOTE_ADDR']
 
-        # Now remote_address contains the appropriate remote address
+        # Get the referrer from the 'Referer' header
+        referrer_url = request.headers.get('Referer')
 
+        if referrer_url:
+            parsed_referrer = urlparse(referrer_url)
+            referrer_domain = parsed_referrer.netloc.split(':')[0]
+            referrer_path = parsed_referrer.path
+            full_referrer_uri = referrer_url
+            referrer_ip = resolve_ip_from_domain(referrer_domain)
+        else:
+            referrer_domain = None
+            referrer_path = None
+            full_referrer_uri = None
+            referrer_ip = None
+
+        # Now remote_address contains the appropriate remote address
         if remote_address is not None:
-            # On allowed lsut, check if ID was passed to URL query
-            email_hash = request.args.get('email_hash')            
-            if email_hash is not None:
-                docRef = emailhash_ref.where('email_hash', '==', email_hash).get()
-                documents = [d for d in docRef]
-                # Check if hash value already exixsts in the database
-                if len(documents):
-                    # If exists, don not increase count by 1
-                    return '', 200
-                else:
-                    # Add hashed email to database
-                    data = {
-                        u'email_hash': email_hash,
-                    }
-                    emailhash_ref.document().set(data)
-            # Add Counter
-            id = request.args.get('id')  
-            counter_ref.document(id).update({u'count': Increment(1)})
-            counter_ref.document('totals').update({u'count': Increment(1)})
-            filename = 'static/images/onepixel.gif'
-            return send_file(filename, mimetype='image/gif')
+            # Check if the request domain matches any domain in the allowed list
+            for allowed_origin in allowed_origin_list:
+                if ('domain' in allowed_origin and referrer_domain == allowed_origin['domain']) or \
+                        ('ipaddress' in allowed_origin and remote_address == allowed_origin['ipaddress']):
+                    # Check if referrer path matches any disallowed patterns
+                    for pattern in disallowed_patterns:
+                        if pattern in referrer_path:
+                            # Log and reject the request
+                            logging.info("Disallowed URL accessed")
+                            return "Disallowed URL", 403
+                    # On allowed lsut, check if ID was passed to URL query
+                    email_hash = request.args.get('email_hash')            
+                    if email_hash is not None:
+                        docRef = emailhash_ref.where('email_hash', '==', email_hash).get()
+                        documents = [d for d in docRef]
+                        # Check if hash value already exixsts in the database
+                        if len(documents):
+                            # If exists, don not increase count by 1
+                            return '', 200
+                        else:
+                            # Add hashed email to database
+                            data = {
+                                u'email_hash': email_hash,
+                            }
+                            emailhash_ref.document().set(data)
+                    # Add Counter
+                    id = request.args.get('id')  
+                    counter_ref.document(id).update({u'count': Increment(1)})
+                    counter_ref.document('totals').update({u'count': Increment(1)})
+                    filename = 'static/images/onepixel.gif'
+                    return send_file(filename, mimetype='image/gif')
         # Add a default response if none of the conditions are met
         logging.info("No Match Allowed Lists")
         return f"Not in allowed list", 400
@@ -348,99 +377,75 @@ def counter():
         # Check if Remote Host is in the allowed list        
         allowed_origin_list = []
         for doc in allowedorigion_ref.stream():
-            allowed_origin_list.append(doc.to_dict()['domain'])
+            allowed_origin_list.append(doc.to_dict())
+
+        # check if the allowed url matches a pattern in disallowed list            
+        disallowed_patterns = []
+        for disdoc in disallowedorigion_ref.stream():
+            disallowed_patterns.append(disdoc.to_dict().get('pattern'))
 
         remote_address = None
 
         # Check if HTTP_X_FORWARDED_FOR is set
         if 'HTTP_X_FORWARDED_FOR' in request.environ:
             forwarded_for = request.environ['HTTP_X_FORWARDED_FOR']
-            if forwarded_for in allowed_origin_list:
-                remote_address = forwarded_for
+            # Split the forwarded for string to get the actual IP address
+            remote_address = forwarded_for.split(',')[0]
 
         # If HTTP_X_FORWARDED_FOR is not set or not allowed, use REMOTE_ADDR
         if remote_address is None and 'REMOTE_ADDR' in request.environ:
             remote_address = request.environ['REMOTE_ADDR']
 
+        # Get the referrer from the 'Referer' header
+        referrer_url = request.headers.get('Referer')
+
+        if referrer_url:
+            parsed_referrer = urlparse(referrer_url)
+            referrer_domain = parsed_referrer.netloc.split(':')[0]
+            referrer_path = parsed_referrer.path
+            full_referrer_uri = referrer_url
+            referrer_ip = resolve_ip_from_domain(referrer_domain)
+        else:
+            referrer_domain = None
+            referrer_path = None
+            full_referrer_uri = None
+            referrer_ip = None
+
         # Now remote_address contains the appropriate remote address
-
         if remote_address is not None:
-            # On allowed lsut, check if ID was passed to URL query
-            email_hash = request.args.get('email_hash')
-            if email_hash is not None:
-                docRef = emailhash_ref.where('email_hash', '==', email_hash).get()
-                documents = [d for d in docRef]
-                # Check if hash value already exixsts in the database
-                if len(documents):
-                    # If exists, don not increase count by 1
-                    return base64.b64decode(b'='), 200
-                else:
-                    # Add hashed email to database
-                    data = {
-                        u'email_hash': email_hash,
-                    }
-                    emailhash_ref.document().set(data)
-            # Add Counter
-            id = request.args.get('id')  
-            counter_ref.document(id).update({u'count': Increment(1)})
-            counter_ref.document('totals').update({u'count': Increment(1)})    
-            return jsonify({"success": True}), 200
-        logging.info("No Match Allowed Lists")
-        return f"Not in allowed list", 400
-
-    except Exception as e:
-        return f"An Error Occured: {e}", 500
-
-##
-# The count route used for pixel image to increase a count using a GET request
-# API endpoint /count?id=<id>
-##
-
-
-@pixelcounterblue.route("/countdonation", methods=['GET', 'POST',])
-@cross_origin()
-def countdonation():
-    try:
-        # Check if Remote Host is in the allowed list        
-        allowed_origin_list = []
-        for doc in allowedorigion_ref.stream():
-            allowed_origin_list.append(doc.to_dict()['domain'])
-        try:
-
-            remote_address = None
-
-            # Check if HTTP_X_FORWARDED_FOR is set
-            if 'HTTP_X_FORWARDED_FOR' in request.environ:
-                forwarded_for = request.environ['HTTP_X_FORWARDED_FOR']
-                if forwarded_for in allowed_origin_list:
-                    remote_address = forwarded_for
-
-            # If HTTP_X_FORWARDED_FOR is not set or not allowed, use REMOTE_ADDR
-            if remote_address is None and 'REMOTE_ADDR' in request.environ:
-                remote_address = request.environ['REMOTE_ADDR']
-
-            # Now remote_address contains the appropriate remote address
-            if remote_address is not None:
-                # On allowed lsut, check if ID was passed to URL query
-                amount = request.args.get('donation')
-                if amount is not None:
+            # Check if the request domain matches any domain in the allowed list
+            for allowed_origin in allowed_origin_list:
+                if ('domain' in allowed_origin and referrer_domain == allowed_origin['domain']) or \
+                        ('ipaddress' in allowed_origin and remote_address == allowed_origin['ipaddress']):
+                    # Check if referrer path matches any disallowed patterns
+                    for pattern in disallowed_patterns:
+                        if pattern in referrer_path:
+                            # Log and reject the request
+                            logging.info("Disallowed URL accessed")
+                            return "Disallowed URL", 403
+                    # On allowed lsut, check if ID was passed to URL query
+                    email_hash = request.args.get('email_hash')
+                    if email_hash is not None:
+                        docRef = emailhash_ref.where('email_hash', '==', email_hash).get()
+                        documents = [d for d in docRef]
+                        # Check if hash value already exixsts in the database
+                        if len(documents):
+                            # If exists, don not increase count by 1
+                            return base64.b64decode(b'='), 200
+                        else:
+                            # Add hashed email to database
+                            data = {
+                                u'email_hash': email_hash,
+                            }
+                            emailhash_ref.document().set(data)
                     # Add Counter
                     id = request.args.get('id')
-                    amount_int = int(amount)
-                    counter_ref.document(id).update({u'count': Increment(amount_int)})
-                    counter_ref.document('totals').update({u'count': Increment(1)})
-                else:
-                    # Add Counter
-                    id = request.args.get('id')  
                     counter_ref.document(id).update({u'count': Increment(1)})
-                    counter_ref.document('totals').update({u'count': Increment(1)})
-                logging.info("Counter Been Updated")
-                return base64.b64decode(b'='), 200
-            # Add a default response if none of the conditions are met
-            logging.info("No Match Allowed Lists")
-            return f"Not in allowed list", 400
-        except Exception as e:
-            return f"An Error Occured: {e}", 500
+                    counter_ref.document('totals').update({u'count': Increment(1)})    
+                    return jsonify({"success": True}), 200
+        logging.info("No Match Allowed Lists")
+        return "Not in allowed list", 400
+
     except Exception as e:
         return f"An Error Occured: {e}", 500
 
@@ -477,12 +482,9 @@ def count():
             if remote_address is None and 'REMOTE_ADDR' in request.environ:
                 remote_address = request.environ['REMOTE_ADDR']
 
-            # Get the domain from the 'Host' header
-            request_domain = request.headers.get('Host')
-
             # Get the referrer from the 'Referer' header
             referrer_url = request.headers.get('Referer')
-            print(referrer_url)
+
             if referrer_url:
                 parsed_referrer = urlparse(referrer_url)
                 referrer_domain = parsed_referrer.netloc.split(':')[0]
