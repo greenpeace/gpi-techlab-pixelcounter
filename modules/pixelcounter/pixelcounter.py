@@ -464,9 +464,6 @@ def count():
         disallowed_patterns = ['/wp-admin/', '/admin/', '/edit/']  
 
         try:
-
-            print(request.environ)
-            print(request.headers)
             remote_address = None
 
             # Check if HTTP_X_FORWARDED_FOR is set
@@ -502,6 +499,7 @@ def count():
             logging.info(f"Referrer URL: {referrer_url}")
             logging.info(f"Full Referrer URI: {full_referrer_uri}")
             logging.info(f"Referrer IP: {referrer_ip}")
+            logging.info(f"Request Path: {request.path}")
 
             # Now remote_address contains the appropriate remote address
             if remote_address is not None:
@@ -548,13 +546,7 @@ def count():
                             counter_ref.document('totals').update({u'count': Increment(1)})
                         logging.info("Counter Been Updated")
                         return base64.b64decode(b'='), 200
-            
-            # Check if the request domain matches any domain in the disallowed list
-            for disallowed_origin in disallowed_origin_list:
-                if request_domain == disallowed_origin['domain'] or remote_address == disallowed_origin['ipaddress']:
-                    logging.info("Request from disallowed origin")
-                    return "Request from disallowed origin", 403
-                
+
             # Add a default response if none of the conditions are met
             logging.info("No Match Allowed Lists")
             return "Not in allowed list", 400
