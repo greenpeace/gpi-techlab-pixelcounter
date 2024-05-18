@@ -34,7 +34,7 @@
                       <table id="datast" class="table table-striped">
                         <thead>
                           <tr>
-                            <th scope="col">Id</th>
+                            <th scope="col">Name</th>
                             <th scope="col">Domain Name</th>
                             <th scope="col">IP Address</th>
                             <th style="width:200px;">Action</th>
@@ -44,7 +44,7 @@
                           {% if allowed %}
                             {% for ngo in allowed %}
                             <tr>
-                              <td>{{ ngo.id }}</td>
+                              <td>{{ ngo.name }}</td>
                               <td>{{ ngo.domain }}</td>
                               <td>{{ ngo.ipaddress }}</td>
                               <td>

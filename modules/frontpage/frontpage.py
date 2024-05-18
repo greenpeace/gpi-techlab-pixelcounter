@@ -1,16 +1,20 @@
 # Get the Flask Files Required
-from flask import Blueprint, g, request, session, url_for, redirect,render_template
+from flask import (
+    Blueprint,
+    request,
+    session,
+    url_for,
+    redirect,
+    render_template
+)
 import logging
 import system.visitors
 
 # Fake News firestore collection
-from system.firstoredb import blogpost_ref
-from firebase_admin import firestore
-
-# Fake News firestore collection
 from system.firstoredb import crm_ref
 # Set Blueprint’s name https://realpython.com/flask-blueprint/
-frontpageblue = Blueprint('frontpageblue', __name__, template_folder='templates')
+frontpageblue = Blueprint('frontpageblue', __name__, 
+                          template_folder='templates')
 
 #@frontpageblue.before_request
 #def do_something_when_a_request_comes_in():
@@ -21,15 +25,7 @@ frontpageblue = Blueprint('frontpageblue', __name__, template_folder='templates'
 #
 @frontpageblue.route("/")
 def index():
-        latestpost = [doc.to_dict() 
-        for doc in blogpost_ref
-            .where("post_status", "==", "publish")
-            .where("website", "==", "socialclimatetech.news")
-            .order_by("post_date", direction=firestore.Query.DESCENDING)
-            .limit(6)
-            .get()
-        ]
-        return render_template('landing.html', latestposts=latestpost)
+    return render_template('landing.html', **locals())
 
 #
 # About Us Page

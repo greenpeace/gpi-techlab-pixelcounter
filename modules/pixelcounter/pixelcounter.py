@@ -14,6 +14,11 @@ from flask import (
 from flask_cors import CORS, cross_origin
 # Install Google Libraries
 from google.cloud.firestore import Increment
+import google.cloud.logging
+# Instantiates a client
+client = google.cloud.logging.Client()
+client.setup_logging()
+logger = client.logger('pixelcounter')
 
 # Journalist firestore collection
 from system.firstoredb import counter_ref
@@ -49,8 +54,7 @@ def get_my_ip():
 @login_is_required
 def create():
     try:
-        id = request.json['id']
-        counter_ref.document(id).set(request.json)
+        counter_ref.document.set(request.json)
         return jsonify({"success": True}), 200
     except Exception as e:
         return f"An Error Occured: {e}"
@@ -455,13 +459,10 @@ def count():
         for doc in allowedorigion_ref.stream():
             allowed_origin_list.append(doc.to_dict())
 
-        # check if the allowed url matches a pattern in disallowed list
-        disallowed_origin_list = []
+        # check if the allowed url matches a pattern in disallowed list            
+        disallowed_patterns = []
         for disdoc in disallowedorigion_ref.stream():
-            disallowed_origin_list.append(disdoc.to_dict())
-
-        # Define disallowed patterns
-        disallowed_patterns = ['/wp-admin/', '/admin/', '/edit/']  
+            disallowed_patterns.append(disdoc.to_dict().get('pattern'))
 
         try:
             remote_address = None
@@ -481,6 +482,7 @@ def count():
 
             # Get the referrer from the 'Referer' header
             referrer_url = request.headers.get('Referer')
+            print(referrer_url)
             if referrer_url:
                 parsed_referrer = urlparse(referrer_url)
                 referrer_domain = parsed_referrer.netloc.split(':')[0]
@@ -494,29 +496,29 @@ def count():
                 referrer_ip = None
 
             # Log the headers for debugging purposes
-            logging.info(f"Headers: {request.headers}")
-            logging.info(f"Remote Address: {remote_address}")
-            logging.info(f"Referrer URL: {referrer_url}")
-            logging.info(f"Full Referrer URI: {full_referrer_uri}")
-            logging.info(f"Referrer IP: {referrer_ip}")
-            logging.info(f"Request Path: {request.path}")
+            # Use the logger to log messages
+            print("Headers: %s", request.headers)
+            print("Remote Address: %s", remote_address)
+            print("Referrer URL: %s", referrer_url)
+            print("Full Referrer URI: %s", full_referrer_uri)
+            print("Referrer IP: %s", referrer_ip)
+            print("Referrer Domain: %s", referrer_domain)
+            print("Referrer Path: %s", referrer_path)
 
             # Now remote_address contains the appropriate remote address
             if remote_address is not None:
-                # Get the domain from the 'Host' header
-                request_domain = request.headers.get('Host').split(':')[0]
-                request_path = request.path
                 # On allowed lsut, check if ID was passed to URL query
                 # Check if the request domain matches any domain in the allowed list
                 for allowed_origin in allowed_origin_list:
-                    if ('domain' in allowed_origin and request_domain == allowed_origin['domain']) or \
+                    if ('domain' in allowed_origin and referrer_domain == allowed_origin['domain']) or \
                             ('ipaddress' in allowed_origin and remote_address == allowed_origin['ipaddress']):
-                        # Check if the request path matches any disallowed patterns
+                        # Check if referrer path matches any disallowed patterns
                         for pattern in disallowed_patterns:
-                            if pattern in request_path:
+                            if pattern in referrer_path:
                                 # Log and reject the request
                                 logging.info("Disallowed URL accessed")
                                 return "Disallowed URL", 403
+
                         # On allowed list, check if ID was passed to URL query                
                         email_hash = request.args.get('email_hash')
                         if email_hash is not None:
@@ -551,10 +553,10 @@ def count():
             logging.info("No Match Allowed Lists")
             return "Not in allowed list", 400
         except Exception as e:
-            logging.error("Error: []" + e)
+            print(e)
             return f"An Error Occured: {e}", 500
     except Exception as e:
-        logging.error("No Match Allowed Lists []" + e)
+        print(e)
         return f"Error no access firestore: {e}", 500
 
 ##
@@ -617,7 +619,7 @@ def allowedlist():
         allowedlist = []     
         for doc in allowedorigion_ref.stream():
             don = doc.to_dict()
-            don["docid"] = doc.id
+            don["id"] = doc.id
             allowedlist.append(don)
 
         return render_template('allowedlist.html', allowed=allowedlist)
@@ -634,14 +636,13 @@ def allowedlist():
 @login_is_required
 def allowedlistcreate():
     try:
-        id = request.form.get('id')        
         data = {
-            u'id': request.form.get('id'),
+            u'name': request.form.get('name'),
             u'domain': request.form.get('domain'),
             u'ipaddress': request.form.get('ipaddress')
         }
 
-        allowedorigion_ref.document(id).set(data)
+        allowedorigion_ref.document().set(data)
         flash('Data Succesfully Submitted')
         return redirect(url_for('pixelcounterblue.allowedlist'))
     except Exception as e:
@@ -661,7 +662,7 @@ def allowedlistupdate():
     try:
         id = request.form['id']
         data = {
-            u'id': request.form.get('id'),
+            u'name': request.form.get('name'),
             u'domain': request.form.get('domain'),
             u'ipaddress': request.form.get('ipaddress')
         }
@@ -685,7 +686,7 @@ def allowedlistedit():
         id = request.args.get('id')
         allowedlist = allowedorigion_ref.document(id).get()
         don = allowedlist.to_dict()
-        don["docid"] = allowedlist.id
+        don["id"] = allowedlist.id
         allowedlists.append(don)
 
         return render_template('allowedlistedit.html', ngo=don)
@@ -733,7 +734,7 @@ def disallowedlist():
         disallowedlist = []     
         for doc in disallowedorigion_ref.stream():
             don = doc.to_dict()
-            don["docid"] = doc.id
+            don["id"] = doc.id
             disallowedlist.append(don)
 
         return render_template('disallowedlist.html', allowed=disallowedlist)
@@ -750,13 +751,18 @@ def disallowedlist():
 @login_is_required
 def disallowedlistcreate():
     try:
-        id = request.form.get('id')        
+        jwt_token = session.get('jwt_token')
+        decoded_data = jwt.decode(jwt_token, 'secret_key', algorithms=['HS256'])
+
         data = {
-            u'id': request.form.get('id'),
-            u'domain': request.form.get('domain')
+            u'name': request.form.get('name'),
+            u'pattern': request.form.get('pattern'),
+            u'uuid': decoded_data.get('google_id'),
+            u'user': decoded_data.get('name')
         }
-        
-        disallowedorigion_ref.document(id).set(data)
+
+        # Write to Firestore DB
+        disallowedorigion_ref.document().set(data)
         flash('Data Succesfully Submitted')
         return redirect(url_for('pixelcounterblue.disallowedlist'))
     except Exception as e:
@@ -776,8 +782,8 @@ def disallowedlistupdate():
     try:
         id = request.form['id']
         data = {
-            u'id': request.form.get('id'),
-            u'domain': request.form.get('domain')
+            u'name': request.form.get('name'),
+            u'pattern': request.form.get('pattern')
         }
         disallowedorigion_ref.document(id).update(data)
         return redirect(url_for('pixelcounterblue.disallowedlist'))
@@ -799,7 +805,7 @@ def disallowedlistedit():
         id = request.args.get('id')
         disallowedlist = disallowedorigion_ref.document(id).get()
         don = disallowedlist.to_dict()
-        don["docid"] = disallowedlist.id
+        don["id"] = disallowedlist.id
         disallowedlists.append(don)
 
         return render_template('disallowedlistedit.html', ngo=don)

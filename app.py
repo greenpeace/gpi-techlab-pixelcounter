@@ -14,11 +14,14 @@ from markupsafe import Markup
 # Internal imports
 from system.getsecret import getsecrets
 from system.gcpclientinit import initialize_gcp_client
-
+# Install Google Libraries
+import google.cloud.logging
 # Import project id
 from system.setenv import project_id
 # Initialize the GCP client using the secure secret value
 # firestore_client = initialize_gcp_client(project_id)
+client = google.cloud.logging.Client()
+logger = client.logger('Pixelcounter')
 
 # Get the secret for Service Account
 app_secret_key = getsecrets("app_secret_key", project_id)

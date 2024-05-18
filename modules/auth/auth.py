@@ -271,6 +271,7 @@ def create_new_user(id_info, groups=None, permissions=None):
         'createdAt': current_time,
         'lastLoginAt': current_time,
         'phone': '',
+        'role': 'Admin',
         'permissions': permissions if permissions else [],
         'groups': groups if groups else [],
         'disabled': False,

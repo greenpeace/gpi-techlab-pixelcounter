@@ -18,10 +18,11 @@
     
       <div class="container-fluid">
             <form action="/allowedlistupdate" method="post">
+              <input type="hidden" name="id" value="{{ ngo.id }}">
               <hr>
               <div class="form-group">
                 <label for="id">Name</label>  
-                <input type="text" name="id" class="form-control" value="{{ ngo.id }}"></input>
+                <input type="text" name="name" class="form-control" value="{{ ngo.name }}"></input>
               </div>
               <hr>
               <div class="form-group">
