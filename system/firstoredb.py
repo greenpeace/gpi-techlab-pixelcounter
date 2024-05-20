@@ -13,9 +13,9 @@ firebase_admin.initialize_app(CREDENTIALS, {
 # Initialize Firestore DB
 db = firestore.client()
 
-is_production = os.getenv('IS_PRODUCTION', 'false').lower() == 'true'
+is_production_db = os.getenv('IS_PRODUCTION_DB', 'false').lower() == 'true'
 
-if is_production:
+if is_production_db:
     # Counters firestore collection
     counter_ref = db.collection(u'counters')
     # Allowed origion collection

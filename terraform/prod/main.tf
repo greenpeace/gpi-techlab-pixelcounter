@@ -92,6 +92,14 @@ resource "google_cloud_run_service" "pixelcounter" {
     spec {
       containers {
         image = local.image
+        env {
+          name  = "IS_PRODUCTION"
+          value = "true"
+        }
+        env {
+          name  = "IS_PRODUCTION_DB"
+          value = "true"
+        }
         ports {
           container_port = 8080
         }

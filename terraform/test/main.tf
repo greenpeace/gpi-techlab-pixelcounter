@@ -97,6 +97,10 @@ resource "google_cloud_run_service" "pixelcounter-test" {
           name  = "IS_PRODUCTION"
           value = "true"
         }
+        env {
+          name  = "IS_PRODUCTION_DB"
+          value = "false"
+        }
         ports {
           container_port = 8080
         }

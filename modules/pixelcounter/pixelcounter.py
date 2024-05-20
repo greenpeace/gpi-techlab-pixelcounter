@@ -138,16 +138,14 @@ def createlist():
         jwt_token = session.get('jwt_token')
         decoded_data = jwt.decode(jwt_token, 'secret_key', algorithms=['HS256'])
 
-        id = request.form.get('id')
-
         # Check if id already exixst # check if short exist 
-        docshort = counter_ref.where('id', '==', request.form.get('id')).get()
+        docshort = counter_ref.where('name', '==', request.form.get('name')).get()
         if (len(list(docshort))):
             flash(f'An Error Occured: The counter name has already been taken')
             return redirect(url_for('pixelcounterblue.read'))            
         else:
             data = {
-                u'id': request.form.get('id'),
+                u'name': request.form.get('name'),
                 u'nro': request.form.get('nro'),
                 u'url': request.form.get('url'),
                 u'count': int(request.form.get('count')),
@@ -158,7 +156,7 @@ def createlist():
                 u'user': decoded_data.get('name')
             }
 
-            counter_ref.document(id).set(data)
+            counter_ref.document().set(data)
             flash('Data Succesfully Submitted')
             return redirect(url_for('pixelcounterblue.read'))
     except Exception as e:
@@ -178,7 +176,7 @@ def read():
         decoded_data = jwt.decode(jwt_token, 'secret_key', algorithms=['HS256'])
 
         # Check if ID was passed to URL query
-        id = request.args.get('id')    
+        id = request.args.get('id')
         if id:
             counter = counter_ref.document(id).get()
             return jsonify(u'{}'.format(counter.to_dict()['count'])), 200
@@ -187,12 +185,12 @@ def read():
 
             for doc in counter_ref.where("uuid", "==", decoded_data.get('google_id')).where('type', '==', 'local').stream():
                 don = doc.to_dict()
-                don["docid"] = doc.id
+                don["id"] = doc.id
                 all_counters.append(don)
 
             for doc in counter_ref.where('type', '==', 'global').stream():
                 don = doc.to_dict()
-                don["docid"] = doc.id
+                don["id"] = doc.id
                 all_counters.append(don)
 
             return render_template('list.html', output=all_counters)
@@ -208,10 +206,15 @@ def read():
 @login_is_required
 def listedit():
     try:
+        lists = []
         # Check if ID was passed to URL query
-        counter_id = request.args.get('id')
-        counter = counter_ref.document(counter_id).get()
-        return render_template('listedit.html', ngo=counter.to_dict())
+        id = request.args.get('id')
+        counterlist = counter_ref.document(id).get()
+        don = counterlist.to_dict()
+        don["id"] = counterlist.id
+        lists.append(don)
+
+        return render_template('listedit.html', ngo=don)
     except Exception as e:
         return f"An Error Occured: {e}"
 
@@ -259,11 +262,11 @@ def updateform():
 
         jwt_token = session.get('jwt_token')
         decoded_data = jwt.decode(jwt_token, 'secret_key', algorithms=['HS256'])
-
+        
         id = request.form['id']
 
         data = {
-            u'id': request.form.get('id'),
+            u'name': request.form.get('name'),
             u'nro': request.form.get('nro'),
             u'url': request.form.get('url'),
             u'count': int(request.form.get('count')),
@@ -285,7 +288,7 @@ def updateform():
 # json {"id":"GP Canada","count", 0}
 #
 
-@pixelcounterblue.route('/count_pixel', methods=['GET','POST',])
+@pixelcounterblue.route('/count_pixel', methods=['GET', 'POST',])
 @cross_origin()
 def count_pixel():
     try:
@@ -334,7 +337,7 @@ def count_pixel():
                         ('ipaddress' in allowed_origin and remote_address == allowed_origin['ipaddress']):
                     # Check if referrer path matches any disallowed patterns
                     for pattern in disallowed_patterns:
-                        if pattern in referrer_path:
+                        if referrer_path is not None and pattern in referrer_path:
                             # Log and reject the request
                             logging.info("Disallowed URL accessed")
                             return "Disallowed URL", 403
@@ -354,9 +357,50 @@ def count_pixel():
                             }
                             emailhash_ref.document().set(data)
                     # Add Counter
-                    id = request.args.get('id')  
-                    counter_ref.document(id).update({u'count': Increment(1)})
-                    counter_ref.document('totals').update({u'count': Increment(1)})
+                    name = request.args.get('id')  # Get name from request parameter
+
+                    # Construct Firestore query to find the counter document
+                    docRef = counter_ref.where('name', '==', name).limit(1).get()
+
+                    documents = [d for d in docRef]
+                    # Check if hash value already exixsts in the database
+                    if not len(documents):
+                        return 'Document not found', 404  # Return error if no document found
+
+                    # Define a query to find the document with name "totals"
+                    totals_ref = counter_ref.where('name', '==', 'totals').limit(1).get()  # Limit to 1 document
+
+                    totalsdoc = [d for d in totals_ref]
+
+                    # Access the first document (assuming unique names)
+                    counter_doc = docRef[0]
+                    totals_doc = totalsdoc[0]
+
+                    amount = request.args.get('donation')
+                    if amount is not None:
+                        # Convert amount to integer
+                        amount_int = int(amount)
+                        counter_ref.document(counter_doc.id).update({u'count': Increment(amount_int)})
+                        # Check if the document exists
+                        if len(totalsdoc):
+                            # Update the "count" field in the totals document
+                            counter_ref.document(totals_doc.id).update({u'count': Increment(1)})                    
+                        else:
+                            # Handle the case where the document is not found (optional)
+                            print('Totals document not found')
+                            return "Totals Document not found", 400
+
+                    else:
+                        counter_ref.document(counter_doc.id).update({u'count': Increment(1)})
+                        # Check if the document exists
+                        if len(totalsdoc):
+                            # Update the "count" field in the totals document
+                            counter_ref.document(totals_doc.id).update({u'count': Increment(1)})                    
+                        else:
+                            # Handle the case where the document is not found (optional)
+                            print('Totals document not found')
+                            return "Totals Document not found", 400
+
                     filename = 'static/images/onepixel.gif'
                     return send_file(filename, mimetype='image/gif')
         # Add a default response if none of the conditions are met
@@ -419,7 +463,7 @@ def counter():
                         ('ipaddress' in allowed_origin and remote_address == allowed_origin['ipaddress']):
                     # Check if referrer path matches any disallowed patterns
                     for pattern in disallowed_patterns:
-                        if pattern in referrer_path:
+                        if referrer_path is not None and pattern in referrer_path:
                             # Log and reject the request
                             logging.info("Disallowed URL accessed")
                             return "Disallowed URL", 403
@@ -439,10 +483,52 @@ def counter():
                             }
                             emailhash_ref.document().set(data)
                     # Add Counter
-                    id = request.args.get('id')
-                    counter_ref.document(id).update({u'count': Increment(1)})
-                    counter_ref.document('totals').update({u'count': Increment(1)})    
+                    name = request.args.get('id')  # Get name from request parameter
+
+                    # Construct Firestore query to find the counter document
+                    docRef = counter_ref.where('name', '==', name).limit(1).get()
+
+                    documents = [d for d in docRef]
+                    # Check if hash value already exixsts in the database
+                    if not len(documents):
+                        return 'Document not found', 404  # Return error if no document found
+
+                    # Define a query to find the document with name "totals"
+                    totals_ref = counter_ref.where('name', '==', 'totals').limit(1).get()  # Limit to 1 document
+
+                    totalsdoc = [d for d in totals_ref]
+
+                    # Access the first document (assuming unique names)
+                    counter_doc = docRef[0]
+                    totals_doc = totalsdoc[0]
+
+                    amount = request.args.get('donation')
+                    if amount is not None:
+                        # Convert amount to integer
+                        amount_int = int(amount)
+                        counter_ref.document(counter_doc.id).update({u'count': Increment(amount_int)})
+                        # Check if the document exists
+                        if len(totalsdoc):
+                            # Update the "count" field in the totals document
+                            counter_ref.document(totals_doc.id).update({u'count': Increment(1)})                    
+                        else:
+                            # Handle the case where the document is not found (optional)
+                            print('Totals document not found')
+                            return "No counter update", 400
+
+                    else:
+                        counter_ref.document(counter_doc.id).update({u'count': Increment(1)})
+                        # Check if the document exists
+                        if len(totalsdoc):
+                            # Update the "count" field in the totals document
+                            counter_ref.document(totals_doc.id).update({u'count': Increment(1)})                    
+                        else:
+                            # Handle the case where the document is not found (optional)
+                            print('Totals document not found')
+                            return "Totals Document not found", 400
+
                     return jsonify({"success": True}), 200
+                
         logging.info("No Match Allowed Lists")
         return "Not in allowed list", 400
 
@@ -516,7 +602,7 @@ def count():
                             ('ipaddress' in allowed_origin and remote_address == allowed_origin['ipaddress']):
                         # Check if referrer path matches any disallowed patterns
                         for pattern in disallowed_patterns:
-                            if pattern in referrer_path:
+                            if referrer_path is not None and pattern in referrer_path:
                                 # Log and reject the request
                                 logging.info("Disallowed URL accessed")
                                 return "Disallowed URL", 403
@@ -530,7 +616,7 @@ def count():
                             if len(documents):
                                 # If exists, don not increase count by 1
                                 logging.info("Email hash Exist")
-                                return '', 200
+                                return 'Email hash Exist', 200
                             else:
                                 # Add hashed email to database
                                 data = {
@@ -538,16 +624,50 @@ def count():
                                 }
                                 emailhash_ref.document().set(data)
                         # Add Counter
-                        id = request.args.get('id')
+                        name = request.args.get('id')  # Get name from request parameter
+
+                        # Construct Firestore query to find the counter document
+                        docRef = counter_ref.where('name', '==', name).limit(1).get()
+
+                        documents = [d for d in docRef]
+                        # Check if hash value already exixsts in the database
+                        if not len(documents):
+                            return 'Document not found', 404  # Return error if no document found
+
+                        # Define a query to find the document with name "totals"
+                        totals_ref = counter_ref.where('name', '==', 'totals').limit(1).get()  # Limit to 1 document
+
+                        totalsdoc = [d for d in totals_ref]
+
+                        # Access the first document (assuming unique names)
+                        counter_doc = docRef[0]
+                        totals_doc = totalsdoc[0]
+
                         amount = request.args.get('donation')
                         if amount is not None:
                             # Convert amount to integer
                             amount_int = int(amount)
-                            counter_ref.document(id).update({u'count': Increment(amount_int)})
-                            counter_ref.document('totals').update({u'count': Increment(1)})                    
+                            counter_ref.document(counter_doc.id).update({u'count': Increment(amount_int)})
+                            # Check if the document exists
+                            if len(totalsdoc):
+                                # Update the "count" field in the totals document
+                                counter_ref.document(totals_doc.id).update({u'count': Increment(1)})                    
+                            else:
+                                # Handle the case where the document is not found (optional)
+                                print('Totals document not found')
+                                return "Totals Document not found", 400
+
                         else:
-                            counter_ref.document(id).update({u'count': Increment(1)})
-                            counter_ref.document('totals').update({u'count': Increment(1)})
+                            counter_ref.document(counter_doc.id).update({u'count': Increment(1)})
+                            # Check if the document exists
+                            if len(totalsdoc):
+                                # Update the "count" field in the totals document
+                                counter_ref.document(totals_doc.id).update({u'count': Increment(1)})                    
+                            else:
+                                # Handle the case where the document is not found (optional)
+                                print('Totals document not found')
+                                return "Totals Document not found", 400
+                                
                         logging.info("Counter Been Updated")
                         return base64.b64decode(b'='), 200
 
@@ -569,12 +689,21 @@ def count():
 
 @pixelcounterblue.route("/signup", methods=['POST', 'PUT'], endpoint='signup')
 @login_is_required
-def signup():    
+def signup():
     try:
         if request.method == "POST":
-            id = request.form['id']
-            counter = counter_ref.document(id).get()
-            output = f"{ counter.to_dict()['count'] }"          
+            name = request.form['name']
+            docRef = counter_ref.where('name', '==', name).limit(1).get()
+
+            # Check if the query returned any documents
+            if docRef:
+                # Get the first document from the query result
+                doc = docRef[0]
+                # Convert the document to a dictionary
+                output = f"{ doc.to_dict()['count'] }"
+            else:
+                # Handle the case where no document is found
+                output = None
             return render_template('signups.html', output=output)
         return render_template('signups.html', output="No NRO name has been given")
     except Exception as e:
@@ -590,12 +719,27 @@ def signup():
 @cross_origin()
 def signups():
     try:
-        id = request.args.get('id')
-        counter = counter_ref.document(id).get()
-        output = counter.to_dict()['count']
-        return jsonify({"unique_count": output, "id": id}), 200
+
+        name = request.args.get('id')
+        # Construct Firestore query to find the counter document
+        docRef = counter_ref.where('name', '==', name).limit(1).get()
+
+        # Check if the query returned any documents
+        if docRef:
+            # Get the first document from the query result
+            doc = docRef[0]
+            # Convert the document to a dictionary
+            doc_dict = doc.to_dict()
+            # Extract the 'count' value from the dictionary
+            output = doc_dict['count']
+        else:
+            # Handle the case where no document is found
+            output = None
+
+        return jsonify({"unique_count": output, "id": name}), 200
     except Exception as e:
         return f"An Error Occured: {e}", 500
+
 
 #
 # API Route add a counter by ID - requires json file body with id and count
@@ -671,7 +815,7 @@ def allowedlistupdate():
         allowedorigion_ref.document(id).update(data)
         return redirect(url_for('pixelcounterblue.allowedlist'))
     except Exception as e:
-        return f"An Error Occured: {e}"    
+        return f"An Error Occured: {e}"
     
 #
 # API Route list all or a speific counter by ID - requires json file body with id and count

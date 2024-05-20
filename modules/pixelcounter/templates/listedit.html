@@ -16,9 +16,10 @@
     <div class="clearfix"></div>
       <hr>
       <div class="container-fluid">
-            <p>Counter Name: {{ ngo.id }}</p>        
+            <p>Counter Name:<b> {{ ngo.name}} </b></p>        
             <form action="/updateform" method="post">
               <input type="hidden" name="id" value="{{ ngo.id }}">
+              <input type="hidden" name="name" value="{{ ngo.name }}">
               <div class="form-group">
                 <label for="nro">NRO</label>  
                 <input type="text" name="nro" class="form-control" value="{{ ngo.nro }}"></input>

@@ -47,14 +47,14 @@
                           {% if output %}
                             {% for ngo in output %}
                             <tr>
-                              <td>{{ ngo.id }}</td>
+                              <td>{{ ngo.name }}</td>
                               <td>{{ ngo.nro }}</td>
                               <td>{{'{:,}'.format(ngo.count)}}</td>
                               <td><a href="{{ ngo.url }}" target="new"><strong>Visit</strong></a></td>
                               <td>{{ ngo.type }}</td>
                               <td>{{ ngo.contactpoint }}</td>
                               <td>{{ ngo.campaign }}</td> 
-                              <td><b>/count?id={{ ngo.id }}</b></td>
+                              <td><b>/count?id={{ ngo.name }}</b></td>
                               <td>
                                 <a class="btn btn-sm btn-success" href="/listedit?id={{ ngo.id }}" title="Edit" ><i class="glyphicon glyphicon-pencil"></i> Edit</a>
                                 <a class="btn btn-sm btn-danger" href="/listdelete?id={{ ngo.id }}" title="Delete"><i class="glyphicon glyphicon-pencil"></i> Delete</a>
