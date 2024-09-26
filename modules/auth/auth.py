@@ -45,8 +45,7 @@ client_secret_dict = json.loads(secret_value)
 
 scopes = ["https://www.googleapis.com/auth/userinfo.profile",
           "https://www.googleapis.com/auth/userinfo.email",
-          "openid"
-]
+          "openid"]
 
 is_production = os.getenv('IS_PRODUCTION', 'false').lower() == 'true'
 
@@ -98,9 +97,9 @@ def logout():
 #
 
 
-@authsblue.route("/loginseq")  #the page where the user can login
+@authsblue.route("/loginseq")
 def loginseq():
-    #asking the flow class for the authorization (login) url
+    # asking the flow class for the authorization (login) url
     authorization_url, state = flow.authorization_url()
     session.permanent = True
     session['state'] = state
@@ -154,7 +153,7 @@ def callback():
             'lastLoginAt': datetime.now()
         })
 
-        # Generate user data for JWT token
+    # Generate user data for JWT token
     user_jwt_data = {
         'google_id': id_info.get("sub"),
         'name': id_info.get("name"),
@@ -172,14 +171,12 @@ def callback():
     # Store JWT token in session
     session['jwt_token'] = jwt_token
 
-    # Store user data in the session
-    session['name'] = id_info.get("name")
-    session['photo'] = id_info.get("picture")
-    session['uuid'] = user_data["uuid"]
-    session['customer_id'] = user_data["customer_id"]
-    session['role'] = user_data["role"]
-    session['language'] = id_info.get("locale")
-
+    # if user_data['totp_enabled']:
+    # session['temp_user_data'] = user_jwt_data
+    # return redirect(url_for('authsblue.two_factor_auth'))
+    # else:
+    jwt_token = generate_jwt_token(user_jwt_data)
+    session['jwt_token'] = jwt_token
     return redirect(url_for('dashboardblue.main'))
 
 # a function to check if the user is authorized or not

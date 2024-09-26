@@ -16,8 +16,18 @@ from system.getsecret import getsecrets
 from system.gcpclientinit import initialize_gcp_client
 # Install Google Libraries
 import google.cloud.logging
+# Warnings
+import warnings
 # Import project id
 from system.setenv import project_id
+# Import Modules
+from modules.frontpage.frontpage import frontpageblue
+from modules.auth.auth import authsblue
+from modules.pixelcounter.pixelcounter import pixelcounterblue
+from modules.dashboard.dashboard import dashboardblue
+from modules.qrcode.qrcode import qrcodeblue
+from modules.urlshortner.urlshortner import urlshortnerblue
+
 # Initialize the GCP client using the secure secret value
 # firestore_client = initialize_gcp_client(project_id)
 client = google.cloud.logging.Client()
@@ -46,16 +56,19 @@ app.logger.setLevel(logging.INFO)
 logging.basicConfig(format='%(levelname)s:%(message)s')
 
 # Configuration
+
+
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
+
 
 @app.template_filter()
 def format_datetime(value, format='medium'):
     if format == 'full':
-        format="EEEE, y MMMM d. 'at' HH:mm"
+        format = "EEEE, y MMMM d. 'at' HH:mm"
     elif format == 'medium':
-        format="EE y-MM-dd"
+        format = "EE y-MM-dd"
     elif format == 'blog':
-        format="EE dd y"
+        format = "EE dd y"
 
     return babel.dates.format_datetime(value, format)
 
@@ -67,22 +80,23 @@ def nl2br(value):
     return Markup(value.replace('\n', '<br>\n'))
 
 # register frontpage
-from modules.frontpage.frontpage import frontpageblue
+
+
 app.register_blueprint(frontpageblue)
+
 # Register AUTh Module
-from modules.auth.auth import authsblue
 app.register_blueprint(authsblue)
+
 # Register AUTh Module
-from modules.pixelcounter.pixelcounter import pixelcounterblue
 app.register_blueprint(pixelcounterblue)
+
 # Dashboard
-from modules.dashboard.dashboard import dashboardblue
 app.register_blueprint(dashboardblue)
+
 # qrcode
-from modules.qrcode.qrcode import qrcodeblue
 app.register_blueprint(qrcodeblue)
+
 # url shortner
-from modules.urlshortner.urlshortner import urlshortnerblue
 app.register_blueprint(urlshortnerblue)
 
 # it is necessary to set a password when dealing with OAuth 2.0
@@ -90,7 +104,7 @@ app.secret_key = app_secret_key
 
 logging.info("Start processing Function")
 
-import warnings
+
 warnings.filterwarnings("ignore", category=UserWarning, module='.*distutils.*')
 
 # Initialize the GCP client using the secure secret value
@@ -112,13 +126,13 @@ def serve_sw():
 
 
 #
-# 404 Page not found    
+# 404 Page not found
 #
 
 
 @app.errorhandler(404)
 def not_found_error(error):
-    logging.info(f'404 Page Not Found')
+    logging.info('404 Page Not Found')
     return render_template('404.html'), 404
 
 #
@@ -128,7 +142,7 @@ def not_found_error(error):
 
 @app.errorhandler(werkzeug.exceptions.HTTPException)
 def internal_error(error):
-    logging.info(f'500 System Error')
+    logging.info('500 System Error')
     return render_template('500.html'), 500
 
 

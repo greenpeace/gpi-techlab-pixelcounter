@@ -1,28 +1,16 @@
 from flask import (
-    Blueprint, 
-    request, 
-    session, 
-    jsonify, 
-    url_for, 
-    redirect, 
-    render_template, 
-    flash, 
+    Blueprint,
+    request,
+    session,
+    jsonify,
+    url_for,
+    redirect,
+    render_template,
+    flash,
     abort
 )
 
-from flask_cors import CORS,cross_origin
-# to get meta details from an url
-import requests
-from bs4 import BeautifulSoup
-import base64
-
-# Get Logging
-import logging
-
-import jwt
-
-# Get BigQuery
-import system.bigquery
+from flask_cors import CORS, cross_origin
 
 # Install Google Libraries
 from google.cloud.firestore import Increment
@@ -36,39 +24,61 @@ from system.getsecret import getsecrets
 from system.firstoredb import molnurl_ref
 from system.date import datenow
 
-urlshortnerblue = Blueprint('urlshortnerblue', __name__, template_folder='templates')
+# to get meta details from an url
+import requests
+from bs4 import BeautifulSoup
+import base64
+
+# Get Logging
+import logging
+
+import jwt
+
+# Get BigQuery
+import system.bigquery
+
+urlshortnerblue = Blueprint('urlshortnerblue',
+                            __name__,
+                            template_folder='templates')
 
 
 # Get the secret for dataset
 
 
-dataset_id = getsecrets("urlshortner_stats_dataset_id",project_id)
+dataset_id = getsecrets("urlshortner_stats_dataset_id", project_id)
 
 # Get the secret for table
 
 
-table_id = getsecrets("urlshortner_stats_table_id",project_id)
+table_id = getsecrets("urlshortner_stats_table_id", project_id)
+
+
+CORS(urlshortnerblue)
 
 #
 # API Route add a searchlink by ID - requires json file body with id and count
 #
 
 
-@urlshortnerblue.route("/urlshortneradd", methods=['GET'], endpoint='urlshortneradd')
+@urlshortnerblue.route("/urlshortneradd",
+                       methods=['GET'],
+                       endpoint='urlshortneradd')
 @login_is_required
 def urlshortneradd():
     return render_template('urlshortneradd.html', **locals())
-    
+
 #
 # API Route add a searchlink by ID - requires json file body with id and count
 #
 
 
-@urlshortnerblue.route("/urlshortnercreate", methods=['POST'], endpoint='urlshortnercreate')
+@urlshortnerblue.route("/urlshortnercreate",
+                       methods=['POST'],
+                       endpoint='urlshortnercreate')
 @login_is_required
 @cross_origin()
 def urlshortnercreate():
-    try: 
+    try:
         # Get the URL from the form and make a request to get data from it
         url = request.form.get('url')
         title = ""
@@ -80,7 +90,7 @@ def urlshortnercreate():
             # Find the title and description from the URL of the redirect
             title = soup.find("meta",  property="og:title")
             description = soup.find("meta",  property="og:description")
-            meta_tag = soup.find('meta', attrs={'name': 'description'})
+            # meta_tag = soup.find('meta', attrs={'name': 'description'})
         except Exception as e:
             flash('Data Succesfully Submitted {}', e)
 
@@ -90,11 +100,11 @@ def urlshortnercreate():
 
         # CHeck if system generate short name or user provided shortname
         if request.form.get('domain') != "":
-            # check if short exist 
+            # check if short exist
             docshort = molnurl_ref.where('short', '==', request.host_url + request.form.get('domain')).get()
             if (len(list(docshort))):
-                flash(f'An Error Occured: The short link name is already in use')
-                return redirect(url_for('urlshortnerblue.urlshortner'))            
+                flash('An Error Occured: The short link name is already in use')
+                return redirect(url_for('urlshortnerblue.urlshortner'))
             else:
                 short = request.form.get('domain')
         else:
@@ -114,7 +124,7 @@ def urlshortnercreate():
             u'domain': request.form.get('domain'),
             u'url': request.form.get('url'),
             u'language': request.form.get('language'),
-            u'country': request.form.get('country'),            
+            u'country': request.form.get('country'),
             u'click': 0,
             u'uniqueclick': 0,
             u'short': short,
@@ -123,18 +133,20 @@ def urlshortnercreate():
             u'user': decoded_data.get('name')
         }
 
-        doc_ref = molnurl_ref.document(id).set(data)        
+        doc_ref = molnurl_ref.document(id).set(data)
         flash('Data Succesfully Submitted')
         return redirect(url_for('urlshortnerblue.urlshortner'))
     except Exception as e:
-        flash(f'An Error Occured: ' + str(e))
+        flash('An Error Occured: ' + str(e))
         return redirect(url_for('urlshortnerblue.urlshortner'))
 #
 # API Route list all or a speific counter by ID - requires json file body with id and count
 #
 
 
-@urlshortnerblue.route("/urlshortner", methods=['GET'], endpoint='urlshortner')
+@urlshortnerblue.route("/urlshortner",
+                       methods=['GET'],
+                       endpoint='urlshortner')
 @login_is_required
 def urlshortner():
     try:
@@ -148,20 +160,22 @@ def urlshortner():
             urlshortnerlink = molnurl_ref.document(id).get()
             return jsonify(u'{}'.format(urlshortnerlink.to_dict()['count'])), 200
         else:
-            all_urlshortnerlinks = []     
-            for doc in molnurl_ref.where("uuid", "==", decoded_data.get('google_id')).where('type', '==', 'local').stream():
+            all_urlshortnerlinks = []
+            for doc in molnurl_ref.where("uuid",
+                                         "==",
+                                         decoded_data.get('google_id')).where('type', '==', 'local').stream():
                 don = doc.to_dict()
                 don["docid"] = doc.id
                 all_urlshortnerlinks.append(don)
 
-            for doc in molnurl_ref.where('type','==','global').stream():
+            for doc in molnurl_ref.where('type', '==', 'global').stream():
                 don = doc.to_dict()
                 don["docid"] = doc.id
                 all_urlshortnerlinks.append(don)
 
             return render_template('urlshortner.html', output=all_urlshortnerlinks)
     except Exception as e:
-        flash(f'An Error Occured: ' + str(e))
+        flash('An Error Occured: ' + str(e))
         return redirect(url_for('urlshortnerblue.urlshortner'))
 
 #
@@ -169,7 +183,9 @@ def urlshortner():
 #
 
 
-@urlshortnerblue.route("/urlshortneredit", methods=['GET'], endpoint='urlshortneredit')
+@urlshortnerblue.route("/urlshortneredit",
+                       methods=['GET'],
+                       endpoint='urlshortneredit')
 @login_is_required
 def urlshortneredit():
     try:
@@ -179,7 +195,7 @@ def urlshortneredit():
         ngo = urlshortnerlink.to_dict()
         return render_template('urlshortneredit.html', **locals())
     except Exception as e:
-        flash(f'An Error Occured: ' + str(e))
+        flash('An Error Occured: ' + str(e))
         return redirect(url_for('urlshortnerblue.urlshortner'))
 
 #
@@ -188,7 +204,9 @@ def urlshortneredit():
 #
 
 
-@urlshortnerblue.route("/urlshortnerdelete", methods=['GET', 'DELETE'], endpoint='urlshortnerdelete')
+@urlshortnerblue.route("/urlshortnerdelete",
+                       methods=['GET', 'DELETE'],
+                       endpoint='urlshortnerdelete')
 @login_is_required
 def urlshortnerdelete():
     try:
@@ -197,7 +215,7 @@ def urlshortnerdelete():
         molnurl_ref.document(id).delete()
         return redirect(url_for('urlshortnerblue.urlshortner'))
     except Exception as e:
-        flash(f'An Error Occured: ' + str(e))
+        flash('An Error Occured: ' + str(e))
         return redirect(url_for('urlshortnerblue.urlshortner'))
 
 #
@@ -206,7 +224,9 @@ def urlshortnerdelete():
 #
 
 
-@urlshortnerblue.route("/urlshortneractive", methods=['GET', 'DELETE'], endpoint='urlshortneractive')
+@urlshortnerblue.route("/urlshortneractive",
+                       methods=['GET', 'DELETE'],
+                       endpoint='urlshortneractive')
 @login_is_required
 def urlshortneractive():
     try:
@@ -215,28 +235,30 @@ def urlshortneractive():
         urlshortnerlink = molnurl_ref.document(id).get()
         urlshortneractive = urlshortnerlink.to_dict()
 
-        ## Update flag that translation done
-        if urlshortneractive['active'] == True:
+        # Update flag that translation done
+        if urlshortneractive['active'] is True:
             data = {
                 u'active': False,
             }
-        else:            
+        else:
             data = {
                 u'active': True,
             }
         molnurl_ref.document(id).update(data)
         return redirect(url_for('urlshortnerblue.urlshortner'))
     except Exception as e:
-        flash(f'An Error Occured: ' + str(e))
+        flash('An Error Occured: ' + str(e))
         return redirect(url_for('urlshortnerblue.urlshortner'))
-    
+
 #
 # API Route Update a counter by ID - requires json file body with id and count
 # API endpoint /update?id=<id>&count=<count>
 #
 
 
-@urlshortnerblue.route("/urlshortnerupdate", methods=['POST', 'PUT'], endpoint='urlshortnerupdate')
+@urlshortnerblue.route("/urlshortnerupdate",
+                       methods=['POST', 'PUT'],
+                       endpoint='urlshortnerupdate')
 @login_is_required
 @cross_origin()
 def urlshortnerupdate():
@@ -261,7 +283,7 @@ def urlshortnerupdate():
         # CHeck if system generate short name or user provided shortname
         if request.form.get('domain') != "":
             short = request.form.get('domain')
-        else:                            
+        else:
             message = id
             message_bytes = message.encode('ascii')
             base64_bytes = base64.b64encode(message_bytes)
@@ -286,15 +308,16 @@ def urlshortnerupdate():
             u'user': decoded_data.get('name')
         }
 
-        molnurl_ref.document(id).update(data)   
+        molnurl_ref.document(id).update(data)
         # Return to the list
         return redirect(url_for('urlshortnerblue.urlshortner'))
     except Exception as e:
-        flash(f'An Error Occured: ' + str(e))
+        flash('An Error Occured: ' + str(e))
         return redirect(url_for('urlshortnerblue.urlshortner'))
 
 
-@urlshortnerblue.route('/<id>', methods=['POST', 'GET', 'PUT'], 
+@urlshortnerblue.route('/<id>',
+                       methods=['POST', 'GET', 'PUT'],
                        endpoint='urlredirect')
 def urlredirect(id):
     try:
@@ -304,7 +327,7 @@ def urlredirect(id):
             # Add Counter
             molnurl_ref.document(doc.id).update({u'click': Increment(1)})
             # writetobigquery(doc)
-            # Redirect 
+            # Redirect
             print("Redirecting to: {}".format(url))
             return redirect(url, code=307)
         abort(404)
@@ -316,7 +339,7 @@ def urlredirect(id):
 def writetobigquery(doc):
     # Create list for BigQuery save
     urlshortnerstats_bq = []
-    
+
     # Create BQ json string
     urlshortnerstats_bq.append({
         'short': id if id else '',
@@ -347,9 +370,11 @@ def writetobigquery(doc):
         if system.bigquery.exist_dataset_table(table_id, dataset_id, project_id, system.bigquery.schema_shortnerstats):
             system.bigquery.insert_rows_bq(table_id, dataset_id, project_id, urlshortnerstats_bq)
         logging.info("Info: record written to BigQUery")
-        # print('{{"Info: url: {} request response time in hh:mm:ss {} ."}}'.format(url, time.strftime("%H:%M:%S", time.gmtime(time.time()))))
+        # print('{{"Info: url: {} request response time in hh:mm:ss {} ."}}'.format(url,
+        # time.strftime("%H:%M:%S", time.gmtime(time.time()))))
         # Slack Notification
-        # payload = '{{"text":"Info: url: {} request response time in hh:mm:ss {} ."}}'.format(url, time.strftime("%H:%M:%S", time.gmtime(time.time())))
+        # payload = '{{"text":"Info: url: {} request response time in hh:mm:ss {} ."}}'.format(url,
+        # time.strftime("%H:%M:%S", time.gmtime(time.time())))
     except Exception as e:
-        logging.error("Error: Writing data to BigQuery")
+        logging.error("Error: Writing data to BigQuery" + e)
         return redirect(url_for('frontpageblue.index'))

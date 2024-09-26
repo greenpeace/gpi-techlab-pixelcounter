@@ -1,6 +1,5 @@
 import system.tracking
-import logging
-from datetime import datetime
+# from datetime import datetime
 import time
 # Get Logging
 import logging
@@ -8,7 +7,7 @@ import logging
 # Get BigQuery
 import system.bigquery
 # Flask
-from flask import request, session
+from flask import request
 # Import project id
 from system.setenv import project_id
 from system.getsecret import getsecrets
@@ -16,16 +15,18 @@ from system.getsecret import getsecrets
 from system.date import datenow
 
 # Get the secret for dataset
-dataset_id = getsecrets("tracking_stats_dataset_id",project_id)
+dataset_id = getsecrets("tracking_stats_dataset_id", project_id)
+
 # Get the secret for table
-table_id = getsecrets("tracking_stats_table_id",project_id)
+table_id = getsecrets("tracking_stats_table_id", project_id)
+
 
 def track_visitor():
     if not system.tracking.is_tracking_allowed():
         logging.info("Tracking is not allowed")
         return
     else:
-        try:            
+        try:
             # Create list for BigQuery save
             trackingstats_bq = []
             # Create BQ json string
@@ -53,16 +54,22 @@ def track_visitor():
             })
 
             try:
-                if system.bigquery.exist_dataset_table(table_id, dataset_id, project_id, system.bigquery.schema_trackingstats):
+                if system.bigquery.exist_dataset_table(table_id, dataset_id,
+                                                       project_id, system.bigquery.schema_trackingstats):
                     system.bigquery.insert_rows_bq(table_id, dataset_id, project_id, trackingstats_bq)
-                                
-                logging.info('{{"Info: request response time in hh:mm:ss {} ."}}'.format(time.strftime("%H:%M:%S", time.gmtime(time.time()))))
-                print('{{"Info: request response time in hh:mm:ss {} ."}}'.format(time.strftime("%H:%M:%S", time.gmtime(time.time()))))
+
+                logging.info('{{"Info: request response time in hh:mm:ss {} ."}}'.
+                             format(time.strftime("%H:%M:%S", time.gmtime(time.time()))))
+                print('{{"Info: request response time in hh:mm:ss {} ."}}'.
+                      format(time.strftime("%H:%M:%S", time.gmtime(time.time()))))
                 # Slack Notification
-                payload = '{{"text":"request response time in hh:mm:ss {} ."}}'.format(time.strftime("%H:%M:%S", time.gmtime(time.time())))
-            except:
-                logging.error('{{"Error: Writing data to BigQuery - request response time in hh:mm:ss {} ."}}'.format(time.strftime("%H:%M:%S", time.gmtime(time.time()))))
-            
+                # payload = '{{"text":"request response time in hh:mm:ss {} ."}}'.format(time.strftime("%H:%M:%S",
+                # time.gmtime(time.time())))
+            except Exception as e:
+                print(e)
+                logging.error('{{"Error: Writing data to BigQuery - request response time in hh:mm:ss {} ."}}'.
+                              format(time.strftime("%H:%M:%S", time.gmtime(time.time()))))
+
             return
         except Exception as e:
             logging.error("Error Tracking Data", e)
