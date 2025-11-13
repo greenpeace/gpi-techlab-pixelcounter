@@ -1,11 +1,8 @@
-{% include "header.html" %}
-{% include "sidebar.html" %}
-{% include "menufooternav.html" %}
-{% include "topnavigation.html" %}
+{% extends "base.html" %}
+
+{% block content %}
 
 <!-- page content -->
-<div class="right_col" role="main">
-  <div class="">
     <div class="page-title">
       <div class="title_left">
         <h3>Show <small>Counter</small></h3>
@@ -125,7 +122,6 @@
             </code>
         </pre>
     </div>
-</div>
 <hr>
 
-{% include "footer.html" %}
+{% endblock content %}

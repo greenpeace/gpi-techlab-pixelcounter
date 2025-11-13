@@ -1,12 +1,8 @@
-{% include "header.html" %}
-{% include "sidebar.html" %}
-{% include "menufooternav.html" %}
-{% include "topnavigation.html" %}
+{% extends "base.html" %}
 
+{% block content %}
 
 <!-- page content -->
-<div class="right_col" role="main">
-  <div class="">
     <div class="page-title">
       <div class="title_left">
         <h3>Add <small>urlshortner</small></h3>
@@ -28,6 +24,7 @@
     
       <div class="container">
             <form action="/urlshortnercreate" method="post">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <hr>
               <div class="form-group">
                 <label for="domain">Short Link Name</label>  
@@ -62,8 +59,6 @@
             </form>
             </div>
         <hr>
-      </div> <!-- /container -->
-    </div>
 
-    {% include "footer.html" %}
+    {% endblock content %}
     

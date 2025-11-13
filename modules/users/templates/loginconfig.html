@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- page content -->
+    <div class="">
+        <div class="page-title">
+        <div class="title_left">
+            <h3>Login Configuration</h3>
+        </div>
+    </div>
+        
+        <div class="clearfix"></div>
+
+    <div class="row">
+        <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div>
+                <label>
+                    <input type="checkbox" name="email_login" {% if config.email_login_enabled %}checked{% endif %}>
+                    Enable Email Login
+                </label>
+            </div>
+            <div>
+                <label>
+                    <input type="checkbox" name="okta_login" {% if config.okta_login_enabled %}checked{% endif %}>
+                    Enable Okta Login
+                </label>
+            </div>
+            <div>
+                <label>
+                    <input type="checkbox" name="google_login" {% if config.google_login_enabled %}checked{% endif %}>
+                    Enable Google Login
+                </label>
+            </div>
+            <div>
+                <label>
+                    <input type="checkbox" name="apple_login" {% if config.apple_login_enabled %}checked{% endif %}>
+                    Enable Apple Login
+                </label>
+            </div>
+            <div>
+                <label>
+                    <input type="checkbox" name="biometric_login" {% if config.biometric_login_enabled %}checked{% endif %}>
+                    Enable Biometric Login
+                </label>
+            </div>
+            <button type="submit">Save Configuration</button>
+        </form>
+    </div>
+{% endblock content %}
+
+    <!-- /page content -->

@@ -2,18 +2,17 @@
 <!--footer start
 
 -->
-<footer class="py-11 bg-primary position-relative">
+<footer class="py-11 bg-primary position-relative" data-bg-img="{{ url_for('static', filename='images/bg/03.png') }}">
   <div class="shape-1" style="height: 150px; overflow: hidden;">
     <svg viewBox="0 0 500 150" preserveAspectRatio="none" style="height: 100%; width: 100%;">
       <path d="M0.00,49.98 C150.00,150.00 271.49,-50.00 500.00,49.98 L500.00,0.00 L0.00,0.00 Z" style="stroke: none; fill: #060927;"></path>
     </svg>
   </div>
-  <div class="container">
-    <div class="row text-white text-center mt-8">
-      <div class="col">
-        <hr class="mb-8">Copyright 2023 by <u><a class="text-white" href="https://techlab.greenpeace.org" target="_blank">Greenpeace</a></u> | All Rights Reserved</div>
+    <div class="text-center">
+        &copy; {{ now().year }} by 
+        <u><a class="text-white" href="https://greenpeace.org" target="_blank">Greenpeace</a></u> 
+        | All Rights Reserved
     </div>
-  </div>
 </footer>
 
 <!--footer end-->
@@ -35,7 +34,5 @@
 <script src="{{ url_for('static', filename='js/theme-script.js') }}"></script>
 
 <!-- inject js end -->
-
 </body>
-
 </html>

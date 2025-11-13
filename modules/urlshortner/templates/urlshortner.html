@@ -1,11 +1,8 @@
-{% include "header.html" %}
-{% include "sidebar.html" %}
-{% include "menufooternav.html" %}
-{% include "topnavigation.html" %}
+{% extends "base.html" %}
+
+{% block content %}
 
 <!-- page content -->
-<div class="right_col" role="main">
-  <div class="">
     <div class="page-title">
       <div class="title_left">
         <h3>urlshortner <small>list</small></h3>
@@ -35,7 +32,6 @@
                         <thead>
                           <tr>
                             <th scope="col">Active</th>
-                            <th scope="col">Meta Title</th>
                             <th scope="col">Click</th>
                             <th scope="col">Date</th>
                             <th scope="col">URL</th>
@@ -54,9 +50,6 @@
                                 {% else %}
                                   <a class="btn btn-sm btn-danger" href="/urlshortneractive?id={{ ngo.docid }}" title="Edit" >Inactive</a>
                                 {% endif %}
-                              </td>
-                              <td>
-                                {{ ngo.meta_title }}
                               </td>
                               <td>
                                 {{ ngo.click }}
@@ -89,15 +82,13 @@
             </div>
         </div>
         <hr>
-      </div> <!-- /container -->
-    </div>
-    {% block scripts %}
+  {% endblock content %}
+
+    {% block script %}
       <script>
         $(document).ready(function () {
           $('#listdata').DataTable({
           });
         });
       </script>
-    {% endblock scripts %}
-
-    {% include "footertable.html" %}
+    {% endblock script %}

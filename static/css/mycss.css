@@ -1,0 +1,13 @@
+/* CSS to limit the width of the input */
+.geotourl-input {
+    max-width: 300px;  /* Adjust width as desired */
+    word-wrap: break-word;
+}
+
+
+.wrap-text {
+    white-space: normal; /* Allow wrapping of text */
+    word-break: break-word; /* Break long words to fit */
+    max-width: 100px; /* Adjust as needed for your design */
+    overflow-wrap: break-word; /* Ensure consistent wrapping across browsers */
+}

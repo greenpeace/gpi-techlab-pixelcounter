@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <div class="col-12">
+            <h2 class="mb-4">API Key Details</h2>
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">Your API Key</h5>
+                    <div class="alert alert-info">
+                        <div class="d-flex align-items-center mb-3">
+                            <code class="fs-5 me-3">{{ api_key }}</code>
+                            <button class="btn btn-sm btn-outline-primary" onclick="copyToClipboard('{{ api_key }}')" title="Copy to clipboard">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </div>
+                        <p class="mb-0 text-muted">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Store this key securely. You won't be able to see it again.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% script %}
+<script>
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        alert('API key copied to clipboard!');
+    }).catch(err => {
+        console.error('Failed to copy:', err);
+    });
+}
+</script>
+{% endblock script %}

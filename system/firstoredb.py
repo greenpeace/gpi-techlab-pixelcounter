@@ -1,4 +1,3 @@
-from flask import current_app as app
 from firebase_admin import credentials, firestore
 import firebase_admin
 import os
@@ -20,7 +19,7 @@ if is_production_db:
     counter_ref = db.collection(u'counters')
     # Allowed origion collection
     allowedorigion_ref = db.collection(u'allowedorigion')
-    # Allowed certain allowed urls shoudl be dissalowed 
+    # Allowed certain allowed urls shoudl be dissalowed
     disallowedorigion_ref = db.collection(u'disallowedorigion')
     # Allowed origion collection
     emailhash_ref = db.collection(u'amialhash')
@@ -30,6 +29,10 @@ if is_production_db:
     molnurl_ref = db.collection(u'moln-url')
     # shorten url
     users_ref = db.collection(u'users')
+    # apikeys collection
+    apikeys_ref = db.collection(u'apikeys')
+    # login config
+    login_config_ref = db.collection(u'login_config')
     # Data colelction to store all documents that should be used for indexing for vector
     blogpost_ref = db.collection(u'blog')
 
@@ -40,7 +43,7 @@ else:
     counter_ref = db.collection(u'counters-test')
     # Allowed origion collection
     allowedorigion_ref = db.collection(u'allowedorigion-test')
-    # Allowed certain allowed urls shoudl be dissalowed 
+    # Allowed certain allowed urls shoudl be dissalowed
     disallowedorigion_ref = db.collection(u'disallowedorigion-test')
     # Allowed origion collection
     emailhash_ref = db.collection(u'amialhash-test')
@@ -50,8 +53,12 @@ else:
     molnurl_ref = db.collection(u'moln-url-test')
     # shorten url
     users_ref = db.collection(u'users-test')
+    # apikeys collection
+    apikeys_ref = db.collection(u'apikeys-test')
     # Data colelction to store all documents that should be used for indexing for vector
     blogpost_ref = db.collection(u'blog-test')
 
     # CRM to track any request from contactform
     crm_ref = db.collection("legalcrm-test")
+    # login config
+    login_config_ref = db.collection(u'login_config-test')

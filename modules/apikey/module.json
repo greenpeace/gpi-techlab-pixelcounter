@@ -1,0 +1,6 @@
+{
+    "name": "apikey",
+    "active": true,
+    "version": "1.0",
+    "description": "This module implements API key generation and storage functionality in a Flask web application. It includes a Blueprint that handles the `/generateapikey` route, secured by login, allowing POST requests to create and store a new 256-bit API key using a secure secrets manager. Templates manage user interaction."
+  }

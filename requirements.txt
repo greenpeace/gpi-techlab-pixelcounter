@@ -2,6 +2,7 @@
 flask==3.0.0
 flask_cors==4.0.0
 flask_babel==3.1.0
+Flask-WTF==1.2.1
 # Google Stuff
 firebase_admin==6.3.0
 google-api-python-client==2.110.0
@@ -15,6 +16,11 @@ waitress==2.1.2
 oauthlib==3.2.2
 requests==2.28.1
 requests-oauthlib==1.3.1
+pyotp==2.9.0
+oauth2client==4.1.3
+# Okta authentication
+# okta-jwt-verifier==1.3.1
+# okta-oidc==1.5.0
 # library for qrcode
 qrcode==7.4.2
 # additional details

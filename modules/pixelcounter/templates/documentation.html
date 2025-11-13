@@ -1,11 +1,8 @@
-{% include "header.html" %}
-{% include "sidebar.html" %}
-{% include "menufooternav.html" %}
-{% include "topnavigation.html" %}
+{% extends "base.html" %}
+
+{% block content %}
 
 <!-- page content -->
-<div class="right_col" role="main">
-    <div class="clearfix"></div>
 
   <div class="container-fluid">
     <div class="row">
@@ -176,7 +173,6 @@
 
     <iframe src="/count?id=testcounter" width="1" height="1" frameborder=0 style="overflow:hidden;" scrolling="no"></iframe>
   </div>
-</div>
-    
-{% include "footer.html" %}
+
+{% endblock content %}
     

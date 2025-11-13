@@ -1,0 +1,7 @@
+{
+  "name": "users",
+  "active": true,
+  "version": "1.0",
+  "description": "This module defines a Flask blueprint for managing user routes within a web application, requiring JWT-based login for access. It includes a route for displaying a user addition page, rendering an HTML template. It utilizes Firestore for user data management and integrates 2FA via PyOTP and QR codes.",
+  "date_added": "2025-04-13T11:38:21.491454"
+}

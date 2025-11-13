@@ -1,0 +1,19 @@
+{
+  "app_secret_key": "",
+  "restrciteddomain": "",
+  "client_secret_key": "",
+  "project_id": "",
+  "qrcode_bucket_name": "",
+  "okta_domain": "",
+  "okta_client_id": "",
+  "okta_client_secret": "",
+  "okta_redirect_uri": "",
+  "client_secret_file": "",
+  "app_api_key": "",
+  "openai_api_key": "",
+  "urlshortner_stats_dataset_id": "",
+  "urlshortner_stats_table_id": "",
+  "service-account-key": "",
+  "tracking_stats_dataset_id": "",
+  "tracking_stats_table_id": ""
+}

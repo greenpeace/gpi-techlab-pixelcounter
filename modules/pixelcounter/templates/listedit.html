@@ -1,12 +1,8 @@
+{% extends "base.html" %}
 
-{% include "header.html" %}
-{% include "sidebar.html" %}
-{% include "menufooternav.html" %}
-{% include "topnavigation.html" %}
+{% block content %}
 
 <!-- page content -->
-<div class="right_col" role="main">
-  <div class="">
     <div class="page-title">
       <div class="title_left">
         <h3>Edit <small>a counter</small></h3>
@@ -18,6 +14,7 @@
       <div class="container-fluid">
             <p>Counter Name:<b> {{ ngo.name}} </b></p>        
             <form action="/updateform" method="post">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="id" value="{{ ngo.id }}">
               <input type="hidden" name="name" value="{{ ngo.name }}">
               <div class="form-group">
@@ -55,7 +52,5 @@
             </form>
             </div>
         <hr>
-      </div> <!-- /container -->
-    </div>
 
-    {% include "footer.html" %}
+{% endblock content %}

@@ -1,11 +1,8 @@
-{% include "header.html" %}
-{% include "sidebar.html" %}
-{% include "menufooternav.html" %}
-{% include "topnavigation.html" %}
+{% extends "base.html" %}
+
+{% block content %}
 
 <!-- page content -->
-<div class="right_col" role="main">
-  <div class="">
     <div class="page-title">
       <div class="title_left">
         <h3>Get <small>your NRO's signups</small></h3>
@@ -17,6 +14,7 @@
       <div class="jumbotron">
         <div class="container-fluid">
             <form action="/signup" method="post">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="text" name="name"></input>
                 <br>
                 <br>
@@ -37,8 +35,5 @@
             </div>
         </div>
         <hr>
-      </div> <!-- /container -->
 
-    </div>
-
-    {% include "footer.html" %}
+{% endblock content %}

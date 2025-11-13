@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">User Profile</h3>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="given_name" class="form-label">First Name</label>
+                            <input type="text" class="form-control" id="given_name" name="given_name" value="{{ user.given_name }}">
+                        </div>
+                        <div class="mb-3">
+                            <label for="last_name" class="form-label">Last Name</label>
+                            <input type="text" class="form-control" id="last_name" name="last_name" value="{{ user.last_name }}">
+                        </div>
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" value="{{ user.email }}" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label for="phone" class="form-label">Phone</label>
+                            <input type="tel" class="form-control" id="phone" name="phone" value="{{ user.phone }}">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Update Profile</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h3 class="card-title">Two-Factor Authentication</h3>
+                </div>
+                <div class="card-body">
+                    {% if user.totp_enabled %}
+                        <p>2FA is currently enabled for your account.</p>
+                        <a href="{{ url_for('usersblue.disable_2fa') }}" class="btn btn-warning">Disable 2FA</a>
+                    {% else %}
+                        <p>2FA is currently disabled for your account.</p>
+                        <a href="{{ url_for('usersblue.enable_2fa') }}" class="btn btn-success">Enable 2FA</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+

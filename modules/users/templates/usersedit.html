@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<!-- page content -->
+    <div class="page-title">
+      <div class="title_left">
+        <h3>Edit <small>Users</small></h3>
+      </div>
+    </div>
+
+    <div class="clearfix"></div>
+            <form action="/usersupdate" method="post">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden"  name="id" value="{{ users.id }}"></input>
+              <hr>
+              <div class="form-group">
+                <label>Status: </label>
+                {% if users.disabled == False %}
+                <input class="form-check-input" type="checkbox" id="toggle" name="disabled" checked>
+                <label class="form-check-label" for="toggle">On</label>
+              {% else %}
+                <input class="form-check-input" type="checkbox" id="toggle" name="disabled">
+                <label class="form-check-label" for="toggle">Off</label>
+              {% endif %}
+              </div>
+              <div class="form-group">
+                <label for="id">First Name</label>  
+                <input type="text" name="given_name" class="form-control" value="{{ users.given_name }}"></input>
+              </div>
+                <hr>
+              <div class="form-group">
+                <label for="clastname">Last Name</label>  
+                <input type="text" class="form-control" name="family_name" value="{{ users.family_name }}"></input>
+              </div>
+                <hr>
+                <div class="form-group">
+                  <label for="email">Email</label>
+                  <input type="email" class="form-control" name="email" value="{{ users.email }}"></input>
+                </div>  
+              <div class="form-group">
+                <label for="phone">Phone</label>
+                <input type="phone" class="form-control" name="phone" value="{{ users.phone }}"></input>
+              </div>
+              <div class="form-group">
+                <label for="phone">Designation</label>
+                <input type="text" class="form-control" name="designation" value="{{ users.designation }}"></input>
+              </div>
+              <div class="form-group">
+                <label for="role">Role</label>
+                <select class="form-control" name="role" id="role">
+                  <option value="Administrator" {% if users.role == "Administrator" %}selected{% endif %}>Administrator</option>
+                  <option value="User" {% if users.role == "User" %}selected{% endif %}>User</option>
+                </select>
+              </div>
+              <br>
+                <br>
+                <input class="btn btn-sm btn-success" type="submit" value="Update"></input>
+            </form>
+{% endblock content %}
+
+  {% block scripts %}
+  <script nonce="{{ nonce }}">
+    $(document).ready(function() {
+      // Initialize the Bootstrap Toggle switch
+      $('#toggle').bootstrapToggle({
+        on: 'On',
+        off: 'Off',
+        size: 'btn-sm',
+        onstyle: 'success',
+        offstyle: 'danger'
+      });
+
+      // Handle form submission
+      $('form').submit(function(event) {
+        // Prevent the default form submission
+        event.preventDefault();
+
+        // Uncomment the line below to submit the form
+        $(this).submit();
+
+        // Retrieve the value of the toggle switch
+        var isActive = $('#toggle').prop('checked');
+
+        // Set the hidden input value based on the toggle switch state
+        $('input[name="disabled"]').val(!isActive);
+      });
+    });
+  </script>
+  {% endblock scripts %}

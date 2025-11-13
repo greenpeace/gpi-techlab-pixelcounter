@@ -1,0 +1,80 @@
+curl -6 "https://pixelcounter-test-170392023448.europe-north1.run.app/count_pixel?id=gpcztestcounter&email_hash=abc123abc123abc123" \
+  -H "Referer: https://www.spolupropralesy.cz" -v
+
+curl -4 "https://pixelcounter-test-170392023448.europe-north1.run.app/count_pixel?id=gpcztestcounter&email_hash=abc123abc123abc123" \
+  -H "Referer: https://www.spolupropralesy.cz" -v
+
+curl -6 "https://counter.greenpeace.org/count_pixel?id=testcounter&email_hash=abc123" \
+  -H "Referer: https://www.spolupropralesy.cz" -v
+
+curl -4 "https://counter.greenpeace.org/count_pixel?id=testcounter&email_hash=abc123" \
+  -H "Referer: https://www.spolupropralesy.cz" -v
+
+
+curl 'https://pixelcounter-test-170392023448.europe-north1.run.app/count_pixel?id=gpcztestcounter&email_hash=4992b176c86064af46bcceec9a9d1a18a619ea34b1' \                                  
+  -H 'accept: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8' \
+  -H 'accept-language: cs-CZ,cs;q=0.9' \
+  -H 'priority: i' \
+  -H 'referer: https://www.spolupropralesy.cz/' \
+  -H 'sec-ch-ua: "Chromium";v="140", "Not=A?Brand";v="24", "Google Chrome";v="140"' \
+  -H 'sec-ch-ua-mobile: ?0' \
+  -H 'sec-ch-ua-platform: "Windows"' \
+  -H 'sec-fetch-dest: image' \
+  -H 'sec-fetch-mode: no-cors' \
+  -H 'sec-fetch-site: cross-site' \
+  -H 'sec-fetch-storage-access: none' \
+  -H 'user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36'
+
+curl 'https://counter.greenpeace.org/count_pixel?id=gpcztestcounter&email_hash=4992b176c86064af46bcceec9a9d1a18a619ea34b1e' \               
+  -H 'accept: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8' \
+  -H 'accept-language: cs-CZ,cs;q=0.9' \                                             
+  -H 'priority: i' \         
+  -H 'referer: https://www.spolupropralesy.cz/' \
+  -H 'sec-ch-ua: "Chromium";v="140", "Not=A?Brand";v="24", "Google Chrome";v="140"' \
+  -H 'sec-ch-ua-mobile: ?0' \   
+  -H 'sec-ch-ua-platform: "Windows"' \
+  -H 'sec-fetch-dest: image' \
+  -H 'sec-fetch-mode: no-cors' \
+  -H 'sec-fetch-site: cross-site' \                                                                                               
+  -H 'sec-fetch-storage-access: none' \
+  -H 'user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36'
+
+
+curl 'http://localhost:8080/count_pixel?id=gpcztestcounter&email_hash=4992b176c86064af46bcceec9a9d1a18a619ea34b1' \                                  
+  -H 'accept: image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8' \
+  -H 'accept-language: cs-CZ,cs;q=0.9' \
+  -H 'priority: i' \
+  -H 'referer: https://www.spolupropralesy.cz/' \
+  -H 'sec-ch-ua: "Chromium";v="140", "Not=A?Brand";v="24", "Google Chrome";v="140"' \
+  -H 'sec-ch-ua-mobile: ?0' \
+  -H 'sec-ch-ua-platform: "Windows"' \
+  -H 'sec-fetch-dest: image' \
+  -H 'sec-fetch-mode: no-cors' \
+  -H 'sec-fetch-site: cross-site' \
+  -H 'sec-fetch-storage-access: none' \
+  -H 'user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36'
+
+
+Go to the petition:
+https://www.greenpeace.pt/como-ajudar/peticoes/amazonia/
+The counter has the value 15
+GET: https://counter.greenpeace.org/signups?id=pt_amazon
+Sign it with the email debug.counter.1@pruebas2.greenpeace.es
+POST: https://counter.greenpeace.org/count_pixel?id=pt_amazon&email_hash=59b839ed4d30082c9ce9fe4798fcf6afadecb684c54db941028034c72a3a970c
+The counter has the value 16, all good!
+Now go to the petition:
+https://www.greenpeace.pt/como-ajudar/peticoes/gaza/
+The counter has the value 2
+GET: https://counter.greenpeace.org/signups?id=pt_gaza
+Signing a petition with the same email debug.counter.1@pruebas2.greenpeace.es
+POST: https://counter.greenpeace.org/count_pixel?id=pt_gaza&email_hash=59b839ed4d30082c9ce9fe4798fcf6afadecb684c54db941028034c72a3a970c
+The counter continues to have the value 2!!!! It should be 3.
+GET: https://counter.greenpeace.org/signups?id=pt_gaza
+Sign the same petition https://www.greenpeace.pt/como-ajudar/peticoes/gaza/ with a new email debug.counter.2@pruebas2.greenpeace.es
+POST: https://counter.greenpeace.org/count_pixel?id=pt_gaza&email_hash=1818a452930a6bb81e7b4159c9bcb400c08907aa60fc9bdd94f012c3725d5877
+Now the counter continues to have the value 3! (It's correct)
+GET: https://counter.greenpeace.org/signups?id=pt_gaza
+
+
+
+@require_valid_api_key

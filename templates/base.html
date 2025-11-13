@@ -1,0 +1,130 @@
+<html lang="en">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <!-- Meta, title, CSS, favicons, etc. -->
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <!-- Prevent crawling -->
+    <meta name="robots" content="noindex, nofollow">
+
+    <title>Counter App</title>
+
+    <link rel="icon" href="{{url_for('static', filename='icons/icon_144x144.png')}}" type="image/png">
+    <link rel="icon" href="{{url_for('static', filename='icons/icon_192x192.png')}}" type="image/png">
+    <link rel="icon" href="{{url_for('static', filename='icons/icon_512x512.png')}}" type="image/png">
+    <link rel="apple-touch-icon" href="{{url_for('static', filename='icons/icon_144x144.png')}}" type="image/png">
+    <link rel="apple-touch-icon" href="{{url_for('static', filename='icons/icon_192x192.png')}}" type="image/png">
+    <link rel="apple-touch-icon" href="{{url_for('static', filename='icons/icon_512x512.png')}}" type="image/png">
+
+    <link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+
+    <!--Local Fonts -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/fonts.css') }}">
+
+    <!-- Bootstrap -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap-icons.css') }}">
+    <!-- Font Awesome -->
+    <link href="{{ url_for('static', filename='css/font-awesome.min.css') }}" rel="stylesheet">
+    <!-- NProgress -->
+    <link href="{{ url_for('static', filename='css/nprogress.css') }}" rel="stylesheet">
+    <!-- iCheck -->
+    <link href="{{ url_for('static', filename='css/green.css') }}" rel="stylesheet">
+    <!-- Custom Theme Style -->
+    <link href="{{ url_for('static', filename='css/custom.min.css') }}" rel="stylesheet">
+    <!-- Custom my css Style -->
+    <link href="{{ url_for('static', filename='css/mycss.css') }}">
+
+    <link rel="manifest" href="/manifest.json">
+    <script nonce="{{ nonce }}">
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register("/sw.js").then(function(registration) {
+                    console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                }, function(err) {
+                    console.log('ServiceWorker registration failed: ', err);
+                });
+            });
+        }
+    </script>
+
+    <!-- Stripe section of the header -->
+    <script src="{{ url_for('static', filename='js/jquery-3.6.0.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/jquery.dataTables.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/dataTables.bootstrap5.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/htmx.min.js') }}"></script>
+
+
+    {% block head %}
+    <!-- This is for additional styles if needed by child templates -->
+    {% endblock %}
+
+    <!-- End Google Tag Manager -->
+</head>
+<body class="nav-md">
+    <div class="container body">
+        <div class="main_container">
+            <!-- Add the left sidebar section here -->
+            <div class="col-md-3 left_col">
+                <div class="left_col scroll-view">
+                    <div class="navbar nav_title border-0">
+                        <a href="{{ url_for('dashboardblue.main') }}" class="site_title flex items-center space-x-2">
+                            <i class="fa fa-paw text-white"></i>
+                            <span class="text-white font-semibold">Counter App</span>
+                        </a>
+                    </div>
+
+                    <div class="clearfix"></div>
+
+                    <!-- Profile quick info -->
+                    <div class="profile clearfix">
+                        <div class="profile_pic">
+                            {% if user_data.photo and user_data.photo != "None" %}
+                            <img src="{{ user_data.photo }}" alt="..." class="img-circle profile_img w-12 h-12 rounded-full">
+                            {% else %}
+                            <img src="{{ url_for('static', filename='images/user.png') }}" alt="..." class="img-circle profile_img w-12 h-12 rounded-full">
+                            {% endif %}
+                        </div>
+                        <div class="profile_info">
+                            <span>Welcome,</span>
+                            <h2>{{ user_data.name }}</h2>
+                        </div>
+                    </div>
+                    <!-- /Profile quick info -->
+                    <!-- Include the sidebar (left navigation panel) -->
+                    {% include "sidebar.html" %}
+  
+                    <!-- Footer menu navigation (optional footer navigation) -->
+                    {% include "menufooternav.html" %}
+                    {% include "topnavigation.html" %}
+            <div class="right_col" role="main">
+                {% block content %}
+
+                {% endblock %}
+            </div>
+            {% block script %}
+
+            {% endblock script %}
+
+            {% include 'footer.html' %}
+        </div>
+    </div>
+    
+        <!-- Bootstrap -->
+        <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+        <!-- FastClick -->
+        <script src="{{ url_for('static', filename='js/fastclick.js') }}"></script>
+        <!-- NProgress -->
+        <script src="{{ url_for('static', filename='js/nprogress.js') }}"></script>
+
+        <!-- bootstrap-progressbar -->
+        <script src="{{ url_for('static', filename='js/bootstrap-progressbar.min.js') }}"></script>    
+        <!-- Custom Theme Scripts -->
+        <script src="{{ url_for('static', filename='js/custom.js') }}"></script>
+
+</body>
+</html>

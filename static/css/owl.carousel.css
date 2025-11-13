@@ -66,7 +66,7 @@
   .owl-carousel .owl-video-playing .owl-video-tn, .owl-carousel .owl-video-playing .owl-video-play-icon { display: none; }
   .owl-carousel .owl-video-tn { opacity: 0; height: 100%; background-position: center center; background-repeat: no-repeat; background-size: contain; transition: opacity 400ms ease; }
   .owl-carousel .owl-video-frame { position: relative; z-index: 1; height: 100%; width: 100%; }
-  
+
   .owl-carousel.no-pb .owl-stage-outer { padding-bottom: 0; }
   .owl-carousel .owl-controls .owl-dot { display: inline-block; }
   .owl-carousel .owl-dots { width: 100%; display: inline-block; position: absolute; line-height: 0; bottom: 0; left: 50%; transform: translateX(-50%); cursor: pointer; text-align: center; }

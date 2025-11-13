@@ -1,0 +1,7 @@
+{
+  "name": "auth",
+  "active": true,
+  "version": "1.0",
+  "description": "This module sets up authentication and authorization features in a Flask web application using Google OAuth. It imports necessary libraries and services, defines a Flask Blueprint named `authsblue`, retrieves secret keys for secure interactions and Firebase configurations, and fetches credentials for service accounts to facilitate user login and secure API access.",
+  "date_added": "2025-04-13T10:37:54.011959"
+}

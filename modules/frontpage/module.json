@@ -1,0 +1,7 @@
+{
+  "name": "frontpage",
+  "active": true,
+  "version": "1.0",
+  "description": "This module defines a Flask blueprint for the application's front page and sets up routing for the homepage at root URL. It integrates with Firebase Firestore to fetch blog posts, manages session data, potentially sends notifications, and comments indicate additional functionality for carbon tracking and visitor analytics, enhancing webpage interactivity and monitoring.",
+  "date_added": "2025-04-13T11:09:42.736284"
+}

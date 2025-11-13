@@ -5,7 +5,7 @@
     Table of Contents
 
   1. Predefined Variables
-  2. Preloader  
+  2. Preloader
   3. FullScreen
   4. Counter
   5. Owl carousel
@@ -23,7 +23,7 @@
   17. Wow Animation
   18. Particles
   19. Window load and functions
-  
+
 
 ------------------------ */
 
@@ -76,10 +76,10 @@ function fullScreen() {
 /*------------------------------------
   HT Counter
 --------------------------------------*/
-function counter() {  
+function counter() {
   $('.count-number').countTo({
     refreshInterval: 2
-  });   
+  });
 };
 
 
@@ -96,7 +96,7 @@ $('.owl-carousel').each( function() {
       loop : true,
       margin : $carousel.data("margin"),
       dots : $carousel.data("dots"),
-      nav : $carousel.data("nav"),      
+      nav : $carousel.data("nav"),
       autoplay : $carousel.data("autoplay"),
       autoplayTimeout : $carousel.data("autoplay-timeout"),
       navText : [ '<span class="la la-angle-left"><span>', '<span class="la la-angle-right"></span>' ],
@@ -114,7 +114,7 @@ $('.owl-carousel').each( function() {
 
 /*------------------------------------
   HT Dropdown
---------------------------------------*/  
+--------------------------------------*/
 function dropdown() {
     $('.dropdown-menu a.dropdown-toggle').on('click', function(e) {
   if (!$(this).next().hasClass('show')) {
@@ -134,7 +134,7 @@ function dropdown() {
 
 /*------------------------------------
   HT Isotope
---------------------------------------*/ 
+--------------------------------------*/
 function isotope() {
   // init Isotope
   var $grid = $('.grid').isotope({
@@ -207,7 +207,7 @@ if ($(".popup-youtube, .popup-vimeo, .popup-gmaps").exists()) {
     });
   }
 
-};     
+};
 
 
 /*------------------------------------
@@ -253,10 +253,10 @@ function fxheader() {
 ---------------------------------------------*/
 function databgcolor() {
     $('[data-bg-color]').each(function(index, el) {
-     $(el).css('background-color', $(el).data('bg-color'));  
+     $(el).css('background-color', $(el).data('bg-color'));
     });
     $('[data-text-color]').each(function(index, el) {
-     $(el).css('color', $(el).data('text-color'));  
+     $(el).css('color', $(el).data('text-color'));
     });
     $('[data-bg-img]').each(function() {
      $(this).css('background-image', 'url(' + $(this).data("bg-img") + ')');
@@ -267,7 +267,7 @@ function databgcolor() {
 /*------------------------------------
   HT Contact Form
 --------------------------------------*/
-function contactform() { 
+function contactform() {
     $('#contact-form').validator();
 
     // when the form is submitted
@@ -286,13 +286,13 @@ function contactform() {
             {
             // data = JSON object that contact.php returns
 
-            // we recieve the type of the message: success x danger and apply it to the 
+            // we recieve the type of the message: success x danger and apply it to the
             var messageAlert = 'alert-' + data.type;
             var messageText = data.message;
 
             // let's compose Bootstrap alert box HTML
             var alertBox = '<div class="alert ' + messageAlert + ' alert-dismissable"><button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>' + messageText + '</div>';
-            
+
             // If we have messageAlert and messageText
             if (messageAlert && messageText) {
                 // inject the alert to .messages div in our form
@@ -304,7 +304,7 @@ function contactform() {
         });
         return false;
     }
- })    
+ })
 };
 
 
@@ -320,7 +320,7 @@ function contactform() {
           var progressValue = Self.data('value');
 
           Self.find('.progress-bar').animate({
-            width:progressValue+'%'           
+            width:progressValue+'%'
           }, 1000);
         });
       })
@@ -337,8 +337,8 @@ function parallax() {
       offset: 0,
   });
 var image = document.getElementsByClassName('thumbnail');
-new simpleParallax(image, { 
-    orientation: 'right' 
+new simpleParallax(image, {
+    orientation: 'right'
 });
 };
 
@@ -370,7 +370,7 @@ function btnproduct() {
     e.preventDefault();
     var numProduct = Number($(this).prev().val());
     $(this).prev().val(numProduct + 1);
-  }); 
+  });
 };
 
 
@@ -386,7 +386,7 @@ function lightSlider() {
     slideMargin:0,
     speed:600,
     autoplay: true,
-  });  
+  });
 };
 
 
@@ -537,7 +537,7 @@ $(document).ready(function() {
     magnificpopup(),
     scrolltop(),
     fxheader(),
-    databgcolor(),  
+    databgcolor(),
     contactform(),
     progressbar(),
     parallax(),
@@ -557,4 +557,3 @@ $(window).on('load', function() {
     isotope(),
     wowanimation();
 });
-

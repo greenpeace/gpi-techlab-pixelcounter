@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <h1>Manage Modules</h1>
+    <table id="modulesTable" class="display">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Active</th>
+                <th>Version</th>
+                <th>Date Added</th>
+                <th>Description</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for module in modules %}
+            <tr>
+                <td>{{ module.name }}</td>
+                <td>{{ '✅' if module.active else '❌' }}</td>
+                <td>{{ module.version }}</td>
+                <td>{{ module.date_added }}</td>
+                <td class="text-wrap" style="max-width: 300px;">
+                    {% set words = module.description.split() %}
+                    {% for i in range(0, words|length, 10) %}
+                        {{ words[i:i+10]|join(' ') }}<br>
+                    {% endfor %}
+                </td>
+                <td class="d-flex gap-2">
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-info btn-sm" onclick="reviewModule('{{ module.name }}')">
+                            <i class="fas fa-eye"></i> Review
+                        </button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteModule('{{ module.name }}')" data-module="{{ module.name }}">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                        <button class="btn btn-warning btn-sm" onclick="checkDocstring('{{ module.name }}')">
+                            <i class="fas fa-check-circle"></i> Check
+                        </button>
+                        <button class="btn btn-success btn-sm" onclick="generateDocs('{{ module.name }}')">
+                            <i class="fas fa-file-alt"></i> Docs
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Results Modal -->
+    <div class="modal fade" id="resultsModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Results</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <pre id="resultsContent"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block script %}
+<script>
+    $(document).ready(function() {
+        $('#modulesTable').DataTable({
+            responsive: true,
+            order: [[3, 'desc']] // Sort by date added
+        });
+    });
+
+    function showResults(title, content) {
+        const modal = new bootstrap.Modal(document.getElementById('resultsModal'));
+        document.querySelector('#resultsModal .modal-title').textContent = title;
+        document.getElementById('resultsContent').innerHTML = content;
+        modal.show();
+    }
+
+    async function handleResponse(response, successMessage) {
+        const data = await response.json();
+        if (response.ok) {
+            showToast(successMessage);
+            if (data.review || data.report) {
+                showResults('Analysis Results', data.review || JSON.stringify(data.report, null, 2));
+            }
+            return data;
+        } else {
+            throw new Error(data.message || 'Operation failed');
+        }
+    }
+
+    async function makeRequest(url, moduleName, action) {
+        const button = event.currentTarget;
+        const originalContent = showSpinner(button);
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}',
+                },
+                body: JSON.stringify({ moduleName })
+            });
+
+            const data = await handleResponse(response, `Successfully ${action} ${moduleName}`);
+            
+            // Refresh page after successful deletion
+            if (action === 'deleted') {
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000); // Wait 1 second for the toast message to be visible
+            }
+
+        } catch (error) {
+            showToast(`Error: ${error.message}`, 'error');
+        } finally {
+            hideSpinner(button, originalContent);
+        }
+    }
+
+    function reviewModule(moduleName) {
+        makeRequest(`/modules/review/${moduleName}`, moduleName, 'reviewed');
+    }
+
+    function deleteModule(moduleName) {
+        if (confirm(`Are you sure you want to delete ${moduleName}? This cannot be undone.`)) {
+            makeRequest(`/modules/delete/${moduleName}`, moduleName, 'deleted');
+        }
+    }
+
+    function checkDocstring(moduleName) {
+        makeRequest(`/modules/check-docstring/${moduleName}`, moduleName, 'checked docstrings for');
+    }
+
+    function generateDocs(moduleName) {
+        makeRequest(`/modules/generate-docs/${moduleName}`, moduleName, 'generated docs for');
+    }
+
+    async function toggleActive(moduleName, currentState) {
+        const button = event.currentTarget;
+        const originalContent = button.innerHTML;
+        button.disabled = true;
+
+        try {
+            const response = await fetch(`/modules/toggle-active/${moduleName}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}',
+                },
+                body: JSON.stringify({ active: !currentState })
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                const newState = !currentState;
+                button.querySelector('.status-icon').textContent = newState ? '✅' : '❌';
+                showToast(`Module ${moduleName} ${newState ? 'activated' : 'deactivated'} successfully`);
+            } else {
+                throw new Error(data.message || 'Failed to toggle module status');
+            }
+        } catch (error) {
+            showToast(`Error: ${error.message}`, 'error');
+        } finally {
+            button.disabled = false;
+        }
+    }
+
+    function showSpinner(button) {
+        const originalContent = button.innerHTML;
+        button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading...';
+        button.disabled = true;
+        return originalContent;
+    }
+
+    function hideSpinner(button, originalContent) {
+        button.innerHTML = originalContent;
+        button.disabled = false;
+    }
+
+</script>    
+{% endblock %}

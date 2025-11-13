@@ -1,9 +1,9 @@
-            <!-- sidebar menu -->
+<!-- sidebar menu -->
             <div id="sidebar-menu" class="main_menu_side hidden-print main_menu">
               <div class="menu_section">
                 <h3>Home</h3>
                 <ul class="nav side-menu">
-                  <li><a><i class="fa fa-desktop"></i>Pixelcounter<span class="fa fa-chevron-down"></span></a>
+                  <li><a><i class="fa fa-clone"></i> Counters<span class="fa fa-chevron-down"></span></a>
                     <ul class="nav child_menu">
                       <li><a href="{{ url_for('pixelcounterblue.read') }}">Pixelcounters</a></li>
                       <li><a href="{{ url_for('pixelcounterblue.getsignups') }}">Test NRO Signups</a></li>    
@@ -15,7 +15,7 @@
                 </div>
                 <div class="menu_section">
                   <ul class="nav side-menu">
-                    <li><a><i class="fa fa-bug"></i> Settings<span class="fa fa-chevron-down"></span></a>
+                    <li><a><i class="fa fa-clone"></i> Settings<span class="fa fa-chevron-down"></span></a>
                       <ul class="nav child_menu">
                         <li><a href="{{ url_for('pixelcounterblue.allowedlist') }}">Allowed Domain List</a></li>
                         <li><a href="{{ url_for('pixelcounterblue.disallowedlist') }}">Disallowed URL Patterns List</a></li>
@@ -23,9 +23,22 @@
                     </li>
                   </ul>
                 </div>
+              {% if session['role'] == 'Administrator' %}
+              <div class="menu_section">
+                <h3>Admin</h3>
+                <ul class="nav side-menu">
+                  <li><a><i class="fa fa-clone"></i> Admin<span class="fa fa-chevron-down"></span></a>
+                    <ul class="nav child_menu">
+                      <li><a href="{{ url_for('usersblue.userslist') }}">Users</a></li>
+                      <li><a href="{{ url_for('apikeyblue.apikey_list') }}">API Key</a></li>
+                    </ul>
+                  </li>
+                </ul>
+              </div>
+              {% endif %}
                 <div class="menu_section">
                   <ul class="nav side-menu">
-                    <li><a><i class="fa fa-edit"></i> Documentation<span class="fa fa-chevron-down"></span></a>
+                    <li><a><i class="fa fa-clone"></i> Documentation<span class="fa fa-chevron-down"></span></a>
                       <ul class="nav child_menu">
                         <li><a href="{{ url_for('pixelcounterblue.documentation') }}">Documentation</a></li>    
                       </ul>
@@ -34,4 +47,3 @@
                 </div>
               </div>
               <!-- /sidebar menu -->
-  

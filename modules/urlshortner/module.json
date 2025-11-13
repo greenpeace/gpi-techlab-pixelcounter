@@ -1,0 +1,7 @@
+{
+  "name": "urlshortner",
+  "active": true,
+  "version": "1.0",
+  "description": "This module implements URL shortening functionality within a Flask-based web application. It includes routes for managing shortened URLs, interacts with Firestore for data persistence, and uses JWT for secure access. Additionally, it accesses secrets to configure Google BigQuery integration, facilitating URL metadata logging and analytics storage in a dataset and table.",
+  "date_added": "2025-04-13T11:38:31.709516"
+}

@@ -1,26 +1,85 @@
-<!-- List users, add user using jinja template -->  
+{% extends "base.html" %}
 
+{% block content %}
 
+<!-- page content -->
+    <div class="page-title">
+      <div class="title_left">
+        <h3>List <small>of users</small></h3>
+      </div>
+    </div>
 
-<html>
-  <head>
-    <title>Users List</title>
-  </head>
-  <body>
-    <h1>Users List</h1>
+    <div class="clearfix"></div>
 
-    {% for user in users %}
-      <ul>
-        <li>{{ user }}</li>
-      </ul>
-    {% endfor %}
+    <div class="container">
+        <!-- Example row of columns -->
+        <div class="row">
+          {% with messages = get_flashed_messages() %}
+            {% if messages %}
+              {% for message in messages %}
+                  {{ message }}
+              {% endfor %}
+            {% endif %}
+          {% endwith %}
+            <div class="card" id="output">
+                <div class="card-body">
+<!--                  
+                  <a class="btn btn-sm btn-success" href="/usersadd" title="Add" ><i class="glyphicon glyphicon-pencil"></i> Add Another User</a>
+-->
+                    <br />
+                    <br />
+                      <table id="datausers" class="table table-striped">
+                        <thead>
+                          <tr>
+                            <th scope="col">Status</th>
+                            <th scope="col">Firstname</th>
+                            <th scope="col">Lastname</th>
+                            <th scope="col">Email</th>
+                            <th scope="col">Role</th>
+                            <th style="width:200px;">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {% if output %}
+                            {% for ngo in output %}
+                            <tr>
+                              <td>
+                                {% if ngo.disabled == False %}
+                                  <a class="btn btn-sm btn-success" href="/usersactive?id={{ ngo.docid }}" title="active" ></i> Active</a>
+                                {% else %}
+                                  <a class="btn btn-sm btn-danger" href="/usersactive?id={{ ngo.docid }}" title="inactive" >Inactive</a>
+                                {% endif %}
+                              </td>
+                              <td>{{(ngo.given_name)}}</td>
+                              <td>{{ ngo.family_name }}</td>
+                              <td>{{ ngo.email }}</td> 
+                              <td>{{ ngo.role }}</td>
+                              <td>
+                                <a class="btn btn-sm btn-success" href="/usersedit?id={{ ngo.docid }}" title="Edit" ><i class="glyphicon glyphicon-pencil"></i> Edit</a>
+                                <a class="btn btn-sm btn-danger" href="/usersdelete?id={{ ngo.docid }}" title="Delete"><i class="glyphicon glyphicon-pencil"></i> Delete</a>
+                              </td>
+                            </tr>
+                            {% endfor %}
+                          {% endif %}      
+                        </tbody>
+                      </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    <!-- /page content -->
+    {% endblock content %}
 
-    {% if add_user %}
-      <form action="/add_user" method="post">
-        <input type="text" name="username" placeholder="Enter username">
-        <input type="submit" value="Add User">  
-      </form>  
-    {% endif %}
+    {% block script %}
 
-  </body>  
-</html
+    <script nonce="{{ nonce }}">
+        $(document).ready(function () {
+          $('#datausers').DataTable({
+            colReorder: true,
+            autoFill: false,
+            stateSave: true,
+          });
+        });
+    </script>
+  
+    {% endblock script %}

@@ -1,11 +1,8 @@
-{% include "header.html" %}
-{% include "sidebar.html" %}
-{% include "menufooternav.html" %}
-{% include "topnavigation.html" %}
+{% extends "base.html" %}
+
+{% block content %}
 
 <!-- page content -->
-<div class="right_col" role="main">
-  <div class="">
     <div class="page-title">
       <div class="title_left">
         <h3>List <small>of all counters</small></h3>
@@ -69,10 +66,9 @@
             </div>
         </div>
         <hr>
-      </div> <!-- /container -->
-    </div>
+  {% endblock content %}
 
-    {% block scripts %}
+    {% block script %}
 
     <script>
         $(document).ready(function () {
@@ -81,6 +77,4 @@
         });
     </script>
   
-    {% endblock scripts %}
-
-    {% include "footertable.html" %}
+    {% endblock script %}

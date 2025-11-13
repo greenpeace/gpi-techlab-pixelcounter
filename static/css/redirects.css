@@ -1,0 +1,28 @@
+.wrap-text {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    max-width: 100px; /* Adjust the max-width as needed */
+}
+
+#listdata {
+    table-layout: fixed; /* Enforce fixed layout for the table */
+    width: 100%; /* Ensure the table takes up available space */
+}
+
+table#listdata thead th {
+    font-size: 14px; /* Adjust the font size */
+    height: 50px;    /* Set a fixed height */
+    line-height: 50px; /* Vertically align the text */
+    text-align: center; /* Center the text */
+    padding: 5px;    /* Adjust padding */
+    background-color: #f8f9fa; /* Add a background color */
+    border-bottom: 2px solid #dee2e6; /* Add a border for separation */
+}
+
+table#listdata thead th:nth-child(2) {
+    width: 30%; /* "From" column width */
+}
+table#listdata thead th:nth-child(3) {
+    width: 40%; /* "To" column width */
+}

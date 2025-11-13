@@ -1,0 +1,7 @@
+{
+  "name": "dashboard",
+  "active": true,
+  "version": "1.0",
+  "description": "This Flask module defines a 'dashboardblue' blueprint providing a \"/main\" route for a web application's main dashboard page. It ensures user authentication, retrieves the latest news posts, and displays them alongside current datetime based on user's timezone. The module aims to dynamically deliver relevant content and time-related data to authenticated users.",
+  "date_added": "2025-04-13T11:09:37.567505"
+}
