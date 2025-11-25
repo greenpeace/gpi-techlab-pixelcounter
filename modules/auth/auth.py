@@ -80,7 +80,7 @@ GOOGLE_CLIENT_ID = client_secret
 # for test environment - https://pixelcounter-test-170392023448.europe-north1.run.app/callback
 # for prod environment - https://counter.greenpeace.org/callback
 redirect_uri = (
-    "https://pixelcounter-test-170392023448.europe-north1.run.app/callback" if is_production else
+    "https://counter.greenpeace.org/callback" if is_production else
     "http://127.0.0.1:8080/callback"
 )
 
@@ -110,11 +110,10 @@ def logout():
     session.clear()
     return redirect("/")
 
+
 #
 # API Route Default displays a webpage
 #
-
-
 @authsblue.route("/loginseq")
 def loginseq():
     # asking the flow class for the authorization (login) url

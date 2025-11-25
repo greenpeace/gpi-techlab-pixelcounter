@@ -45,7 +45,7 @@ def apikey_list():
     user_uuid = decoded["uuid"]
 
     # Query api keys in Firestore
-    keys_docs = apikeys_ref.stream()
+    keys_docs = apikeys_ref.where("user_uuid", "==", user_uuid).stream()
     api_keys = []
     for doc in keys_docs:
         d = doc.to_dict()
@@ -96,17 +96,44 @@ def generateapikey():
 @apikeyblue.route("/toggle_apikey/<key_id>", methods=["POST"])
 @login_is_required
 def toggle_apikey(key_id):
+    # get logged-in user
     decoded = _get_decoded_jwt()
     if not decoded:
         return jsonify({"success": False, "error": "Unauthorized"}), 403
+    user_uuid = decoded.get("uuid")
 
-    doc = apikeys_ref.get()
+    # get the document reference for this key
+    doc_ref = apikeys_ref.document(key_id)
+    try:
+        doc = doc_ref.get()
+    except Exception as e:
+        return jsonify({"success": False, "error": f"Firestore error: {e}"}), 500
+
     if not doc.exists:
         return jsonify({"success": False, "error": "Not found"}), 404
 
-    current = doc.to_dict().get("active", True)
-    apikeys_ref.update({"active": not current})
-    return jsonify({"success": True, "active": not current})
+    data = doc.to_dict() or {}
+
+    # optional: ensure only owner (or admin) can toggle
+    owner_uuid = data.get("user_uuid")
+    # If you have admin role check, add it here. For now only owner can toggle.
+    if owner_uuid != user_uuid:
+        # If you want admins to toggle, check decoded['role'] etc.
+        return jsonify({"success": False, "error": "Forbidden"}), 403
+
+    current = data.get("active", True)
+    new_state = not bool(current)
+
+    try:
+        # update only the active field and maybe updated_at metadata
+        doc_ref.update({
+            "active": new_state,
+            "updated_at": datetime.utcnow()
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": f"Failed to update: {e}"}), 500
+
+    return jsonify({"success": True, "active": new_state})
 
 
 # --- Delete key ---

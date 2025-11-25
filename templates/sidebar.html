@@ -23,14 +23,22 @@
                     </li>
                   </ul>
                 </div>
-              {% if session['role'] == 'Administrator' %}
+              <div class="menu_section">
+                <ul class="nav side-menu">
+                  <li><a><i class="fa fa-clone"></i> API Key<span class="fa fa-chevron-down"></span></a>
+                    <ul class="nav child_menu">
+                      <li><a href="{{ url_for('apikeyblue.apikey_list') }}">API Key</a></li>
+                    </ul>
+                  </li>
+                </ul>
+              </div>
+                {% if session['role'] == 'Administrator' %}
               <div class="menu_section">
                 <h3>Admin</h3>
                 <ul class="nav side-menu">
                   <li><a><i class="fa fa-clone"></i> Admin<span class="fa fa-chevron-down"></span></a>
                     <ul class="nav child_menu">
                       <li><a href="{{ url_for('usersblue.userslist') }}">Users</a></li>
-                      <li><a href="{{ url_for('apikeyblue.apikey_list') }}">API Key</a></li>
                     </ul>
                   </li>
                 </ul>
