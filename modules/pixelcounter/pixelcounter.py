@@ -144,12 +144,17 @@ def is_allowed_request(referrer_domain, remote_address, referrer_path):
 
 
 def process_email_hash(name, email_hash):
-    """Prevent double counting by checking both name and email hash combination."""
-    if not name or not email_hash:
-        # Missing required identifiers, skip counting
-        return False
+    """Check duplicate hash and validate counter BEFORE writing."""
 
-    # Query for existing record with same name and email_hash combination
+    if not name or not email_hash:
+        return "missing", "Missing counter name or email_hash"
+
+    # 1. Check if counter exists
+    counter_docs = counter_ref.where('name', '==', name).limit(1).get()
+    if not counter_docs:
+        return "invalid_counter", f"Counter '{name}' does not exist"
+
+    # 2. Check if (name + email_hash) already registered
     existing = (
         emailhash_ref
         .where("name", "==", name)
@@ -159,75 +164,73 @@ def process_email_hash(name, email_hash):
     )
 
     if existing:
-        # A record already exists → duplicate → don't count
-        return True
+        return "duplicate", "Counter + Email_Hash already counted"
 
-    # Otherwise record this combination so next time it’s blocked
+    # 3. Safe to store (no duplicate + valid counter)
     emailhash_ref.document().set({
         "name": name,
         "email_hash": email_hash,
         "created_at": datetime.utcnow()
     })
 
-    return False
+    return "ok", None
 
 
 def increment_counter(name, amount=1):
-    """Increment counter and totals in Firestore."""
     counter_docs = counter_ref.where('name', '==', name).limit(1).get()
     if not counter_docs:
         return False
+
     counter_doc = counter_docs[0]
+
     totals_docs = counter_ref.where('name', '==', 'totals').limit(1).get()
     totals_doc = totals_docs[0] if totals_docs else None
 
     counter_ref.document(counter_doc.id).update({'count': Increment(amount)})
+
     if totals_doc:
         counter_ref.document(totals_doc.id).update({'count': Increment(1)})
+
     return True
 
 
 def handle_count_request(is_pixel=False):
-    """Unified handler for count endpoints."""
     try:
         remote_address, domain, path, referrer = get_request_context()
 
-        # --- Debug and GTM detection section ---
-        gtm_involved = is_gtm_request(request)
-        print("\n=== Incoming request debug ===")
-        print("Remote IP:", remote_address)
-        print("Domain:", domain)
-        print("Path:", path)
-        print("Referrer:", referrer)
-        print("Request args:", request.args)
-        print("Request headers:", dict(request.headers))
-        print("GTM involved?", gtm_involved)
-        print("================================\n")
-        # ----------------------------------------
-
         allowed, reason = is_allowed_request(domain, remote_address, path)
         if not allowed:
-            logging.info(reason)
-            return reason, 400
+            return jsonify({"error": reason}), 400
 
         name = request.args.get('id')
         amount = int(request.args.get('donation', 1))
-
         email_hash = request.args.get('email_hash')
-        if process_email_hash(name, email_hash):
-            return jsonify({"message": "Counter + Email_Hash exist - Already counted"}), 200
 
+        # --- email hash processing (duplicate + counter validation) ---
+        status, msg = process_email_hash(name, email_hash)
+
+        if status == "missing":
+            return jsonify({"error": msg}), 400
+
+        if status == "invalid_counter":
+            return jsonify({"error": msg}), 404
+
+        if status == "duplicate":
+            return jsonify({"message": msg}), 200
+        # else: status == "ok" → continue
+
+        # --- Increment counter ---
         if not increment_counter(name, amount):
-            return jsonify({"message": "Counter not found"}), 404
+            return jsonify({"error": "Counter not found"}), 404
 
         if is_pixel:
-            return send_file('static/images/onepixel.gif', mimetype='image/gif')
-        else:
-            return jsonify({"success": True}), 200
+            return send_file("static/images/onepixel.gif", mimetype="image/gif")
+
+        return jsonify({"success": True}), 200
 
     except Exception as e:
         logging.exception("Error in count handler")
-        return f"An error occurred: {e}", 500
+        return jsonify({"error": str(e)}), 500
 
 
 @pixelcounterblue.route("/getsignups",
@@ -395,34 +398,52 @@ def createlist():
 @login_is_required
 def read():
     try:
-
+        # Decode session JWT
         jwt_token = session.get('jwt_token')
-        decoded_data = jwt.decode(jwt_token,
-                                  'secret_key',
-                                  algorithms=['HS256'])
+        decoded_data = jwt.decode(jwt_token, 'secret_key', algorithms=['HS256'])
 
-        # Check if ID was passed to URL query
-        id = request.args.get('id')
-        if id:
-            counter = counter_ref.document(id).get()
-            return jsonify(u'{}'.format(counter.to_dict()['count'])), 200
+        user_uuid = decoded_data.get('google_id')
+        user_role = decoded_data.get('role', 'user')  # default = normal user
+
+        # If ?id= passed → return single counter
+        counter_id = request.args.get('id')
+        if counter_id:
+            doc = counter_ref.document(counter_id).get()
+            if not doc.exists:
+                return jsonify({"error": "Counter not found"}), 404
+            return jsonify({"count": doc.to_dict().get("count", 0)}), 200
+
+        # ---- ROLE LOGIC ----
+        all_counters = []
+
+        if user_role == "Administrator":
+            # ADMIN → see ALL counters, local + global
+            docs = counter_ref.stream()
+            for doc in docs:
+                data = doc.to_dict()
+                data["id"] = doc.id
+                all_counters.append(data)
+
         else:
-            all_counters = []
+            # NORMAL USER → local counters for user + global counters
+            local_docs = counter_ref.where("uuid", "==", user_uuid)\
+                                    .where("type", "==", "local")\
+                                    .stream()
+            for doc in local_docs:
+                data = doc.to_dict()
+                data["id"] = doc.id
+                all_counters.append(data)
 
-            for doc in counter_ref.where("uuid", "==",
-                                         decoded_data.get('google_id')).where('type', '==', 'local').stream():
-                don = doc.to_dict()
-                don["id"] = doc.id
-                all_counters.append(don)
+            global_docs = counter_ref.where("type", "==", "global").stream()
+            for doc in global_docs:
+                data = doc.to_dict()
+                data["id"] = doc.id
+                all_counters.append(data)
 
-            for doc in counter_ref.where('type', '==', 'global').stream():
-                don = doc.to_dict()
-                don["id"] = doc.id
-                all_counters.append(don)
+        return render_template('list.html', output=all_counters)
 
-            return render_template('list.html', output=all_counters)
     except Exception as e:
-        return f"An Error Occured: {e}"
+        return f"An Error Occurred: {e}"
 
 
 #
@@ -899,12 +920,12 @@ def create_counter():
             "count": data.get("count", 0),
             "name": counter_name,
             "nro": data.get("nro", ""),
-            "type": data.get("type", "local"),
+            "type": data.get("type", "global"),
             "url": data.get("url", ""),
             "user": data.get("user", ""),
             "uuid": data.get("uuid", "")
         }
-        counter_ref.document(counter_name).set(record)
+        counter_ref.document().set(record)
         return jsonify({
             "message": "Counter created successfully",
             "counter_name": counter_name
