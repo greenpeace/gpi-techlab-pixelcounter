@@ -1,85 +1,102 @@
-# Python Flask Framework - created a CRUD API for pixelcount
-Create an CRUD pixel count API app.
+# Python Flask Framework — CRUD API for Pixel Count → Counter App
 
-# GCP Cloud Run Button
+A pixel-based API app for CRUD counters, duplicate-safe petition/form tracking, and API-key authorized counter creation.
 
-You can try to run it from this location
+                    ┌────────────────────────┐
+                    │ Incoming request       │
+                    │ /count or /count_pixel │
+                    └──────────────┬─────────┘
+                                   │
+                           Read Query Params
+                 name(id), donation, email_hash
+                                   │
+                                   ▼
+                    ┌────────────────────────┐
+                    │ Validate API Key       │
+                    └──────────────┬─────────┘
+                                   │
+                 YES valid         │        NO invalid
+                                   ▼
+                           Proceed request       ───────────▶ Error 403
+                                   │
+                                   ▼
+                    ┌────────────────────────┐
+                    │ Validate domain/path/IP│
+                    └──────────────┬─────────┘
+                                   │
+                       Allowed     │     Blocked
+                                   ▼
+                           Proceed            ───────────▶ Error 400
+                                   │
+                                   ▼
+                    ┌────────────────────────┐
+                    │ Validate counter exists│
+                    │ name=id in Firestore   │
+                    └──────────────┬─────────┘
+                                   │
+                     Exists        │       Missing
+                                   ▼
+                           Proceed            ───────────▶ Error 404
+                                   │
+                                   ▼
+                    ┌─────────────────────────────┐
+                    │ Email_hash duplicate check  │
+                    └──────────────┬──────────────┘
+                                   │
+            Duplicate (already counted) │ Unique
+                                   ▼
+      Return 200 (Already counted)      │
+                                   │     ▼
+                                   │ Record email_hash
+                                   │
+                                   ▼
+                    ┌────────────────────────┐
+                    │ Increment counter      │
+                    └──────────────┬─────────┘
+                                   │
+                           Success │  Failure (should never fail)
+                                   ▼
+                                 Done
+                                   │
+                           Return JSON or GIF
 
-[![Run on Google Cloud](https://storage.googleapis.com/cloudrun/button.svg)](https://console.cloud.google.com/cloudshell/editor?shellonly=true&cloudshell_image=gcr.io/cloudrun/button&cloudshell_git_repo=https://github.com/greenpeace/TechLab-Pixel-Counter.git)
+
+## Counter App — What’s New
+
+- **Duplicate safety tightened** using `name + email_hash` as a unique key combination
+- **Multiple email hashes can count toward the same counter**, enabling petition/form flexibility
+- **API Key authentication added** to bypass origin/IP restrictions for authorized external requests
+- **New endpoint added to create counters remotely** via API request
+- **Improved and consistent error messages** returned for all validation failures
+- **All assets and libraries load locally (no external CDN/CDN calls)** for maximum availability and sustainability
+- Running serverless on **Google Cloud Run** with auto-scaling and efficient compute best practices
+
+## Create Cunter Try it locally
+
+http://localhost:8080/api/createcounter?apikey=<apikey>&name=<counter_name>&campaign=<campaign_name>&contactpoint=<email_address>&count=0&type=global&url=<target_url>&user=<user_name>&uuid=''
+
 
 # How it works
 
 This is an API driven pixel approach based on the CRUD API concept.
 
-## Add
-###
-### API Route add a counter by ID - requires json file body with id and count
-###
-    This is a post command
-    You can use multiple counters in the same database by changing the id of the counter name, like this
-    
-    ```
-    {
-    "id": "<counter_name>",
-    "count": 0
-    }
-    ```
-    Add is a post command
+## API Key Behavior
 
-    example: http://localhost:8080/add?id=<counter_name>&count=0
+| Request Variant | Result |
+|---|---|
+| Valid API key + active | Request allowed |
+| Valid API key + inactive | Returns **"API key inactive"** |
+| Invalid API key | Returns **"API key not found"** |
+| No API key | Returns **"Missing API key"** |
+| API key included in request | Bypasses origin/IP restrictions |
 
-#
-# API Route add with GET a counter by ID - if you can not use POST we offer a GET option to adding a counter
-    /addset?id=<counter_name>&count=<count>
-    
-    example: http://localhost:8080/addset?id=<counter_name>&count=0
+You can pass API keys via:
+- `apikey` query parameter
+- `X-API-Key` request header
 
+Example:
+http://localhost:8080/count_pixel?id=<counter>&email_hash=<hash>&apikey=<apikey>
 
-## Read
-
-#
-# API Route list all or a speific counter by ID - requires json file body with id and count
-#
-
-    Read a specific counter by counter_name
-    http://localhost:8080/list?id=<countname>
-
-    Read all Counters - Displayed in Table format
-    http://localhost:8080/list
-
-## Update
-
-###
-### API Route Update a counter by ID - requires json file body with id and count
-    API endpoint /update?id=<id>&count=<count>
-
-    You can update a counter or reset it by
-    example: http://localhost:8080/update?id=<counter_name>&count=<a number>
-
-# Delete
-
-###
-### API Route Delete a counter by ID /delete?id=<id>
-    API Enfpoint /delete?id=<countername>
-
-    example: http://localhost:8080/delete?id=<countername>
-
-# Other endpoints
-## Increase Counter
-
-### Count GET
-###
-### The count route used for pixel image to increase a count using a GET request
-    API endpoint /count?id=<id>
-    example: http://localhost:8080/count?id=<counter_name>
-
-### Count POST
-###
-### API Route Increase Counter by ID - requires json file body with id and count
-    API endpoint /counter 
-    json {"id":"GP Canada","count", 0}
-
-    example: http://localhost:8080/
 
 ###
 ### The API endpoint allows the user to get the endpoint total defined  by id
@@ -87,17 +104,62 @@ This is an API driven pixel approach based on the CRUD API concept.
 
     example: http://localhost:8080/signup?id=<counter_name>
 
-###
-### The API endpoint is an example on how you can submit a donation form capture the data and submit it to a collection
-    API endpoint /donationform
-    Post request with json form data{"id":"<counter_name","count", 0}
-    
-    example: http://localhost:8080/donationform
+## Duplicate & Counter Behavior Logic
+
+- A `name + email_hash` record is **blocked** if it already exists.
+- `name + email_hash` data is **never written** if the counter doesn't exist.
+- If a counter does **not** exist, a new counter **can be created** when a valid API key is present.
+- When a bad counter name is sent to a **count endpoint**, the app returns `"Counter not found"` instead of storing a duplicate block record.
+
+## API Routes
+
+### ➕ Add Counter (Fallback GET and POST)
+
+**POST JSON body**
+```json
+{
+  "id": "<counter_name>",
+  "count": 0
+}
+GET fallback (when POST is not possible)
+```
 
 ## Show counter using iframe
 To increase the counter you will put a pixel on the thank you page of the petition. Be careful that it is used only when someone has signed the petition. The pixel is practically invisible. The html code to put it is:
 
 <iframe src="http://localhost/count?id=<counter_name>" width="1" height="1" frameborder=0 style="overflow:hidden;" scrolling="no"></iframe>
+
+# Error messages and where they are triggered
+
+### **Request Validation Errors**
+
+| Message | Location / Logic |
+|---|---|
+| `"Disallowed request"` | is_allowed_request() / is_allowed_request() |
+| `"Missing counter id"` | if no `id=` is provided |
+| `"Counter not found"` | when counter lookup returns empty |
+| `"Duplicate: counter + email_hash already counted"` | process_email_hash() |
+| `"Email hash cannot be stored for missing counter"` | if counter does *not* exist |
+| `"Invalid counter name"` | when `name` format fails sanitization/lookup |
+| `"Unauthorized access"` | API key wrapper when key missing/invalid |
+| `403 + {"error":"Unauthorized","reason":<reason>}` | returned by require_valid_api_key() |
+
+### **Pixel Response Errors**
+
+| Message | Condition |
+|---|---|
+| `"An error occurred generating pixel"` | send_file() fails |
+| `"Internal handler error"` | uncaught exceptions return 500 |
+
+### **API Key Errors**
+
+| Message | Trigger |
+|---|---|
+| `"Missing API key"` | validate_api_key() |
+| `"API key not found"` | key lookup returns no doc |
+| `"API key inactive"` | key exists but `active == False` |
+| `"Unauthorized"` | Wrapper returns `403` |
+
 
 # Build and launch to Cloud Run
 
