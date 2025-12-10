@@ -144,10 +144,9 @@ def delete_apikey(key_id):
     if not decoded:
         return jsonify({"success": False, "error": "Unauthorized"}), 403
 
-    # Only delete if the key belongs to this user
-    doc = apikeys_ref.get()
-    if not doc.exists:
-        return jsonify({"success": False, "error": "Not found"}), 404
-
-    apikeys_ref.delete()
-    return jsonify({"success": True})
+    # Delete the api key directly without ownership check as requested
+    try:
+        apikeys_ref.document(key_id).delete()
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "error": f"Failed to delete: {e}"}), 500
