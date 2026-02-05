@@ -1,4 +1,5 @@
 <html lang="en">
+
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <!-- Meta, title, CSS, favicons, etc. -->
@@ -42,10 +43,10 @@
     <link rel="manifest" href="/manifest.json">
     <script nonce="{{ nonce }}">
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-                navigator.serviceWorker.register("/sw.js").then(function(registration) {
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register("/sw.js").then(function (registration) {
                     console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                }, function(err) {
+                }, function (err) {
                     console.log('ServiceWorker registration failed: ', err);
                 });
             });
@@ -65,6 +66,7 @@
 
     <!-- End Google Tag Manager -->
 </head>
+
 <body class="nav-md">
     <div class="container body">
         <div class="main_container">
@@ -84,9 +86,11 @@
                     <div class="profile clearfix">
                         <div class="profile_pic">
                             {% if user_data.photo and user_data.photo != "None" %}
-                            <img src="{{ user_data.photo }}" alt="..." class="img-circle profile_img w-12 h-12 rounded-full">
+                            <img src="{{ user_data.photo }}" alt="..."
+                                class="img-circle profile_img w-12 h-12 rounded-full">
                             {% else %}
-                            <img src="{{ url_for('static', filename='images/user.png') }}" alt="..." class="img-circle profile_img w-12 h-12 rounded-full">
+                            <img src="{{ url_for('static', filename='images/user.png') }}" alt="..."
+                                class="img-circle profile_img w-12 h-12 rounded-full">
                             {% endif %}
                         </div>
                         <div class="profile_info">
@@ -97,34 +101,102 @@
                     <!-- /Profile quick info -->
                     <!-- Include the sidebar (left navigation panel) -->
                     {% include "sidebar.html" %}
-  
+
                     <!-- Footer menu navigation (optional footer navigation) -->
                     {% include "menufooternav.html" %}
                     {% include "topnavigation.html" %}
-            <div class="right_col" role="main">
-                {% block content %}
+                    <div class="right_col" role="main">
+                        {% block content %}
 
-                {% endblock %}
+                        {% endblock %}
+                    </div>
+                    {% block script %}
+
+                    {% endblock script %}
+
+                    {% include 'footer.html' %}
+                </div>
             </div>
-            {% block script %}
 
-            {% endblock script %}
+            <!-- Toast Container -->
+            <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1050;">
+                <div id="liveToast" class="toast align-items-center border-0" role="alert" aria-live="assertive"
+                    aria-atomic="true">
+                    <div class="d-flex">
+                        <div class="toast-body" id="toastBody">
+                            Hello, world! This is a toast message.
+                        </div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
+                            aria-label="Close"></button>
+                    </div>
+                </div>
+            </div>
 
-            {% include 'footer.html' %}
-        </div>
-    </div>
-    
-        <!-- Bootstrap -->
-        <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
-        <!-- FastClick -->
-        <script src="{{ url_for('static', filename='js/fastclick.js') }}"></script>
-        <!-- NProgress -->
-        <script src="{{ url_for('static', filename='js/nprogress.js') }}"></script>
+            <!-- Bootstrap -->
+            <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+            <!-- FastClick -->
+            <script src="{{ url_for('static', filename='js/fastclick.js') }}"></script>
+            <!-- NProgress -->
+            <script src="{{ url_for('static', filename='js/nprogress.js') }}"></script>
 
-        <!-- bootstrap-progressbar -->
-        <script src="{{ url_for('static', filename='js/bootstrap-progressbar.min.js') }}"></script>    
-        <!-- Custom Theme Scripts -->
-        <script src="{{ url_for('static', filename='js/custom.js') }}"></script>
+            <!-- bootstrap-progressbar -->
+            <script src="{{ url_for('static', filename='js/bootstrap-progressbar.min.js') }}"></script>
+            <!-- Custom Theme Scripts -->
+            <script src="{{ url_for('static', filename='js/custom.js') }}"></script>
+
+            <script>
+                function showToast(message, type = 'success') {
+                    var toastEl = document.getElementById('liveToast');
+                    var toastBody = document.getElementById('toastBody');
+
+                    toastBody.textContent = message;
+
+                    // Reset classes
+                    toastEl.className = 'toast align-items-center border-0';
+
+                    if (type === 'error') {
+                        toastEl.classList.add('text-white', 'bg-danger');
+                    } else if (type === 'success') {
+                        toastEl.classList.add('text-white', 'bg-success');
+                    } else {
+                        toastEl.classList.add('bg-light');
+                    }
+
+                    var toast = new bootstrap.Toast(toastEl);
+                    toast.show();
+                }
+
+                // Global spinner helper
+                function showSpinner(btn) {
+                    var $btn = $(btn);
+                    if ($btn.hasClass('disabled') || $btn.prop('disabled')) return false; // Prevent double click
+
+                    // Store original content
+                    $btn.data('original-content', $btn.html());
+                    $btn.html('<i class="fa fa-spinner fa-spin"></i>');
+                    $btn.addClass('disabled');
+                    // We don't necessarily want to fully disable prop because it might prevent submit event bubbling if called on click
+                    // but usually for links it's fine. For submit buttons, we handle in form submit.
+                    return true;
+                }
+
+                // Global form submit handler
+                $(document).on('submit', 'form', function () {
+                    var $form = $(this);
+                    var $btn = $form.find('button[type="submit"]');
+
+                    if ($btn.length && !$btn.hasClass('no-spinner')) {
+                        // Use a short timeout to allow other submit handlers to run validation
+                        setTimeout(function () {
+                            if ($form.valid && !$form.valid()) return; // If jquery validation is used
+                            $btn.data('original-content', $btn.html());
+                            $btn.html('<i class="fa fa-spinner fa-spin"></i> Processing...');
+                            $btn.prop('disabled', true);
+                        }, 10);
+                    }
+                });
+            </script>
 
 </body>
+
 </html>

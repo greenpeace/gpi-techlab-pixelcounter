@@ -17,7 +17,9 @@ from system.firstoredb import (
     emailhash_ref,
     counter_ref,
     allowedorigion_ref,
-    disallowedorigion_ref
+    disallowedorigion_ref,
+    users_ref,
+    nro_ref
 )
 from modules.auth.auth import (
     login_is_required,
@@ -146,13 +148,17 @@ def is_allowed_request(referrer_domain, remote_address, referrer_path):
 def process_email_hash(name, email_hash):
     """Check duplicate hash and validate counter BEFORE writing."""
 
-    if not name or not email_hash:
-        return "missing", "Missing counter name or email_hash"
+    if not name:
+        return "missing", "Missing counter name"
 
     # 1. Check if counter exists
     counter_docs = counter_ref.where('name', '==', name).limit(1).get()
     if not counter_docs:
         return "invalid_counter", f"Counter '{name}' does not exist"
+
+    # If no email_hash provided, valid counter check is enough
+    if not email_hash:
+        return "ok", None
 
     # 2. Check if (name + email_hash) already registered
     existing = (
@@ -287,7 +293,29 @@ def createset():
                         endpoint='addlist')
 @login_is_required
 def addlist():
-    return render_template('listadd.html', **locals())
+    # Fetch active NROs for dropdown
+    nro_stream = nro_ref.stream()
+    nros = []
+    for doc in nro_stream:
+        d = doc.to_dict()
+        if d.get("active", True):
+            nros.append(d.get("name"))
+    nros.sort()
+
+    # Fetch users for assignment
+    users_stream = users_ref.stream()
+    users_list = []
+    for doc in users_stream:
+        u_data = doc.to_dict()
+        u_id = u_data.get('uuid') or doc.id
+        u_name = f"{u_data.get('given_name', '')} {u_data.get('last_name', u_data.get('family_name', ''))}".strip()
+        if not u_name:
+            u_name = u_data.get('email', 'Unknown User')
+        users_list.append({'uuid': u_id, 'name': u_name})
+    users_list.sort(key=lambda x: x['name'].lower())
+
+    return render_template('listadd.html', nros=nros, users=users_list)
+
 
 
 #
@@ -377,7 +405,8 @@ def createlist():
                 u'campaign': request.form.get('campaign'),
                 u'type': request.form.get('type'),
                 u'uuid': decoded_data.get('google_id'),
-                u'user': decoded_data.get('name')
+                u'user': decoded_data.get('name'),
+                u'assigned_users': request.form.getlist('assigned_users')
             }
 
             counter_ref.document().set(data)
@@ -416,29 +445,67 @@ def read():
         # ---- ROLE LOGIC ----
         all_counters = []
 
+        seen_ids = set()
+
         if user_role == "Administrator":
-            # ADMIN → see ALL counters, local + global
+            # ADMIN → see ALL counters
             docs = counter_ref.stream()
             for doc in docs:
                 data = doc.to_dict()
                 data["id"] = doc.id
                 all_counters.append(data)
-
         else:
-            # NORMAL USER → local counters for user + global counters
-            local_docs = counter_ref.where("uuid", "==", user_uuid)\
-                                    .where("type", "==", "local")\
-                                    .stream()
-            for doc in local_docs:
-                data = doc.to_dict()
-                data["id"] = doc.id
-                all_counters.append(data)
+            # NORMAL USER:
+            # 1. Fetch User Profile to get NRO (customer_id or nro field)
+            # We need to query the users collection to get the updated profile for this user
+            user_doc = users_ref.document(user_uuid).get()
+            if not user_doc.exists:
+                # Fallback if user doc missing (shouldn't happen)
+                user_nro = None
+            else:
+                user_data = user_doc.to_dict()
+                user_nro = user_data.get('nro')
 
+            # 2. Get Global Counters (everyone sees these)
             global_docs = counter_ref.where("type", "==", "global").stream()
             for doc in global_docs:
-                data = doc.to_dict()
-                data["id"] = doc.id
-                all_counters.append(data)
+                if doc.id not in seen_ids:
+                    data = doc.to_dict()
+                    data["id"] = doc.id
+                    all_counters.append(data)
+                    seen_ids.add(doc.id)
+
+            # 3. Get Owned Counters (uuid match)
+            # Note: This might overlap with NRO/Global, so we check seen_ids
+            owned_docs = counter_ref.where("uuid", "==", user_uuid).stream()
+            for doc in owned_docs:
+                if doc.id not in seen_ids:
+                    data = doc.to_dict()
+                    data["id"] = doc.id
+                    all_counters.append(data)
+                    seen_ids.add(doc.id)
+
+            # 4. Get NRO Local Counters
+            if user_nro:
+                # Fetch all local counters for this NRO
+                nro_docs = counter_ref.where("nro", "==", user_nro).stream()
+                for doc in nro_docs:
+                    if doc.id not in seen_ids:
+                        d = doc.to_dict()
+                        if d.get('type') == 'local':
+                            data = d
+                            data["id"] = doc.id
+                            all_counters.append(data)
+                        seen_ids.add(doc.id)
+
+            # 5. Get Manually Assigned Counters
+            assigned_docs = counter_ref.where("assigned_users", "array_contains", user_uuid).stream()
+            for doc in assigned_docs:
+                if doc.id not in seen_ids:
+                    data = doc.to_dict()
+                    data["id"] = doc.id
+                    all_counters.append(data)
+                    seen_ids.add(doc.id)
 
         return render_template('list.html', output=all_counters)
 
@@ -463,10 +530,32 @@ def listedit():
         don = counterlist.to_dict()
         don["id"] = counterlist.id
         lists.append(don)
+        
+        # Fetch active NROs for dropdown
+        nro_stream = nro_ref.stream()
+        nros = []
+        for doc in nro_stream:
+            d = doc.to_dict()
+            if d.get("active", True):
+                nros.append(d.get("name"))
+        nros.sort()
 
-        return render_template('listedit.html', ngo=don)
+        # Fetch users for assignment
+        users_stream = users_ref.stream()
+        users_list = []
+        for doc in users_stream:
+            u_data = doc.to_dict()
+            u_id = u_data.get('uuid') or doc.id
+            u_name = f"{u_data.get('given_name', '')} {u_data.get('last_name', u_data.get('family_name', ''))}".strip()
+            if not u_name:
+                u_name = u_data.get('email', 'Unknown User')
+            users_list.append({'uuid': u_id, 'name': u_name})
+        users_list.sort(key=lambda x: x['name'].lower())
+
+        return render_template('listedit.html', ngo=don, nros=nros, users=users_list)
     except Exception as e:
         return f"An Error Occured: {e}"
+
 
 
 #
@@ -529,7 +618,8 @@ def updateform():
             u'campaign': request.form.get('campaign'),
             u'type': request.form.get('type'),
             u'uuid': decoded_data.get('google_id'),
-            u'user': decoded_data.get('name')
+            u'user': decoded_data.get('name'),
+            u'assigned_users': request.form.getlist('assigned_users')
         }
         counter_ref.document(id).update(data)
         return redirect(url_for('pixelcounterblue.read'))

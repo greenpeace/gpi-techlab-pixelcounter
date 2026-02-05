@@ -38,6 +38,8 @@ if is_production_db:
 
     # CRM to track any request from contactform
     crm_ref = db.collection("legalcrm")
+    # nro collection
+    nro_ref = db.collection(u'nro')
 else:
     # Counters firestore collection
     counter_ref = db.collection(u'counters-test')
@@ -62,3 +64,5 @@ else:
     crm_ref = db.collection("legalcrm-test")
     # login config
     login_config_ref = db.collection(u'login_config-test')
+    # nro collection
+    nro_ref = db.collection(u'nro-test')

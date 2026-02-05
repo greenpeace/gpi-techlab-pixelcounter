@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<!-- page content -->
+<div class="page-title">
+    <div class="title_left">
+        <h3>NRO List <small>Manage Offices</small></h3>
+    </div>
+</div>
+
+<div class="clearfix"></div>
+
+<div class="container-fluid">
+    <!-- Example row of columns -->
+    <div class="row">
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        {% for message in messages %}
+        {{ message }}
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+        <div class="card" id="output">
+            <div class="card-body">
+                <a class="btn btn-sm btn-success" href="{{ url_for('nroblue.nro_add') }}" title="Add"><i
+                        class="glyphicon glyphicon-pencil"></i> Add New NRO</a>
+                <br />
+                <br />
+                <table id="datast" class="table table-striped"
+                    style="width:100%; table-layout: fixed; word-wrap: break-word;">
+                    <thead>
+                        <tr>
+                            <th scope="col" style="width:100px;">Active</th>
+                            <th scope="col">Name</th>
+                            <th scope="col" style="width:200px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for nro in nros %}
+                        <tr>
+                            <td>
+                                {% if nro.active %}
+                                <button class="btn btn-sm btn-success nro-toggle-btn" data-nro-id="{{ nro.id }}"
+                                    data-active="true" onclick="toggleNroStatus(this)">
+                                    <i class="fa fa-check"></i> Active
+                                </button>
+                                {% else %}
+                                <button class="btn btn-sm btn-danger nro-toggle-btn" data-nro-id="{{ nro.id }}"
+                                    data-active="false" onclick="toggleNroStatus(this)">
+                                    <i class="fa fa-times"></i> Inactive
+                                </button>
+                                {% endif %}
+                            </td>
+                            <td>{{ nro.name }}</td>
+                            <td>
+                                <a class="btn btn-sm btn-success"
+                                    href="{{ url_for('nroblue.nro_edit', nro_id=nro.id) }}" title="Edit"><i
+                                        class="glyphicon glyphicon-pencil"></i> Edit</a>
+                                <form action="{{ url_for('nroblue.nro_delete', nro_id=nro.id) }}" method="post"
+                                    style="display:inline;"
+                                    onsubmit="return confirm('Are you sure you want to delete this NRO?');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-sm btn-danger" title="Delete"><i
+                                            class="glyphicon glyphicon-trash"></i> Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+<hr>
+{% endblock content %}
+
+{% block script %}
+
+<!-- Switchery CSS and JS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/switchery/0.8.2/switchery.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/switchery/0.8.2/switchery.min.js"></script>
+
+<script>
+    $(document).ready(function () {
+        // Initialize DataTable
+        var table = $('#datast').DataTable({
+            stateSave: true
+        });
+    });
+
+    // Handle toggle change - button click
+    function toggleNroStatus(btn) {
+        var $btn = $(btn);
+        var nroId = $btn.data('nro-id');
+        var currentActive = $btn.data('active') === true; // Get boolean from data-attribute
+        var newActive = !currentActive; // Toggle state
+
+        // Show spinner state
+        $btn.prop('disabled', true);
+        $btn.html('<i class="fa fa-spinner fa-spin"></i> Updating...');
+
+        $.ajax({
+            url: '/nros/toggle/' + nroId,
+            type: 'POST',
+            contentType: 'application/json',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token() }}'
+            },
+            data: JSON.stringify({
+                active: newActive
+            }),
+            success: function (response) {
+                if (response.success) {
+                    showToast('NRO status updated successfully', 'success');
+
+                    // Update button UI
+                    $btn.data('active', newActive); // Update data attribute
+                    if (newActive) {
+                        $btn.removeClass('btn-danger').addClass('btn-success');
+                        $btn.html('<i class="fa fa-check"></i> Active');
+                    } else {
+                        $btn.removeClass('btn-success').addClass('btn-danger');
+                        $btn.html('<i class="fa fa-times"></i> Inactive');
+                    }
+                } else {
+                    showToast('Error: ' + response.message, 'error');
+                    // Revert UI to original state
+                    revertButton($btn, currentActive);
+                }
+            },
+            error: function (xhr, status, error) {
+                showToast('Error updating NRO status: ' + error, 'error');
+                // Revert UI to original state
+                revertButton($btn, currentActive);
+            },
+            complete: function () {
+                $btn.prop('disabled', false);
+            }
+        });
+    }
+
+    function revertButton($btn, wasActive) {
+        if (wasActive) {
+            $btn.removeClass('btn-danger').addClass('btn-success');
+            $btn.html('<i class="fa fa-check"></i> Active');
+        } else {
+            $btn.removeClass('btn-success').addClass('btn-danger');
+            $btn.html('<i class="fa fa-times"></i> Inactive');
+        }
+    }
+
+    // Add spinner to delete buttons
+    $(document).on('submit', 'form', function () {
+        var btn = $(this).find('button[type="submit"]');
+        if (btn.length && !btn.hasClass('no-spinner')) {
+            var originalText = btn.html();
+            btn.html('<i class="fa fa-spinner fa-spin"></i> Processing...');
+            btn.prop('disabled', true);
+            // If validation fails or something prevents submit, we might be stuck. 
+            // But for standard forms, page reload will happen.
+        }
+    });
+</script>
+
+{% endblock script %}

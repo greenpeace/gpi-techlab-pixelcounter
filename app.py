@@ -49,6 +49,8 @@ from modules.urlshortner.urlshortner import urlshortnerblue
 from modules.apikey.apikey import apikeyblue
 # Import Users
 from modules.users.users import usersblue, get_login_config
+# Import NRO
+from modules.nro.nro import nroblue
 
 # Generate a nonce (typically done once)
 global_nonce = secrets.token_hex(16)
@@ -148,7 +150,10 @@ app.register_blueprint(urlshortnerblue)
 # Users
 app.register_blueprint(usersblue)
 # API Key
+# API Key
 app.register_blueprint(apikeyblue)
+# NRO
+app.register_blueprint(nroblue)
 
 # it is necessary to set a password when dealing with OAuth 2.0
 app.secret_key = app_secret_key

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-title">
+    <div class="title_left">
+        <h3>Admin <small>Operations</small></h3>
+    </div>
+</div>
+
+<div class="clearfix"></div>
+
+<div class="row">
+    <div class="col-md-12 col-sm-12 ">
+        <div class="x_panel">
+            <div class="x_title">
+                <h2>System Maintenance</h2>
+                <div class="clearfix"></div>
+            </div>
+            <div class="x_content">
+                <p>Run system maintenance tasks below. Use with caution.</p>
+
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Fix User UUIDs</h5>
+                        <p class="card-text">This will generate unique UUIDs for all users. Only run this if you are
+                            experiencing UUID collision issues.</p>
+                        <form action="{{ url_for('usersblue.run_fix_uuids') }}" method="post"
+                            onsubmit="return confirm('Are you sure you want to regenerate all user UUIDs? This handles a critical system identifier.');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-warning">Fix UUIDs</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card mt-3">
+                    <div class="card-body">
+                        <h5 class="card-title">Auto-Link Counters to Users</h5>
+                        <p class="card-text">
+                            This tool attempts to match existing Counters to Users by matching the Counter's "Contact
+                            Point" (Full Name)
+                            with the User's "First Name + Last Name". Use this to bulk-assign counters after importing
+                            users.
+                        </p>
+                        <form action="{{ url_for('usersblue.auto_link_counters') }}" method="post"
+                            onsubmit="return confirm('Are you sure? This will update counter assignments for all name matches found.');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-primary">Link Counters by Name</button>
+                        </form>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}

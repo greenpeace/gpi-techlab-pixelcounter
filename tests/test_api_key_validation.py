@@ -31,45 +31,52 @@ def mock_firestore_user(api_key_data):
     return [user_mock]
 
 
-@patch("your_module.users_ref")
-def test_missing_api_key(mock_users_ref, app):
+@patch("modules.auth.auth.apikeys_ref")
+def test_missing_api_key(mock_apikeys_ref, app):
     client = app.test_client()
     resp = client.get("/protected")
     assert resp.status_code == 403
     assert "Missing API key" in resp.get_data(as_text=True)
 
 
-@patch("your_module.users_ref")
-def test_valid_active_api_key(mock_users_ref, app):
-    mock_users_ref.stream.return_value = mock_firestore_user({"api_key": "key123", "status": "active"})
+@patch("modules.auth.auth.apikeys_ref")
+def test_valid_active_api_key(mock_apikeys_ref, app):
+    api_key_doc = MagicMock()
+    api_key_doc.to_dict.return_value = {"api_key": "key123", "active": True}
+    mock_apikeys_ref.where.return_value.limit.return_value.get.return_value = [api_key_doc]
+    
     client = app.test_client()
     resp = client.get("/protected?apikey=key123")
     assert resp.status_code == 200
     assert "Access granted" in resp.get_data(as_text=True)
 
 
-@patch("your_module.users_ref")
-def test_inactive_api_key(mock_users_ref, app):
-    mock_users_ref.stream.return_value = mock_firestore_user({"api_key": "key123", "status": "inactive"})
+@patch("modules.auth.auth.apikeys_ref")
+def test_inactive_api_key(mock_apikeys_ref, app):
+    api_key_doc = MagicMock()
+    api_key_doc.to_dict.return_value = {"api_key": "key123", "active": False}
+    mock_apikeys_ref.where.return_value.limit.return_value.get.return_value = [api_key_doc]
+    
     client = app.test_client()
     resp = client.get("/protected?apikey=key123")
     assert resp.status_code == 403
     assert "API key inactive" in resp.get_data(as_text=True)
 
 
-@patch("your_module.users_ref")
-def test_api_key_not_found(mock_users_ref, app):
-    # No user returns the key
-    mock_users_ref.stream.return_value = []
+@patch("modules.auth.auth.apikeys_ref")
+def test_api_key_not_found(mock_apikeys_ref, app):
+    mock_apikeys_ref.where.return_value.limit.return_value.get.return_value = []
+    
     client = app.test_client()
     resp = client.get("/protected?apikey=notfound")
     assert resp.status_code == 403
     assert "API key not found" in resp.get_data(as_text=True)
 
 
-@patch("your_module.users_ref", side_effect=Exception("Firestore error"))
-def test_firestore_error(mock_users_ref, app):
+@patch("modules.auth.auth.apikeys_ref")
+def test_firestore_error(mock_apikeys_ref, app):
+    mock_apikeys_ref.where.side_effect = Exception("Firestore error")
+    
     client = app.test_client()
-    resp = client.get("/protected?apikey=key123")
-    assert resp.status_code == 500
-    assert "Firestore error" in resp.get_data(as_text=True)
+    with pytest.raises(Exception, match="Firestore error"):
+        client.get("/protected?apikey=key123")

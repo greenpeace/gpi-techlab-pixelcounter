@@ -7,7 +7,7 @@ from flask import (
 )
 import jwt
 from modules.auth.auth import login_is_required
-from system.firstoredb import apikeys_ref
+from system.firstoredb import apikeys_ref, users_ref
 
 apikeyblue = Blueprint(
     "apikeyblue",
@@ -43,17 +43,45 @@ def apikey_list():
         return redirect(url_for("authsblue.login"))
 
     user_uuid = decoded["uuid"]
+    role = decoded.get("role")
 
     # Query api keys in Firestore
-    keys_docs = apikeys_ref.where("user_uuid", "==", user_uuid).stream()
+    if role == "Administrator":
+        # Admin sees ALL keys
+        keys_docs = apikeys_ref.stream()
+        
+        # Prefetch user names for mapping (optimize this if thousands of users)
+        all_users = users_ref.stream()
+        user_map = {}
+        for u in all_users:
+            u_data = u.to_dict()
+            # Construct name
+            name_str = f"{u_data.get('given_name','')} {u_data.get('family_name','')}".strip()
+            if not name_str: 
+                name_str = u_data.get('email', 'Unknown')
+            user_map[u_data.get('uuid')] = name_str
+            
+    else:
+        # Regular users see only their own
+        keys_docs = apikeys_ref.where("user_uuid", "==", user_uuid).stream()
+        user_map = {} # No need to map others
+        
     api_keys = []
     for doc in keys_docs:
         d = doc.to_dict()
+        owner_uuid = d.get("user_uuid")
+        
+        # Determine display name
+        display_name = "Me"
+        if role == "Administrator":
+             display_name = user_map.get(owner_uuid, "Unknown User")
+             
         api_keys.append({
             "id": doc.id,
             "api_key": d.get("api_key"),
             "created_at": d.get("created_at"),
-            "user_uuid": user_uuid,
+            "user_uuid": owner_uuid,
+            "user_name": display_name,
             "active": d.get("active", True)
         })
 

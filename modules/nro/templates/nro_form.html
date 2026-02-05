@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-title">
+    <div class="title_left">
+        <h3>{{ 'Edit' if nro else 'Add' }} NRO</h3>
+    </div>
+</div>
+
+<div class="clearfix"></div>
+
+<div class="row">
+    <div class="col-md-12 col-sm-12">
+        <div class="x_panel">
+            <div class="x_content">
+                <form method="post" class="form-horizontal form-label-left">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <div class="form-group row">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12" for="name">NRO Name <span
+                                class="required">*</span>
+                        </label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                            <input type="text" id="name" name="name" required="required"
+                                class="form-control col-md-7 col-xs-12" value="{{ nro.name if nro else '' }}">
+                        </div>
+                    </div>
+
+                    <div class="form-group row">
+                        <label class="control-label col-md-3 col-sm-3 col-xs-12">Active Log</label>
+                        <div class="col-md-6 col-sm-6 col-xs-12">
+                            <!-- Hidden input to store true/false state -->
+                            <input type="hidden" name="active" id="activeInput"
+                                value="{{ 'true' if (nro and nro.active) or (not nro) else 'false' }}">
+
+                            <!-- Visual Button -->
+                            <button type="button" id="activeBtn" class="btn btn-sm" onclick="toggleActive()">
+                                Loading...
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="ln_solid"></div>
+                    <div class="form-group">
+                        <div class="col-md-6 col-sm-6 col-xs-12 col-md-offset-3">
+                            <a href="{{ url_for('nroblue.nro_list') }}" class="btn btn-primary">Cancel</a>
+                            <button type="submit" class="btn btn-success">Submit</button>
+                        </div>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block script %}
+
+<!-- Switchery CSS and JS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/switchery/0.8.2/switchery.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/switchery/0.8.2/switchery.min.js"></script>
+
+<script>
+    $(document).ready(function () {
+        initializeActiveBtn();
+    });
+
+    function initializeActiveBtn() {
+        var input = document.getElementById('activeInput');
+        var btn = document.getElementById('activeBtn');
+        var isActive = (input.value === 'true');
+
+        updateBtnState(btn, isActive);
+    }
+
+    function toggleActive() {
+        var input = document.getElementById('activeInput');
+        var btn = document.getElementById('activeBtn');
+        var currentState = (input.value === 'true');
+        var newState = !currentState;
+
+        input.value = newState ? 'true' : 'false';
+        updateBtnState(btn, newState);
+    }
+
+    function updateBtnState(btn, isActive) {
+        if (isActive) {
+            btn.className = 'btn btn-sm btn-success';
+            btn.innerHTML = '<i class="fa fa-check"></i> Active';
+        } else {
+            btn.className = 'btn btn-sm btn-danger';
+            btn.innerHTML = '<i class="fa fa-times"></i> Inactive';
+        }
+    }
+</script>
+
+{% endblock script %}

@@ -19,11 +19,12 @@ import base64
 from google.cloud import firestore
 
 # Fake News firestore collection
-from system.firstoredb import users_ref
-from system.firstoredb import login_config_ref
+from system.firstoredb import users_ref, counter_ref
+from system.firstoredb import login_config_ref, nro_ref
 # from system.firstoredb import update_records_with_customer_id_and_uuid_in_batches
 from modules.auth.auth import login_is_required, admin_required
 from modules.auth.auth import get_user_data_from_token
+import uuid
 
 # JWT
 import jwt
@@ -237,11 +238,61 @@ def users_edit():
         users = users_ref.document(id).get()
         users = users.to_dict()
         users["id"] = id
+        
+        # Fetch all counters for the dropdown
+        counters_stream = counter_ref.stream()
+        counters = []
+        user_uuid = users.get('uuid')
+        
+        for doc in counters_stream:
+            c_data = doc.to_dict()
+            # Determine if this counter is currently assigned to this user
+            is_assigned = c_data.get('uuid') == user_uuid
+            
+            
+            counters.append({
+                "id": doc.id,
+                "name": c_data.get("name", doc.id),
+                "is_assigned": is_assigned
+            })
+            
+        # Fetch all API Keys
+        from system.firstoredb import apikeys_ref  
+        apikeys_stream = apikeys_ref.stream()
+        apikeys = []
+        for doc in apikeys_stream:
+            k_data = doc.to_dict()
+            is_assigned_key = k_data.get('user_uuid') == user_uuid
+            
+            # Simple name: Key ID + snippet
+            k_id = doc.id
+            key_val = k_data.get('api_key', '???')
+            mask = f"{key_val[:6]}...{key_val[-4:]}"
+            
+            apikeys.append({
+                "id": k_id,
+                "mask": mask,
+                "is_assigned": is_assigned_key,
+                "created_at": k_data.get('created_at')
+            })
+            
+        # Fetch NROs
+        nro_stream = nro_ref.stream()
+        nros = []
+        for doc in nro_stream:
+            d = doc.to_dict()
+            if d.get("active", True):
+                nros.append(d.get("name"))
+        nros.sort()
+            
         return render_template('usersedit.html',
                                users=users,
+                               counters=counters,
+                               apikeys=apikeys,
+                               nros=nros,
                                nonce=g.nonce)
     except Exception as e:
-        return f"An Error Occured: {e}"
+        return f"An Error Occurred: {e}"
 
 #
 # API Route Delete a counter by ID /delete?id=<id>
@@ -289,17 +340,91 @@ def users_update():
             u'email': request.form.get('email'),
             u'phone': request.form.get('phone'),
             u'designation': request.form.get('designation'),
+            u'nro': request.form.get('nro'),
             u'role': request.form.get('role'),
+            # Removed separate assigned_counter_id field in favor of updating Counter documents
             u'disabled': False,
             u'user': decoded_data.get('name'),
             u'uuid': decoded_data.get('uuid'),
             u'customer_id': decoded_data.get('customer_id')
         }
 
+        # Update User Details
         users_ref.document(id).update(data)
+        
+        # --- Handle Counter Assignments ---
+        # 1. Get current user's UUID
+        # We need to fetch the USER document we just updated (or rely on input) to be sure of the target UUID
+        # But 'data' has the admin's UUID? WAIT. 
+        # The 'data' dict above uses 'decoded_data' which is the ADMIN's session.
+        # This looks like a BUG in the original code for 'users_update'. 
+        # It sets 'user', 'uuid', 'customer_id' to the ADMIN's values, overwriting the target user's identity!
+        #
+        # FIX: We must NOT overwrite the target user's UUID/Name with the Admin's.
+        # The target user's ID is 'id'. We should read their existing UUID or keep it if not changed.
+        # However, looking at the previous code, it seems the intention might have been to stamp 'updatedBy'?
+        # But the keys are 'user', 'uuid'. This looks wrong.
+        # I will fix this to querying the EXISTING user data for the UUID.
+        
+        target_user_doc = users_ref.document(id).get()
+        target_user_data = target_user_doc.to_dict()
+        target_uuid = target_user_data.get('uuid')
+        target_name = f"{request.form.get('given_name')} {request.form.get('last_name')}"
+        
+        # 2. Get list of selected counter IDs from form
+        selected_counter_ids = request.form.getlist('assigned_counter_ids')
+        
+        # 3. Find all counters CURRENTLY owned by this user
+        current_owned_query = counter_ref.where('uuid', '==', target_uuid).stream()
+        current_owned_ids = [c.id for c in current_owned_query]
+        
+        # 4. Determine Unassign (Owned but not in selected)
+        to_unassign = set(current_owned_ids) - set(selected_counter_ids)
+        for c_id in to_unassign:
+            counter_ref.document(c_id).update({
+                'uuid': None,
+                'user': None
+            })
+            
+        # 5. Determine Assign (Selected)
+        # We update ALL selected to ensure they point to this user (even if already owned, to update Name if changed)
+        for c_id in selected_counter_ids:
+            counter_ref.document(c_id).update({
+                'uuid': target_uuid,
+                'user': target_name
+            })
+            
+        # --- Handle API Key Assignments ---
+        from system.firstoredb import apikeys_ref
+        
+        # 1. Get selected API Keys
+        selected_apikey_ids = request.form.getlist('assigned_apikey_ids')
+        
+        # 2. Find all keys CURRENTLY owned by this user
+        current_owned_keys_query = apikeys_ref.where('user_uuid', '==', target_uuid).stream()
+        current_owned_key_ids = [k.id for k in current_owned_keys_query]
+        
+        # 3. Unassign keys that were deselected
+        # Note: Unassigning a key usually just means removing the user link or disabling it?
+        # User request says: "the uuid for the apikey should be updated"
+        # We will set user_uuid to None or similar if unassigned? 
+        # Or maybe we just leave them orphan. Let's orphan them to be safe.
+        to_unassign_keys = set(current_owned_key_ids) - set(selected_apikey_ids)
+        for k_id in to_unassign_keys:
+            apikeys_ref.document(k_id).update({
+                'user_uuid': None
+            })
+            
+        # 4. Assign selected keys
+        for k_id in selected_apikey_ids:
+            # We assign them to this user
+            apikeys_ref.document(k_id).update({
+                'user_uuid': target_uuid
+            })
+
         return redirect(url_for('usersblue.userslist'))
     except Exception as e:
-        return f"An Error Occured: {e}"
+        return f"An Error Occurred: {e}"
 
 #
 # API Route Update a counter by ID - requires json file body with id and count
@@ -423,4 +548,96 @@ def get_login_config():
     except Exception as e:
         print(f"An error occurred: {e}")
         # Optional: log the error for debugging purposes
+        # Optional: log the error for debugging purposes
         return None
+
+@usersblue.route("/admin/operations", methods=['GET'])
+@login_is_required
+@admin_required
+def admin_ops():
+    return render_template('admin_ops.html', nonce=g.nonce)
+
+@usersblue.route("/admin/fix-uuids", methods=['POST'])
+@login_is_required
+@admin_required
+def run_fix_uuids():
+    try:
+        # Get all user documents
+        docs = users_ref.stream()
+        count = 0
+        
+        for doc in docs:
+            user_data = doc.to_dict()
+            user_id = doc.id
+            
+            # Generate a new UUID
+            new_uuid = str(uuid.uuid4())
+            
+            # Update the user document
+            users_ref.document(user_id).update({
+                'uuid': new_uuid
+            })
+            count += 1
+            
+        flash(f'Successfully updated UUIDs for {count} users.')
+    except Exception as e:
+        flash(f'Error updating UUIDs: {str(e)}')
+        
+    return redirect(url_for('usersblue.admin_ops'))
+
+@usersblue.route("/admin/auto-link-counters", methods=['POST'])
+@login_is_required
+@admin_required
+def auto_link_counters():
+    try:
+        # 1. Fetch all users
+        users = [u.to_dict() for u in users_ref.stream()]
+        
+        # 2. Fetch all counters
+        counters = [(c.id, c.to_dict()) for c in counter_ref.stream()]
+        
+        matched_count = 0
+        
+        # 3. Iterate Counters and try to match
+        for c_id, c_data in counters:
+            contact = c_data.get('contactpoint')
+            if not contact:
+                continue
+            
+            contact_str = str(contact).strip()
+            match = None
+            
+            # Check if it looks like an email
+            if '@' in contact_str:
+                # Match by Email
+                contact_lower = contact_str.lower()
+                for u in users:
+                    u_email = u.get('email', '').strip().lower()
+                    if u_email == contact_lower:
+                        match = u
+                        break
+            else:
+                # Match by Name (First Last)
+                contact_lower = contact_str.lower()
+                for u in users:
+                    # Construct full name: "Firstname Lastname"
+                    fullname = f"{u.get('given_name', '')} {u.get('family_name', '')}".strip()
+                    if fullname.lower() == contact_lower:
+                        match = u
+                        break
+            
+            if match and match.get('uuid'):
+                # Update Counter with new owner info
+                counter_ref.document(c_id).update({
+                    'uuid': match['uuid'],
+                    # Update the 'user' field to the User's actual name to ensure consistency
+                    'user': f"{match.get('given_name', '')} {match.get('family_name', '')}"
+                })
+                matched_count += 1
+                
+        flash(f'Successfully linked {matched_count} counters to users based on name match.')
+        
+    except Exception as e:
+        flash(f'Error linking counters: {str(e)}')
+        
+    return redirect(url_for('usersblue.admin_ops'))

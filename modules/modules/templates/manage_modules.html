@@ -1,73 +1,75 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <h1>Manage Modules</h1>
-    <table id="modulesTable" class="display">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Active</th>
-                <th>Version</th>
-                <th>Date Added</th>
-                <th>Description</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for module in modules %}
-            <tr>
-                <td>{{ module.name }}</td>
-                <td>{{ '✅' if module.active else '❌' }}</td>
-                <td>{{ module.version }}</td>
-                <td>{{ module.date_added }}</td>
-                <td class="text-wrap" style="max-width: 300px;">
-                    {% set words = module.description.split() %}
-                    {% for i in range(0, words|length, 10) %}
-                        {{ words[i:i+10]|join(' ') }}<br>
-                    {% endfor %}
-                </td>
-                <td class="d-flex gap-2">
-                    <div class="btn-group" role="group">
-                        <button class="btn btn-info btn-sm" onclick="reviewModule('{{ module.name }}')">
-                            <i class="fas fa-eye"></i> Review
-                        </button>
-                        <button class="btn btn-danger btn-sm" onclick="deleteModule('{{ module.name }}')" data-module="{{ module.name }}">
-                            <i class="fas fa-trash"></i> Delete
-                        </button>
-                        <button class="btn btn-warning btn-sm" onclick="checkDocstring('{{ module.name }}')">
-                            <i class="fas fa-check-circle"></i> Check
-                        </button>
-                        <button class="btn btn-success btn-sm" onclick="generateDocs('{{ module.name }}')">
-                            <i class="fas fa-file-alt"></i> Docs
-                        </button>
-                    </div>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<h1>Manage Modules</h1>
+<table id="modulesTable" class="display">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Active</th>
+            <th>Version</th>
+            <th>Date Added</th>
+            <th>Description</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for module in modules %}
+        <tr>
+            <td>{{ module.name }}</td>
+            <td>{{ '✅' if module.active else '❌' }}</td>
+            <td>{{ module.version }}</td>
+            <td>{{ module.date_added }}</td>
+            <td class="text-wrap" style="max-width: 300px;">
+                {% set words = module.description.split() %}
+                {% for i in range(0, words|length, 10) %}
+                {{ words[i:i+10]|join(' ') }}<br>
+                {% endfor %}
+            </td>
+            <td class="d-flex gap-2">
+                <div class="btn-group" role="group">
+                    <button class="btn btn-info btn-sm" onclick="reviewModule('{{ module.name }}')">
+                        <i class="fas fa-eye"></i> Review
+                    </button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteModule('{{ module.name }}')"
+                        data-module="{{ module.name }}">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                    <button class="btn btn-warning btn-sm" onclick="checkDocstring('{{ module.name }}')">
+                        <i class="fas fa-check-circle"></i> Check
+                    </button>
+                    <button class="btn btn-success btn-sm" onclick="generateDocs('{{ module.name }}')">
+                        <i class="fas fa-file-alt"></i> Docs
+                    </button>
+                </div>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
 
-    <!-- Results Modal -->
-    <div class="modal fade" id="resultsModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Results</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <pre id="resultsContent"></pre>
-                </div>
+<!-- Results Modal -->
+<div class="modal fade" id="resultsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Results</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <pre id="resultsContent"></pre>
             </div>
         </div>
     </div>
+</div>
 {% endblock %}
 
 {% block script %}
 <script>
-    $(document).ready(function() {
+    $(document).ready(function () {
         $('#modulesTable').DataTable({
             responsive: true,
+            stateSave: true,
             order: [[3, 'desc']] // Sort by date added
         });
     });
@@ -107,7 +109,7 @@
             });
 
             const data = await handleResponse(response, `Successfully ${action} ${moduleName}`);
-            
+
             // Refresh page after successful deletion
             if (action === 'deleted') {
                 setTimeout(() => {
@@ -182,5 +184,5 @@
         button.disabled = false;
     }
 
-</script>    
+</script>
 {% endblock %}

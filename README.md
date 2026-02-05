@@ -67,6 +67,12 @@ A pixel-based API app for CRUD counters, duplicate-safe petition/form tracking, 
 - **Multiple email hashes can count toward the same counter**, enabling petition/form flexibility
 - **API Key authentication added** to bypass origin/IP restrictions for authorized external requests
 - **New endpoint added to create counters remotely** via API request
+- **NRO Management System added**: Centralized management of National/Regional Offices (NROs) in the Admin section.
+- **Dynamic NRO Dropdowns**: Replaced manual NRO text fields with dropdowns populated from active NRO records.
+- **Multi-User counter assignment**: Ability to assign multiple specific users to a single counter for collaborative management.
+- **Advanced Access Control**: Visibility logic now combines ownership, NRO affiliation, and manual assignments.
+- **Enhanced UI Integration**: Integrated **DataTables** and **Switchery** for premium, interactive management of NROs and Counters.
+- **Admin API Key Visibility**: Administrators can now see all API keys in the system, including the user they belong to.
 - **Improved and consistent error messages** returned for all validation failures
 - **All assets and libraries load locally (no external CDN/CDN calls)** for maximum availability and sustainability
 - Running serverless on **Google Cloud Run** with auto-scaling and efficient compute best practices
@@ -74,6 +80,29 @@ A pixel-based API app for CRUD counters, duplicate-safe petition/form tracking, 
 ## Create Cunter Try it locally
 
 http://localhost:8080/api/createcounter?apikey=<apikey>&name=<counter_name>&campaign=<campaign_name>&contactpoint=<email_address>&count=0&type=global&url=<target_url>&user=<user_name>&uuid=''
+
+
+# NRO Management
+The NRO (National/Regional Office) Management system allows administrators to control the official offices used throughout the application.
+
+- **Centralized Control**: Register new NROs or edit existing ones via the Admin sidebar.
+- **Active/Inactive Status**: Use the **Switchery slider** in the NRO list to activate or deactivate offices. Inactive offices are automatically filtered out from counter creation and user profile selection.
+- **UI Performance**: The NRO table uses **DataTables** for instant search and efficient pagination across large office lists.
+
+# Multi-User Access & Visibility Logic
+Counter visibility is now smarter and supports collaborative work within and across offices.
+
+### Visibility Rules
+A user will see a counter in their list if they meet **any** of the following conditions:
+1. **Administrators**: See everything.
+2. **Owners**: You created the counter (matching `uuid`).
+3. **Global**: The counter is marked as `type: global`.
+4. **NRO Local**: The counter is `type: local` and its `nro` matches the user's assigned NRO.
+5. **Manually Assigned**: The user is explicitly selected in the **"Assigned Users"** multi-select field on the counter.
+
+### Assigning Users
+When creating or editing a counter, use the **Assigned Users (Multi-select)** field to grant access to specific team members who might not be in your NRO or who aren't the primary owner. 
+*(Tip: Hold Ctrl/Cmd to select multiple people)*
 
 
 # How it works
