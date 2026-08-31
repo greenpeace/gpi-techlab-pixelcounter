@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <!-- Top 5 Counters -->
+  <div class="row mb-4">
+    {% for counter in top_counters %}
+    <div class="col-6 col-md-2">
+      <div class="dashboard-card text-center text-white bg-info">
+        <h5 class="mb-2">{{ counter.name|capitalize }}</h5>
+        <h3 class="display-4 fw-bold">{{ counter.value }}</h3>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Main Cards Row -->
+  <div class="row mb-4">
+    <!-- Quick Links Card -->
+    <div class="col-12 col-lg-6 mb-3">
+      <div class="dashboard-card bg-dark bg-opacity-75 p-3">
+        <h4 class="text-white mb-3">Quick Links</h4>
+        <div class="row">
+          {% for link in quick_links %}
+          <div class="col-6 col-md-3 mb-3">
+            <a href="{{ link.url }}" class="text-decoration-none">
+              <div class="quick-link">
+                <i class="{{ link.icon }}"></i>
+                <span>{{ link.label }}</span>
+              </div>
+            </a>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    <!-- Recent Activities Card -->
+    <div class="col-12 col-lg-6 mb-3">
+      <div class="dashboard-card bg-dark bg-opacity-75 p-3">
+        <h4 class="text-white mb-3">Recent System Activities</h4>
+        <div class="activity-list">
+          {% for act in activities %}
+          <div class="activity-item d-flex justify-content-between">
+            <div>{{ act.message|default('No description') }}</div>
+            <div class="activity-timestamp">{{ act.timestamp }}</div>
+          </div>
+          {% else %}
+          <div class="activity-item text-muted">No recent activities.</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

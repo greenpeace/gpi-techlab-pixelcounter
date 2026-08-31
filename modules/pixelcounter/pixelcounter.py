@@ -189,13 +189,13 @@ def increment_counter(name, amount=1):
 
     counter_doc = counter_docs[0]
 
-    totals_docs = counter_ref.where('name', '==', 'totals').limit(1).get()
-    totals_doc = totals_docs[0] if totals_docs else None
+    # totals_docs = counter_ref.where('name', '==', 'totals').limit(1).get()
+    # totals_doc = totals_docs[0] if totals_docs else None
 
     counter_ref.document(counter_doc.id).update({'count': Increment(amount)})
 
-    if totals_doc:
-        counter_ref.document(totals_doc.id).update({'count': Increment(1)})
+    # if totals_doc:
+        # counter_ref.document(totals_doc.id).update({'count': Increment(1)})
 
     return True
 
@@ -997,10 +997,17 @@ def create_counter():
     if not re.match(r"^[A-Za-z0-9_]+$", counter_name):
         return jsonify({"error": "Invalid counter name. Only alphanumeric characters and underscores allowed."}), 422
 
-    # --- 3. Check if counter exists ---
-    existing = counter_ref.document(counter_name).get()
-    if existing.exists:
-        return jsonify({"error": "Counter already exists"}), 409
+    # --- 3. Check if a counter with this name already exists ---
+    # Counter documents use generated Firestore IDs, so uniqueness must be
+    # checked against the stored name field rather than the document ID.
+    existing = (
+        counter_ref
+        .where("name", "==", counter_name)
+        .limit(1)
+        .get()
+    )
+    if existing:
+        return jsonify({"error": "Counter ID already exists"}), 409
 
     # --- 4. Create counter ---
     try:

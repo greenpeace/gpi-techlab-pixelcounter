@@ -270,12 +270,9 @@ def favicon():
 port = int(os.environ.get('PORT', 8080))
 is_prod = os.environ.get('IS_PRODUCTION', 'false').lower() == 'true'
 
-if __name__ == '__main__':
-    if is_prod:
-        from waitress import serve
-        print("Running with Waitress (Production/QA)...")
-        serve(app, host="0.0.0.0", port=port)
-    else:
-        print("Running in Debug Mode (Dev)...")
-        logging.getLogger().setLevel("DEBUG")
-        app.run(host='0.0.0.0', port=port, debug=True)
+# ----------------------------
+# MAIN (LOCAL ONLY)
+# ----------------------------
+if __name__ == "__main__":
+    # ONLY used for local dev
+    app.run(host="0.0.0.0", port=port, debug=not is_prod)

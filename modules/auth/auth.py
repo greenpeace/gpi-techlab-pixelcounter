@@ -20,6 +20,7 @@ import jwt
 import logging
 import time
 from datetime import datetime, timedelta
+import urllib.parse
 
 # Get Google Login with oauth
 from google.oauth2 import id_token
@@ -28,10 +29,6 @@ import google.auth.transport.requests
 from pip._vendor import cachecontrol
 
 from functools import wraps
-
-# Okta imports
-# from okta_jwt_verifier import JWTVerifier
-# from okta.client import Client as OktaClient
 
 from system.firstoredb import users_ref, apikeys_ref
 from system.jwt_utils import generate_jwt_token
@@ -47,16 +44,13 @@ app_secret_key = getsecrets("app_secret_key", project_id)
 restrciteddomain = getsecrets("restrciteddomain", project_id)
 
 # Okta configuration
-# okta_domain = getsecrets("okta_domain", project_id)
-# okta_client_id = getsecrets("okta_client_id", project_id)
-# okta_client_secret = getsecrets("okta_client_secret", project_id)
-# okta_redirect_uri = getsecrets("okta_redirect_uri", project_id)
+okta_client_id = getsecrets("okta_client_id", project_id)
+okta_client_secret = getsecrets("okta_client_secret", project_id)
+okta_issuer = getsecrets("okta_issuer", project_id)
 
-# Initialize Okta client
-# okta_client = OktaClient({
-#    'orgUrl': okta_domain,
-#    'token': okta_client_secret
-# })
+odc_client_id = getsecrets("odc_client_id", project_id)
+odc_client_secret = getsecrets("odc_client_secret", project_id)
+odc_issuer = getsecrets("odc_issuer", project_id)
 
 # Retrieve the secret values for Google OAuth
 secret_value = getsecrets("client_secret_file", project_id)
@@ -123,97 +117,239 @@ def loginseq():
     return redirect(authorization_url)
 
 # Okta login route
+@authsblue.route("/oktalogin")
+def oktalogin():
+    # Fetch latest Okta secrets
+    dynamic_okta_client_id = getsecrets("okta_client_id", project_id)
+    dynamic_okta_issuer = getsecrets("okta_issuer", project_id)
+    
+    if not dynamic_okta_client_id or not dynamic_okta_issuer:
+        flash("Okta authentication is not fully configured. Please contact an administrator.")
+        return redirect(url_for("authsblue.login"))
+
+    # Build Okta authorization URL
+    params = {
+        "client_id": dynamic_okta_client_id,
+        "response_type": "code",
+        "scope": "openid profile email",
+        "redirect_uri": url_for("authsblue.oktacallback", _external=True),
+        "state": uuid.uuid4().hex
+    }
+    session["okta_state"] = params["state"]
+    # Build authorize URL from okta_issuer
+    base_url = dynamic_okta_issuer.rstrip('/')
+    if '/oauth2' not in base_url:
+        authorize_url = f"{base_url}/oauth2/v1/authorize"
+    else:
+        authorize_url = f"{base_url}/v1/authorize"
+        
+    request_url = f"{authorize_url}?{urllib.parse.urlencode(params)}"
+    return redirect(request_url)
 
 
-# @authsblue.route("/okta-login")
-# def okta_login():
-    # Generate OIDC URL for Okta login
-    # auth_url = f"{okta_domain}/oauth2/default/v1/authorize?"
-    # auth_params = {
-    #    'client_id': okta_client_id,
-    #    'redirect_uri': okta_redirect_uri,
-    #    'response_type': 'code',
-    #    'scope': 'openid profile email',
-    #    'state': str(uuid.uuid4())
-    # }
-    # session['okta_state'] = auth_params['state']
-    # auth_url += '&'.join([f"{key}={value}" for key, value in auth_params.items()])
-    # return redirect(auth_url)
+@authsblue.route("/oktacallback")
+def oktacallback():
+    # Exchange code for token
+    code = request.args.get("code")
+    state = request.args.get("state")
 
-# Okta callback route
+    if state != session.get("okta_state"):
+        abort(403)
 
+    # Fetch latest Okta secrets for token exchange
+    dynamic_okta_client_id = getsecrets("okta_client_id", project_id)
+    dynamic_okta_client_secret = getsecrets("okta_client_secret", project_id)
+    dynamic_okta_issuer = getsecrets("okta_issuer", project_id)
 
-@authsblue.route("/okta-callback")
-def okta_callback():
-    try:
-        if request.args.get('state') != session.get('okta_state'):
-            abort(400, 'State mismatch')
+    base_url = dynamic_okta_issuer.rstrip('/')
+    if '/oauth2' not in base_url:
+        token_url = f"{base_url}/oauth2/v1/token"
+    else:
+        token_url = f"{base_url}/v1/token"
+    auth = (dynamic_okta_client_id, dynamic_okta_client_secret)
+    data = {
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": url_for("authsblue.oktacallback", _external=True)
+    }
+    response = requests.post(token_url, data=data, auth=auth)
+    token_data = response.json()
 
-        code = request.args.get('code')
-        if not code:
-            abort(400, 'No code received')
+    id_token_jwt = token_data.get("id_token")
+    if not id_token_jwt:
+        flash("Failed to login with Okta")
+        return redirect(url_for("authsblue.login"))
 
-        # Exchange code for tokens
-        # token_url = f"{okta_domain}/oauth2/default/v1/token"
-        # token_params = {
-        #    'grant_type': 'authorization_code',
-        #    'code': code,
-        #    'redirect_uri': okta_redirect_uri,
-        #    'client_id': okta_client_id,
-        #    'client_secret': okta_client_secret
-        # }
+    # Decode ID token (simplified for now, ideally verify RS256 with Okta jwks)
+    decoded_token = jwt.decode(id_token_jwt, options={"verify_signature": False})
 
-        # token_response = requests.post(token_url, data=token_params)
-        # tokens = token_response.json()
+    # Map Okta claims to id_info style
+    id_info = {
+        'sub': decoded_token.get('sub'),
+        'email': decoded_token.get('email'),
+        'name': decoded_token.get('name'),
+        'picture': decoded_token.get('picture'),
+        'locale': decoded_token.get('locale', 'en')
+    }
 
-        # Verify ID token
-        # id_token = tokens['id_token']
-        # jwt_verifier = JWTVerifier(okta_domain, okta_client_id)
-        # claims = jwt_verifier.verify_token(id_token)
+    # Verification of domain
+    email = id_info.get("email") or ""
+    domain = email.split('@')[-1].strip().lower() if '@' in email else ""
+    allowed_domains = ['gp-test.org']
+    if restrciteddomain:
+        allowed_domains.append(str(restrciteddomain).strip().lower())
+        
+    logging.info(f"Checking Okta auth for email: {email}. Allowed domains: {allowed_domains}")
+        
+    if not email or domain not in allowed_domains:
+        flash(f'Your email domain ({domain}) is not authorized. Allowed: {", ".join(allowed_domains)}')
+        return redirect(url_for('frontpageblue.index'))
 
-        # Get user info from Okta
-        # user_info = okta_client.get_user(claims['sub'])
-
-        # Check if user exists in Firestore
-        # users_data = users_ref.document(claims['sub'])
-        # user_data = users_data.get().to_dict()
-
-        # if not user_data:
-        #    user_data = create_new_user({
-        #        'sub': claims['sub'],
-        #        'name': user_info.profile.name,
-        #        'given_name': user_info.profile.firstName,
-        #        'family_name': user_info.profile.lastName,
-        #        'email': user_info.profile.email,
-        #        'picture': user_info.profile.get('picture', '')
-        #    })
-        # else:
-            # Update last login time
-        #    users_data.update({
-        #        'lastLoginAt': datetime.now()
-        #    })
-
-        # Generate JWT token for the session
-        # user_jwt_data = {
-        #    'google_id': claims['sub'],  # Using Okta sub as ID
-        #    'name': user_info.profile.name,
-        #    'photo': user_info.profile.get('picture', ''),
-        #    'email': user_info.profile.email,
-        #    'uuid': user_data["uuid"],
-        #    'customer_id': user_data["customer_id"],
-        #    'role': user_data["role"],
-        #    'language': user_info.profile.get('locale', 'en')
-        # }
-
-        # jwt_token = generate_jwt_token(user_jwt_data)
-        # session['jwt_token'] = jwt_token
-
-        return redirect(url_for('dashboardblue.main'))
-
-    except Exception as e:
-        logging.error(f"Okta authentication error: {str(e)}")
-        flash('Authentication failed')
+    # Ensure 'sub' is present to prevent Firestore lookup crashes
+    if not id_info.get('sub'):
+        logging.error("Okta ID Token missing 'sub' (User ID) claim!")
+        flash("Okta authentication failed: Missing user ID.")
         return redirect(url_for('authsblue.login'))
+
+    # Check if the user exists in Firestore
+    user_doc_ref = users_ref.document(id_info['sub'])
+    user_data = user_doc_ref.get().to_dict()
+
+    if not user_data:
+        user_data = create_new_user(id_info)
+    else:
+        user_doc_ref.update({'lastLoginAt': datetime.now()})
+
+    # Generate JWT token
+    user_jwt_data = {
+        'google_id': id_info['sub'],
+        'name': user_data['name'],
+        'photo': user_data.get('avatar', ''),
+        'email': user_data['email'],
+        'uuid': user_data.get('uuid'),
+        'customer_id': user_data['customer_id'],
+        'role': user_data['role'],
+        'groups': user_data.get('groups', []),
+        'language': user_data.get('language')
+    }
+    jwt_token = generate_jwt_token(user_jwt_data)
+    session['jwt_token'] = jwt_token
+    session['email'] = user_data['email']
+    session['role'] = user_data["role"]
+    
+    return redirect(url_for('dashboardblue.main'))
+
+
+@authsblue.route("/odclogin")
+def odclogin():
+    # Build ODC authorization URL
+    params = {
+        "client_id": odc_client_id,
+        "response_type": "code",
+        "scope": "openid profile email",
+        "redirect_uri": url_for("authsblue.odccallback", _external=True),
+        "state": uuid.uuid4().hex
+    }
+    session["odc_state"] = params["state"]
+    authorize_url = f"{odc_issuer.rstrip('/')}/v1/authorize"
+    request_url = f"{authorize_url}?{urllib.parse.urlencode(params)}"
+    return redirect(request_url)
+
+
+@authsblue.route("/odccallback")
+def odccallback():
+    code = request.args.get("code")
+    state = request.args.get("state")
+
+    if state != session.get("odc_state"):
+        abort(403)
+
+    token_url = f"{odc_issuer.rstrip('/')}/v1/token"
+    auth = (odc_client_id, odc_client_secret)
+    data = {
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": url_for("authsblue.odccallback", _external=True)
+    }
+    response = requests.post(token_url, data=data, auth=auth)
+    token_data = response.json()
+
+    id_token_jwt = token_data.get("id_token")
+    if not id_token_jwt:
+        flash("Failed to login with ODC")
+        return redirect(url_for("authsblue.login"))
+
+    decoded_token = jwt.decode(id_token_jwt, options={"verify_signature": False})
+
+    id_info = {
+        'sub': decoded_token.get('sub'),
+        'email': decoded_token.get('email'),
+        'name': decoded_token.get('name'),
+        'picture': decoded_token.get('picture'),
+        'locale': decoded_token.get('locale', 'en')
+    }
+
+    email = id_info.get("email") or ""
+    domain = email.split('@')[-1].strip().lower() if '@' in email else ""
+    allowed_domains = ['gp-test.org']
+    if restrciteddomain:
+        allowed_domains.append(str(restrciteddomain).strip().lower())
+        
+    if not email or domain not in allowed_domains:
+        flash(f'Your email domain ({domain}) is not authorized. Allowed: {", ".join(allowed_domains)}')
+        return redirect(url_for('frontpageblue.index'))
+
+    user_doc_ref = users_ref.document(id_info['sub'])
+    user_data = user_doc_ref.get().to_dict()
+
+    if not user_data:
+        user_data = create_new_user(id_info)
+    else:
+        user_doc_ref.update({'lastLoginAt': datetime.now()})
+
+    user_jwt_data = {
+        'google_id': id_info['sub'],
+        'name': user_data['name'],
+        'photo': user_data.get('avatar', ''),
+        'email': user_data['email'],
+        'uuid': user_data.get('uuid'),
+        'customer_id': user_data['customer_id'],
+        'role': user_data['role'],
+        'groups': user_data.get('groups', []),
+        'language': user_data.get('language')
+    }
+    jwt_token = generate_jwt_token(user_jwt_data)
+    session['jwt_token'] = jwt_token
+    session['email'] = user_data['email']
+    session['role'] = user_data["role"]
+    
+    return redirect(url_for('dashboardblue.main'))
+
+    if not user_data.get("role"):
+        flash("Your account is not yet assigned a role. Please contact an administrator.")
+        return render_template("unauthorized.html")
+
+    # Generate user data for JWT token
+    user_jwt_data = {
+        'google_id': id_info.get("sub"),
+        'name': id_info.get("name"),
+        'photo': id_info.get("picture"),
+        'email': id_info.get("email"),
+        'uuid': user_data["uuid"],
+        'customer_id': user_data["customer_id"],
+        'role': user_data["role"],
+        'groups': user_data.get('groups', []),
+        'language': id_info.get("locale")
+    }
+
+    # Generate JWT token
+    jwt_token = generate_jwt_token(user_jwt_data)
+
+    # Store JWT token in session
+    session['jwt_token'] = jwt_token
+    session['role'] = user_data["role"]
+
+    return redirect(url_for('dashboardblue.main'))
 
 
 @authsblue.route("/callback")

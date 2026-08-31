@@ -7,10 +7,7 @@ from flask import (
     render_template
 )
 import logging
-# import system.visitors
 
-# Fake News firestore collection
-from system.firstoredb import crm_ref
 # Set Blueprint’s name https://realpython.com/flask-blueprint/
 frontpageblue = Blueprint('frontpageblue', __name__,
                           template_folder='templates')
@@ -47,62 +44,6 @@ def contactus():
     return render_template('contactus.html', **locals())
 
 
-@frontpageblue.route("/contactform", methods=['POST'])
-def contactform():
-    try:
-        # check if email already exist
-        docsurl = crm_ref.where(u'email', u'==', request.form.get('email')).stream()
-        if (len(list(docsurl))):
-            logging.info("URL Exist, we will ignore")
-        else:
-            data = {
-                u'active': True,
-                u'firstname': request.form.get('firstname') if request.form.get('firstname') else '',
-                u'lastname': request.form.get('lastname') if request.form.get('lastname') else '',
-                u'email': request.form.get('email') if request.form.get('email') else '',
-                u'phone': request.form.get('phone') if request.form.get('phone') else '',
-                u'address': '',
-                u'source': 'Contact Form',
-                u'site': '',
-                u'newsletter': False,
-                u'subject': request.form.get('subject') if request.form.get('subject') else '',
-                u'message': request.form.get('message') if request.form.get('message') else ''
-            }
-
-            crm_ref.document().set(data)
-        return redirect(url_for('frontpageblue.index'))
-    except Exception as e:
-        print(e)
-        return redirect(url_for('frontpageblue.index'))
-
-
-@frontpageblue.route("/newsletter", methods=['POST'])
-def newsletter():
-    try:
-        # duplicate check
-        docsurl = crm_ref.where(u'email', u'==', request.form.get('email')).stream()
-        if (len(list(docsurl))):
-            logging.info("URL Exist, we will ignore")
-        else:
-            data = {
-                u'active': True,
-                u'firstname': request.form.get('firstname') if request.form.get('firstname') else '',
-                u'lastname': request.form.get('lastname') if request.form.get('lastname') else '',
-                u'email': request.form.get('email') if request.form.get('email') else '',
-                u'phone': request.form.get('phone') if request.form.get('phone') else '',
-                u'address': '',
-                u'source': 'Newsletter',
-                u'site': '',
-                u'newsletter': False,
-                u'subject': request.form.get('subject') if request.form.get('subject') else '',
-                u'message': request.form.get('message') if request.form.get('message') else ''
-            }
-
-            crm_ref.document().set(data)
-        return redirect(url_for('frontpageblue.index'))
-    except Exception as e:
-        print(e)
-        return redirect(url_for('frontpageblue.index'))
 #
 # API Route Default displays a webpage
 #

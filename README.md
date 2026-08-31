@@ -77,9 +77,47 @@ A pixel-based API app for CRUD counters, duplicate-safe petition/form tracking, 
 - **All assets and libraries load locally (no external CDN/CDN calls)** for maximum availability and sustainability
 - Running serverless on **Google Cloud Run** with auto-scaling and efficient compute best practices
 
-## Create Cunter Try it locally
+## Create a counter through the API
 
-http://localhost:8080/api/createcounter?apikey=<apikey>&name=<counter_name>&campaign=<campaign_name>&contactpoint=<email_address>&count=0&type=global&url=<target_url>&user=<user_name>&uuid=''
+Send a `POST` request to `/api/createcounter`. Supply the API key in the
+`apikey` query parameter (or the `X-API-Key` header) and supply the counter
+fields as a JSON request body.
+
+```bash
+curl --request POST \
+  'http://localhost:8080/api/createcounter?apikey=<apikey>' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "name": "gpaotest3",
+    "campaign": "Test Campaign",
+    "contactpoint": "aaksoy@greenpeace.org",
+    "count": 0,
+    "nro": "gpao",
+    "type": "global",
+    "url": "https://action.greenpeace.org/petition/test",
+    "user": "<user_name>",
+    "uuid": ""
+  }'
+```
+
+The first request for a counter name creates the counter and returns `201
+Created`:
+
+```json
+{
+  "counter_name": "gpaotest3",
+  "message": "Counter created successfully"
+}
+```
+
+Counter names are unique. A subsequent request with the same `name` is
+rejected with `409 Conflict`, and no additional counter is created:
+
+```json
+{
+  "error": "Counter ID already exists"
+}
+```
 
 
 # NRO Management

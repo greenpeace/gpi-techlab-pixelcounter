@@ -15,6 +15,8 @@ import pyotp
 import qrcode
 import io
 import base64
+import logging
+
 # Firestore
 from google.cloud import firestore
 
@@ -24,6 +26,9 @@ from system.firstoredb import login_config_ref, nro_ref
 # from system.firstoredb import update_records_with_customer_id_and_uuid_in_batches
 from modules.auth.auth import login_is_required, admin_required
 from modules.auth.auth import get_user_data_from_token
+
+from system.setenv import project_id
+
 import uuid
 
 # JWT
@@ -127,7 +132,7 @@ def enable_2fa():
 
         # Convert image to base64 for displaying in HTML
         buffered = io.BytesIO()
-        img.save(buffered, format="PNG")
+        img.save(buffered)
         img_str = base64.b64encode(buffered.getvalue()).decode()
 
         return render_template('enable_2fa.html', qr_code=img_str, secret=totp_secret)
@@ -641,3 +646,101 @@ def auto_link_counters():
         flash(f'Error linking counters: {str(e)}')
         
     return redirect(url_for('usersblue.admin_ops'))
+
+
+@usersblue.route('/admin/admin_login-config',
+                 methods=['GET', 'POST'],
+                 endpoint='admin_login_config')
+@login_is_required
+@admin_required
+def admin_login_config():
+    from system.getsecret import getsecrets, store_secret
+    
+    if request.method == 'POST':
+        new_config = {
+            'email_login_enabled': 'email_login' in request.form,
+            'okta_login_enabled': 'okta_login' in request.form,
+            'odc_login_enabled': 'odc_login' in request.form,
+            'google_login_enabled': 'google_login' in request.form,
+            'apple_login_enabled': 'apple_login' in request.form
+        }
+        login_config_ref.document('config').update(new_config)
+            
+        flash('Login configuration updated successfully')
+        return redirect(url_for('usersblue.admin_login_config'))
+
+    config = get_login_config()
+    
+    return render_template('loginconfig.html', config=config)
+
+
+def get_login_config():
+    try:
+        # Fetch the document using the login_config_ref
+        doc = login_config_ref.document('config').get()
+
+        # Check if the result is a DocumentSnapshot and if the document exists
+        if not isinstance(doc, firestore.DocumentSnapshot):
+            raise TypeError("Expected DocumentSnapshot, got something else.")
+
+        if doc.exists:
+            return doc.to_dict()
+        else:
+            # Default configuration
+            default_config = {
+                'email_login_enabled': True,
+                'okta_login_enabled': True,
+                'google_login_enabled': True,
+                'apple_login_enabled': True
+            }
+            # Save the default configuration to the document
+            login_config_ref.document('config').set(default_config)
+            return default_config
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        # Optional: log the error for debugging purposes
+        return None
+
+@usersblue.route('/admin/secrets', methods=['GET', 'POST'], endpoint='admin_secrets')
+@login_is_required
+@admin_required
+def admin_secrets():
+    from system.getsecret import getsecrets, store_secret
+    
+    # Define the list of secrets we want to manage via the UI
+    managed_secrets = [
+        'odc_client_id', 'odc_client_secret', 'odc_issuer',
+        'okta_client_id', 'okta_client_secret', 'okta_issuer',
+        'restrciteddomain', 'app_api_key'
+    ]
+    
+    if request.method == 'POST':
+        secret_name = request.form.get('secret_name')
+        secret_value = request.form.get('secret_value')
+        
+        logging.info(f"Admin attempt to update secret '{secret_name}'")
+        
+        if secret_name in managed_secrets and secret_value:
+            try:
+                store_secret(secret_name, secret_value, project_id)
+                logging.info(f"Secret '{secret_name}' update called successfully.")
+                flash(f"Secret '{secret_name}' updated successfully.")
+            except Exception as e:
+                logging.error(f"Error in admin_secrets POST: {str(e)}")
+                flash(f"Error updating secret: {str(e)}", "error")
+        else:
+            logging.warning(f"Invalid secret update attempt: name={secret_name}, has_value={bool(secret_value)}")
+            flash("Invalid secret name or value.", "error")
+            
+        return redirect(url_for('usersblue.admin_secrets'))
+
+    # Fetch current values for all managed secrets
+    secret_values = {}
+    for name in managed_secrets:
+        secret_values[name] = getsecrets(name, project_id)
+
+    return render_template('admin_secrets.html', 
+                         managed_secrets=managed_secrets,
+                         secret_values=secret_values)
+

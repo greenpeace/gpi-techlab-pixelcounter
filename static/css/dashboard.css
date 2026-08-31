@@ -1,0 +1,46 @@
+/* Dashboard custom styles */
+
+/* Glassmorphism card */
+.dashboard-card {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    border-radius: 1rem;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+    padding: 2rem;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.dashboard-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.2);
+}
+
+/* Quick link cards */
+.quick-link {
+    text-align: center;
+    color: #fff;
+    background: linear-gradient(135deg, hsl(210, 70%, 55%), hsl(240, 70%, 45%));
+    border-radius: .75rem;
+    padding: 1.5rem;
+    transition: background 0.3s ease, transform 0.2s ease;
+}
+.quick-link:hover {
+    background: linear-gradient(135deg, hsl(210, 80%, 60%), hsl(240, 80%, 50%));
+    transform: translateY(-3px);
+}
+.quick-link i {
+    font-size: 2rem;
+    margin-bottom: .5rem;
+    display: block;
+}
+
+/* Activity list */
+.activity-item {
+    padding: .75rem 1rem;
+    border-bottom: 1px solid rgba(255,255,255,.1);
+    color: #e0e0e0;
+}
+.activity-item:last-child { border-bottom: none; }
+.activity-timestamp {
+    font-size: .85rem;
+    opacity: .7;
+}

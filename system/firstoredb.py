@@ -1,5 +1,14 @@
-from firebase_admin import credentials, firestore
-import firebase_admin
+try:
+    from firebase_admin import credentials, firestore
+    import firebase_admin
+except Exception as e:
+    # Fallback dummy classes for environments without firebase_admin
+    class _Dummy:
+        def __getattr__(self, name):
+            raise NotImplementedError("Firebase functionality is unavailable in this environment.")
+    credentials = _Dummy()
+    firestore = _Dummy()
+    firebase_admin = _Dummy()
 import os
 from system.setenv import project_id
 
@@ -35,9 +44,9 @@ if is_production_db:
     login_config_ref = db.collection(u'login_config')
     # Data colelction to store all documents that should be used for indexing for vector
     blogpost_ref = db.collection(u'blog')
+    # System activity logs collection
+    activity_ref = db.collection(u'system_activity')
 
-    # CRM to track any request from contactform
-    crm_ref = db.collection("legalcrm")
     # nro collection
     nro_ref = db.collection(u'nro')
 else:
@@ -50,7 +59,7 @@ else:
     # Allowed origion collection
     emailhash_ref = db.collection(u'amialhash-test')
     # qrcode
-    qrcode_ref = db.collection(u'qrcode-tet')
+    qrcode_ref = db.collection(u'qrcode-test')
     # shorten url
     molnurl_ref = db.collection(u'moln-url-test')
     # shorten url
@@ -61,8 +70,10 @@ else:
     blogpost_ref = db.collection(u'blog-test')
 
     # CRM to track any request from contactform
-    crm_ref = db.collection("legalcrm-test")
-    # login config
     login_config_ref = db.collection(u'login_config-test')
+
     # nro collection
     nro_ref = db.collection(u'nro-test')
+    # Activity logs collection for test environment
+    activity_ref = db.collection(u'system_activity-test')
+

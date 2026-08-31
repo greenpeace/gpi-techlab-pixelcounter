@@ -1,9 +1,8 @@
-/* CSS to limit the width of the input */
+/* Existing custom styles */
 .geotourl-input {
     max-width: 300px;  /* Adjust width as desired */
     word-wrap: break-word;
 }
-
 
 .wrap-text {
     white-space: normal; /* Allow wrapping of text */
@@ -11,3 +10,31 @@
     max-width: 100px; /* Adjust as needed for your design */
     overflow-wrap: break-word; /* Ensure consistent wrapping across browsers */
 }
+
+/* New card enhancements */
+.dashboard-page .card {
+    border-radius: 0.75rem; /* smoother corners */
+    overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    background: #fff !important; /* Ensure white background */
+    color: #212529 !important; /* Default text color */
+}
+.dashboard-page .card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+}
+.dashboard-page .card-header {
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+.list-group-item {
+    background-color: transparent;
+    border: none;
+    padding: 0.5rem 1rem;
+}
+.badge {
+    font-size: 0.85rem;
+    padding: 0.35em 0.55em;
+}
+
+/* End of overrides */

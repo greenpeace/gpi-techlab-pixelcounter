@@ -1,8 +1,5 @@
 # Local imports
-import datetime
-import pytz
-
+from datetime import datetime, timezone
 
 def datenow():
-    # return datetime.now().timestamp()
-    return datetime.datetime.utcnow().replace(tzinfo=pytz.utc).strftime('%Y-%m-%d %H:%M:%S')
+    return datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')

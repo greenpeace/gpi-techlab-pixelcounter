@@ -1,23 +1,21 @@
 # Dockerfile
-FROM docker.io/library/python:3.10
-RUN apt-get update -y
+FROM docker.io/library/python:3.12-slim
 
 WORKDIR /app
 
-COPY . /app
+ENV PYTHONUNBUFFERED=1
 
-ENV PYTHONUNBUFFERED=1 \
-    #GOOGLE_APPLICATION_CREDENTIALS=key.json \
-    GCP_PROJECT="make-smthng-website"
+# Install dependencies
+COPY requirements.txt .
+RUN python -m pip install --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir -r requirements.txt
 
-RUN pip install --upgrade pip
-# Add a dummy argument to invalidate cache for pip install step
-ARG CACHEBUST=1
-RUN pip install -r requirements.txt
+# Copy app
+COPY . .
 
-# Expose port 8080
+# Cloud Run exposes PORT automatically
 EXPOSE 8080
 
-ENTRYPOINT ["python"]
-CMD ["app.py"]
+# Production server
+CMD ["gunicorn", "-b", "0.0.0.0:8080", "app:app"]
 # End of Dockerfile
