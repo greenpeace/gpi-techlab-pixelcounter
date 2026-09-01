@@ -1,0 +1,35 @@
+# Build and deploy a version tag to the production Cloud Run service.
+steps:
+  - id: build-production-image
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --tag
+      - europe-north1-docker.pkg.dev/${PROJECT_ID}/pixelcounter/gpipixelcounter:${TAG_NAME}
+      - .
+
+  - id: push-production-image
+    name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - europe-north1-docker.pkg.dev/${PROJECT_ID}/pixelcounter/gpipixelcounter:${TAG_NAME}
+
+  - id: deploy-production
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - pixelcounter
+      - --image
+      - europe-north1-docker.pkg.dev/${PROJECT_ID}/pixelcounter/gpipixelcounter:${TAG_NAME}
+      - --region
+      - europe-north1
+      - --platform
+      - managed
+      - --quiet
+
+images:
+  - europe-north1-docker.pkg.dev/${PROJECT_ID}/pixelcounter/gpipixelcounter:${TAG_NAME}
+
+timeout: 1200s

@@ -335,10 +335,33 @@ The DOCKER_DEFAULT_PLATFORM environment variable permits to set the default plat
 export DOCKER_DEFAULT_PLATFORM=linux/amd64
 ```
 
-## Deploy with Yaml - work in progress
+## Deploy with Cloud Build
+
+This repository has separate Cloud Build configurations for test and
+production deployments:
+
+| Environment | Trigger | Configuration | Cloud Run service |
+|---|---|---|---|
+| Test | Push to `main` | `cloudbuild-test.yaml` | `pixelcounter-test` |
+| Production | Version tag such as `v0.34.0` | `cloudbuild-prod.yaml` | `pixelcounter` |
+
+Configure the test trigger with the branch regular expression `^main$`.
+Configure the production trigger with the tag regular expression
+`^v[0-9]+\.[0-9]+\.[0-9]+$` and enable build approval for production.
+
+To create a production release after verifying the test deployment:
+
+```bash
+git checkout main
+git pull
+git tag -a v0.34.0 -m "Release v0.34.0"
+git push origin v0.34.0
 ```
-gcloud builds submit --config cloudbuild.yaml .
-```
+
+Cloud Build builds and pushes the images to the existing Artifact Registry
+repositories in `europe-north1`, then deploys them to the corresponding Cloud
+Run service. The older `cloudbuild.yaml` is retained for reference but targets
+the legacy `eu.gcr.io` registry and should not be selected by either trigger.
 
 # Push To Multiple Git Repositories
 

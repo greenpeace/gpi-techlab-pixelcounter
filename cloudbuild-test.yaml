@@ -1,0 +1,35 @@
+# Build and deploy the main branch to the test Cloud Run service.
+steps:
+  - id: build-test-image
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --tag
+      - europe-north1-docker.pkg.dev/${PROJECT_ID}/pixelcountertest/gpipixelcountertest:${SHORT_SHA}
+      - .
+
+  - id: push-test-image
+    name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - europe-north1-docker.pkg.dev/${PROJECT_ID}/pixelcountertest/gpipixelcountertest:${SHORT_SHA}
+
+  - id: deploy-test
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - pixelcounter-test
+      - --image
+      - europe-north1-docker.pkg.dev/${PROJECT_ID}/pixelcountertest/gpipixelcountertest:${SHORT_SHA}
+      - --region
+      - europe-north1
+      - --platform
+      - managed
+      - --quiet
+
+images:
+  - europe-north1-docker.pkg.dev/${PROJECT_ID}/pixelcountertest/gpipixelcountertest:${SHORT_SHA}
+
+timeout: 1200s
