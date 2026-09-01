@@ -32,4 +32,7 @@ steps:
 images:
   - europe-north1-docker.pkg.dev/${PROJECT_ID}/pixelcountertest/gpipixelcountertest:${SHORT_SHA}
 
+options:
+  logging: CLOUD_LOGGING_ONLY
+
 timeout: 1200s
