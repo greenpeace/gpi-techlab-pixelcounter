@@ -18,12 +18,17 @@ from PIL import ImageColor
 from system.date import datenow
 # locals
 import os
-import jwt
+import tempfile
+import logging
+from werkzeug.utils import secure_filename
 
 from system.getsecret import getsecrets
 # Wrtite to Google Cloiud Storage
 from google.cloud import storage
 from modules.auth.auth import login_is_required
+from system.activity import log_activity
+from system.authorization import can_manage_resource, require_resource_access
+from system.jwt_utils import decode_jwt_token
 
 # Import project id
 from system.setenv import project_id
@@ -59,12 +64,6 @@ def get_color(color_input, default):
         # If anything goes wrong, return the default color
         return default
 
-        # Attempt to handle named color or hex values
-        return ImageColor.getrgb(color_input)
-    except (ValueError, TypeError):
-        # If anything goes wrong, return the default color
-        return default
-
 # qrcode Section
 #
 # API Route add a searchlink by ID - requires json file body with id and count
@@ -89,15 +88,22 @@ def qrcodeadd():
 @login_is_required
 def qrcodecreate():
     import qrcode
-    qrcodefilename = (f'{request.form.get("qrcodename").replace(" ", "_")}.png')
+    qrcodefilename = f"{secure_filename(request.form.get('qrcodename', '')) or 'qrcode'}.png"
+    temporary_path = None
     try:
+        qr_content = request.form.get('qrcode', '')
+        if not qr_content or len(qr_content) > 4096:
+            raise ValueError('QR code content must be between 1 and 4096 characters')
+        version = max(1, min(int(request.form.get('version', 1)), 40))
+        boxsize = max(1, min(int(request.form.get('boxsize', 10)), 50))
+        border = max(0, min(int(request.form.get('border', 4)), 20))
         # Creating an instance of qrcode
         qr = qrcode.QRCode(
-                version=1,
-                box_size=(int)(request.form.get('boxsize')),
-                border=(int)(request.form.get('border')))
+                version=version,
+                box_size=boxsize,
+                border=border)
 
-        qr.add_data(request.form.get('qrcode'))
+        qr.add_data(qr_content)
         qr.make(fit=True)
 
         # Process colors, allowing both RGB hex and named colors
@@ -109,49 +115,55 @@ def qrcodecreate():
 
         img = qr.make_image(fill_color=fill_color, back_color=back_color)
 
-        img.save(qrcodefilename)
+        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as temporary_file:
+            temporary_path = temporary_file.name
+        img.save(temporary_path)
 
         # Set up a connection to your Google Cloud Storage bucket
         client = storage.Client()
         bucket = client.bucket(bucketname)
 
         # Open the image file you want to save to Cloud Storage
-        with open(qrcodefilename, "rb") as file:
+        with open(temporary_path, "rb") as file:
             # Create a new Cloud Storage blob
             blob = bucket.blob(f'qrcode/{qrcodefilename}')
             # Upload the image file to the blob
             blob.upload_from_file(file)
 
         jwt_token = session.get('jwt_token')
-        decoded_data = jwt.decode(jwt_token, 'secret_key', algorithms=['HS256'])
+        decoded_data = decode_jwt_token(jwt_token)
 
         data = {
             u'active': True,
             u'date_created': datenow(),
-            u'filenameurl': f'https://storage.googleapis.com/pixelcounter_bucket/qrcode/{qrcodefilename}',
+            u'filenameurl': f'https://storage.googleapis.com/{bucketname}/qrcode/{qrcodefilename}',
             u'filename': qrcodefilename,
             u'qrcodename': request.form.get('qrcodename'),
             u'description': request.form.get('description'),
             u'type': request.form.get('type'),
             u'campaign': request.form.get('campaign'),
             u'qrcode': request.form.get('qrcode'),
-            u'version': (int)(request.form.get('version')),
-            u'boxsize': (int)(request.form.get('boxsize')),
-            u'border': (int)(request.form.get('border')),
+            u'version': version,
+            u'boxsize': boxsize,
+            u'border': border,
             u'fill_color': request.form.get('fill_color'),
             u'back_color': request.form.get('back_color'),
             u'uuid': decoded_data.get('google_id'),
             u'user': decoded_data.get('name')
         }
 
-        qrcode_ref.document().set(data)
+        doc_ref = qrcode_ref.document()
+        doc_ref.set(data)
+        log_activity('created', 'QR code', doc_ref.id, data.get('qrcodename'))
         # Remove local file
-        os.remove(qrcodefilename)
         flash('Data Succesfully Submitted')
         return redirect(url_for('qrcodeblue.qrcode'))
     except Exception as e:
         flash('An Error Occured: ' + str(e))
         return redirect(url_for('qrcodeblue.qrcode'))
+    finally:
+        if temporary_path and os.path.exists(temporary_path):
+            os.remove(temporary_path)
 #
 # API Route Update a counter by ID - requires json file body with id and count
 # API endpoint /update?id=<id>&count=<count>
@@ -164,40 +176,69 @@ def qrcodecreate():
 @login_is_required
 def qrcodeupdate():
     import qrcode
+    temporary_path = None
     try:
         id = request.form['id']
-        qrcode_ref.document(id).update(request.form)
-        qrcodefilename = (f'{request.form.get("qrcodename")}.png')
+        doc_ref = qrcode_ref.document(id)
+        old_data = require_resource_access(doc_ref.get())
+        qrcodefilename = f"{secure_filename(request.form.get('qrcodename', '')) or 'qrcode'}.png"
+        data = {
+            'qrcodename': request.form.get('qrcodename'),
+            'description': request.form.get('description'),
+            'type': request.form.get('type'),
+            'campaign': request.form.get('campaign'),
+            'qrcode': request.form.get('qrcode'),
+            'version': int(request.form.get('version')),
+            'boxsize': int(request.form.get('boxsize')),
+            'border': int(request.form.get('border')),
+            'fill_color': request.form.get('fill_color'),
+            'back_color': request.form.get('back_color'),
+            'filename': qrcodefilename,
+            'filenameurl': f'https://storage.googleapis.com/{bucketname}/qrcode/{qrcodefilename}',
+        }
+        if not data['qrcode'] or len(data['qrcode']) > 4096:
+            raise ValueError('QR code content must be between 1 and 4096 characters')
+        data['version'] = max(1, min(data['version'], 40))
+        data['boxsize'] = max(1, min(data['boxsize'], 50))
+        data['border'] = max(0, min(data['border'], 20))
 
         # Creating an instance of qrcode
 
         qr = qrcode.QRCode(
-                version=1,
-                box_size=(int)(request.form.get('boxsize')),
-                border=(int)(request.form.get('border')))
-        qr.add_data(request.form.get('qrcode'))
+                version=data['version'],
+                box_size=data['boxsize'],
+                border=data['border'])
+        qr.add_data(data['qrcode'])
         qr.make(fit=True)
-        img = qr.make_image(fill=request.form.get('fill_color'),
-                            back_color=request.form.get('back_color'))
-        img.save(qrcodefilename)
+        img = qr.make_image(fill_color=get_color(data['fill_color'], 'black'),
+                            back_color=get_color(data['back_color'], 'white'))
+        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as temporary_file:
+            temporary_path = temporary_file.name
+        img.save(temporary_path)
 
         # Set up a connection to your Google Cloud Storage bucket
         client = storage.Client()
         bucket = client.bucket(bucketname)
 
         # Open the image file you want to save to Cloud Storage
-        with open(qrcodefilename, "rb") as file:
+        with open(temporary_path, "rb") as file:
             # Create a new Cloud Storage blob
-            blob = bucket.blob('qrcode/' + '{qrcodefilename}')
+            blob = bucket.blob(f'qrcode/{qrcodefilename}')
             # Upload the image file to the blob
             blob.upload_from_file(file)
 
-        # Remove local file
-        os.remove(qrcodefilename)
+        doc_ref.update(data)
+        old_filename = old_data.get('filename')
+        if old_filename and old_filename != qrcodefilename:
+            bucket.blob(f'qrcode/{old_filename}').delete()
+        log_activity('updated', 'QR code', id, data.get('qrcodename'))
         # Return to the list
         return redirect(url_for('qrcodeblue.qrcode'))
     except Exception as e:
         return f"An Error Occured: {e}"
+    finally:
+        if temporary_path and os.path.exists(temporary_path):
+            os.remove(temporary_path)
 #
 # API Route list all or a speific counter by ID - requires json file body with id and count
 #
@@ -210,13 +251,15 @@ def qrcodeupdate():
 def qrcode():
     try:
         jwt_token = session.get('jwt_token')
-        decoded_data = jwt.decode(jwt_token, 'secret_key', algorithms=['HS256'])
+        decoded_data = decode_jwt_token(jwt_token)
 
         # Check if ID was passed to URL query
         id = request.args.get('id')
         if id:
             qrcodelink = qrcode_ref.document(id).get()
-            return jsonify(u'{}'.format(qrcodelink.to_dict()['count'])), 200
+            data = require_resource_access(qrcodelink)
+            data['docid'] = qrcodelink.id
+            return jsonify(data), 200
         else:
             all_qrcodelinks = []
             # Firestore where with or
@@ -224,16 +267,20 @@ def qrcode():
                                         decoded_data.get('google_id')).where('type', '==', 'local').stream():
                 don = doc.to_dict()
                 don["docid"] = doc.id
+                don["can_manage"] = can_manage_resource(don)
                 all_qrcodelinks.append(don)
 
             for doc in qrcode_ref.where('type', '==', 'global').stream():
                 don = doc.to_dict()
                 don["docid"] = doc.id
-                all_qrcodelinks.append(don)
+                if doc.id not in {item['docid'] for item in all_qrcodelinks}:
+                    don["can_manage"] = can_manage_resource(don)
+                    all_qrcodelinks.append(don)
 
             return render_template('qrcode.html', output=all_qrcodelinks)
-    except Exception as e:
-        return f"An Error Occured: {e}"
+    except Exception:
+        logging.exception('Unable to list QR codes')
+        return render_template('500.html'), 500
 
 #
 # API Route list all or a speific searchlink by ID - requires json file body with id and count
@@ -249,7 +296,7 @@ def qrcodeedit():
         # Check if ID was passed to URL query
         id = request.args.get('id')
         qrcodelink = qrcode_ref.document(id).get()
-        ngo = qrcodelink.to_dict()
+        ngo = require_resource_access(qrcodelink)
         return render_template('qrcodeedit.html', **locals())
     except Exception as e:
         return f"An Error Occured: {e}"
@@ -261,15 +308,16 @@ def qrcodeedit():
 
 
 @qrcodeblue.route("/qrcodedelete",
-                  methods=['GET', 'DELETE'],
+                  methods=['POST', 'DELETE'],
                   endpoint='qrcodedelete')
+@login_is_required
 def qrcodedelete():
     try:
         # Check for ID in URL query
         id = request.args.get('id')
-        qrcodelink = qrcode_ref.document(id).get()
-        ngo = qrcodelink.to_dict()
-        qrcode_ref.document(id).delete()
+        doc_ref = qrcode_ref.document(id)
+        ngo = require_resource_access(doc_ref.get())
+        doc_ref.delete()
         # Delete the google cloud storage file
         bucket_name = bucketname
 
@@ -277,11 +325,16 @@ def qrcodedelete():
 
         bucket = storage_client.bucket(bucket_name)
         blob = bucket.blob('qrcode/' + ngo['filename'])
-        blob.delete()
+        try:
+            blob.delete()
+        except Exception:
+            logging.exception('Unable to delete QR image %s', ngo.get('filename'))
+        log_activity('deleted', 'QR code', id, ngo.get('qrcodename'))
 
         return redirect(url_for('qrcodeblue.qrcode'))
     except Exception as e:
-        return f"An Error Occured: {e}"
+        logging.exception('Unable to delete QR code')
+        return "Unable to delete QR code", 500
 
 #
 # API Route Delete a csearchlink by ID /delete?id=<id>
@@ -290,14 +343,15 @@ def qrcodedelete():
 
 
 @qrcodeblue.route("/qrcodeactive",
-                  methods=['GET', 'DELETE'],
+                  methods=['POST'],
                   endpoint='qrcodeactive')
+@login_is_required
 def qrcodeactive():
     try:
         # Check if ID was passed to URL query
         id = request.args.get('id')
-        qrcodelink = qrcode_ref.document(id).get()
-        qrcodeactive = qrcodelink.to_dict()
+        doc_ref = qrcode_ref.document(id)
+        qrcodeactive = require_resource_access(doc_ref.get())
 
         # Update flag that translation done
         if qrcodeactive['active'] is True:
@@ -308,7 +362,13 @@ def qrcodeactive():
             data = {
                 u'active': True,
             }
-        qrcode_ref.document(id).update(data)
+        doc_ref.update(data)
+        log_activity(
+            'activated' if data['active'] else 'deactivated',
+            'QR code',
+            id,
+            qrcodeactive.get('qrcodename'),
+        )
         return redirect(url_for('qrcodeblue.qrcode'))
     except Exception as e:
         return f"An Error Occured: {e}"

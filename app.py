@@ -1,7 +1,6 @@
 # Python standard libraries
 import os
 import logging
-import werkzeug
 import jwt
 import babel
 from datetime import datetime, timedelta
@@ -13,7 +12,6 @@ from flask import (
     g,
     session,
     send_file,
-    request
 )
 
 # Secrets
@@ -23,12 +21,6 @@ from flask_wtf.csrf import CSRFProtect
 
 # ProxyFix
 from werkzeug.middleware.proxy_fix import ProxyFix
-
-# Markup
-from markupsafe import Markup
-
-# crypto
-from cryptography.hazmat.primitives import serialization
 
 # Internal imports
 from system.getsecret import getsecrets
@@ -49,11 +41,9 @@ from modules.urlshortner.urlshortner import urlshortnerblue
 from modules.apikey.apikey import apikeyblue
 # Import Users
 from modules.users.users import usersblue, get_login_config
+from modules.users.profile import profileblue
 # Import NRO
 from modules.nro.nro import nroblue
-
-# Generate a nonce (typically done once)
-global_nonce = secrets.token_hex(16)
 
 # Initialize the GCP client using the secure secret value
 client = google.cloud.logging.Client()
@@ -79,16 +69,17 @@ is_production = os.getenv('IS_PRODUCTION', 'false').lower() == 'true'
 
 # Trust proxy headers from Cloud Run for HTTPS and Host info
 if is_production:
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
 # Basic config
 app.secret_key = app_secret_key
+app.config['JWT_SECRET'] = app_secret_key
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(minutes=30)
 app.config['SESSION_PERMANENT'] = True
 
 
 # Security - cookie/session settings (unique name per app)
-app.config['SESSION_COOKIE_NAME'] = os.getenv('SESSION_COOKIE_NAME', 'redirect_appsession')
+app.config['SESSION_COOKIE_NAME'] = os.getenv('SESSION_COOKIE_NAME', 'pixelcounter_session')
 app.config['SESSION_COOKIE_SECURE'] = os.getenv('IS_PRODUCTION', 'false').lower() == 'true'
 app.config['SESSION_COOKIE_SAMESITE'] = 'None' if app.config['SESSION_COOKIE_SECURE'] else 'Lax'
 app.config['SESSION_COOKIE_HTTPONLY'] = True
@@ -121,13 +112,6 @@ def format_datetime(value, format='medium'):
 
     return babel.dates.format_datetime(value, format)
 
-# New Line filter from \n to <br>
-
-
-def nl2br(value):
-    """Converts newlines in a string to HTML line breaks."""
-    return Markup(value.replace('\n', '<br>\n'))
-
 # register frontpage
 
 
@@ -149,6 +133,7 @@ app.register_blueprint(qrcodeblue)
 app.register_blueprint(urlshortnerblue)
 # Users
 app.register_blueprint(usersblue)
+app.register_blueprint(profileblue)
 # API Key
 # API Key
 app.register_blueprint(apikeyblue)
@@ -160,8 +145,14 @@ app.secret_key = app_secret_key
 
 logging.info("Start processing Function")
 
-# Exempt the API route from CSRF protection
-csrf.exempt(pixelcounterblue)
+# Only public/machine endpoints are exempt from browser CSRF checks.
+for endpoint in (
+    'pixelcounterblue.create_counter',
+    'pixelcounterblue.count_pixel',
+    'pixelcounterblue.counter',
+    'pixelcounterblue.count',
+):
+    csrf.exempt(app.view_functions[endpoint])
 
 
 warnings.filterwarnings("ignore", category=UserWarning, module='.*distutils.*')
@@ -175,9 +166,8 @@ def get_user_data():
     jwt_token = session.get('jwt_token')
     if jwt_token:
         try:
-            decoded_data = jwt.decode(jwt_token,
-                                      'secret_key',
-                                      algorithms=['HS256'])
+            from system.jwt_utils import decode_jwt_token
+            decoded_data = decode_jwt_token(jwt_token)
             return decoded_data
         except jwt.ExpiredSignatureError:
             return None
@@ -188,33 +178,31 @@ def get_user_data():
 
 @app.before_request
 def before_request():
-    g.nonce = global_nonce
+    g.nonce = secrets.token_urlsafe(24)
 
 
-# load public key
-public_pem = getsecrets("jwt_public_pem", project_id)
-public_key = serialization.load_pem_public_key(public_pem.encode())
+@app.context_processor
+def inject_nonce():
+    return {'nonce': g.get('nonce', '')}
 
 
-@app.before_request
-def check_jwt():
-    token = request.cookies.get("access_token")
-    if not token:
-        g.user = None
-        return
-
-    try:
-        decoded = jwt.decode(
-            token,
-            public_key,
-            algorithms=["RS256"],
-            audience="my-api-audience"  # must match `aud` in token
-        )
-        g.user = decoded
-    except jwt.ExpiredSignatureError:
-        g.user = None
-    except jwt.InvalidTokenError:
-        g.user = None
+@app.after_request
+def add_security_headers(response):
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; "
+        "img-src 'self' data: https://storage.googleapis.com https://*.googleusercontent.com; "
+        "font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; "
+        "base-uri 'self'; form-action 'self'"
+    )
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
+    if is_production:
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    return response
 
 
 @app.context_processor
@@ -253,7 +241,7 @@ def not_found_error(error):
 #
 # 500 error trying to access the API endpoint
 #
-@app.errorhandler(werkzeug.exceptions.HTTPException)
+@app.errorhandler(500)
 def internal_error(error):
     logging.info('500 System Error')
     return render_template('500.html'), 500
@@ -275,4 +263,4 @@ is_prod = os.environ.get('IS_PRODUCTION', 'false').lower() == 'true'
 # ----------------------------
 if __name__ == "__main__":
     # ONLY used for local dev
-    app.run(host="0.0.0.0", port=port, debug=not is_prod)
+    app.run(host="127.0.0.1", port=port, debug=not is_prod)

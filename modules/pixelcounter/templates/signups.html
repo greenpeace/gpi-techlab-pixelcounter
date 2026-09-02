@@ -2,38 +2,42 @@
 
 {% block content %}
 
-<!-- page content -->
-    <div class="page-title">
-      <div class="title_left">
-        <h3>Get <small>your NRO's signups</small></h3>
+<div class="signup-page">
+  <header class="signup-header">
+    <p class="signup-kicker">Counter reporting</p>
+    <h1>View counter signups</h1>
+    <p>Select one of the counters available to your account.</p>
+  </header>
+
+  <section class="signup-panel">
+    <form action="{{ url_for('pixelcounterblue.signup') }}" method="post" class="signup-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label for="counter-name">Counter</label>
+      <div class="signup-controls">
+        <select id="counter-name" name="name" required>
+          <option value="">Choose a counter</option>
+          {% for counter in counters %}
+          <option value="{{ counter.name }}" {% if counter.name == selected_name %}selected{% endif %}>
+            {{ counter.name }}{% if counter.campaign %} — {{ counter.campaign }}{% endif %}
+          </option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-success">Show signups</button>
       </div>
+    </form>
+
+    {% if error %}
+    <div class="signup-message signup-error" role="alert">{{ error }}</div>
+    {% elif result %}
+    <div class="signup-result" aria-live="polite">
+      <span class="signup-result-label">{{ result.name }}</span>
+      <strong>{{ '{:,}'.format(result.count|default(0, true)) }}</strong>
+      <span>Total signups</span>
     </div>
-
-
-      <!-- Main jumbotron for a primary marketing message or call to action -->
-      <div class="jumbotron">
-        <div class="container-fluid">
-            <form action="/signup" method="post">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="text" name="name"></input>
-                <br>
-                <br>
-                <input type="submit" value="GET Signups"></input>
-            </form>
-        </div>
-      </div>
-
-    <div class="container">
-        <!-- Example row of columns -->
-        <div class="row">
-            <div class="card" id="output">
-                <div class="card-body">
-                    {% for e in output %}
-                      {{e}}
-                    {% endfor %}
-                  </div>
-            </div>
-        </div>
-        <hr>
+    {% elif not counters %}
+    <div class="signup-message">No counters are available to your account.</div>
+    {% endif %}
+  </section>
+</div>
 
 {% endblock content %}

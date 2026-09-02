@@ -7,6 +7,7 @@ from modules.auth.auth import require_valid_api_key  # Replace with your actual 
 @pytest.fixture
 def app():
     app = Flask(__name__)
+    app.config['TESTING'] = True
 
     @app.route("/protected")
     @require_valid_api_key
@@ -46,7 +47,7 @@ def test_valid_active_api_key(mock_apikeys_ref, app):
     mock_apikeys_ref.where.return_value.limit.return_value.get.return_value = [api_key_doc]
     
     client = app.test_client()
-    resp = client.get("/protected?apikey=key123")
+    resp = client.get("/protected", headers={"X-API-Key": "key123"})
     assert resp.status_code == 200
     assert "Access granted" in resp.get_data(as_text=True)
 
@@ -58,7 +59,7 @@ def test_inactive_api_key(mock_apikeys_ref, app):
     mock_apikeys_ref.where.return_value.limit.return_value.get.return_value = [api_key_doc]
     
     client = app.test_client()
-    resp = client.get("/protected?apikey=key123")
+    resp = client.get("/protected", headers={"X-API-Key": "key123"})
     assert resp.status_code == 403
     assert "API key inactive" in resp.get_data(as_text=True)
 
@@ -68,7 +69,7 @@ def test_api_key_not_found(mock_apikeys_ref, app):
     mock_apikeys_ref.where.return_value.limit.return_value.get.return_value = []
     
     client = app.test_client()
-    resp = client.get("/protected?apikey=notfound")
+    resp = client.get("/protected", headers={"X-API-Key": "notfound"})
     assert resp.status_code == 403
     assert "API key not found" in resp.get_data(as_text=True)
 
@@ -79,4 +80,4 @@ def test_firestore_error(mock_apikeys_ref, app):
     
     client = app.test_client()
     with pytest.raises(Exception, match="Firestore error"):
-        client.get("/protected?apikey=key123")
+        client.get("/protected", headers={"X-API-Key": "key123"})

@@ -46,6 +46,8 @@ if is_production_db:
     blogpost_ref = db.collection(u'blog')
     # System activity logs collection
     activity_ref = db.collection(u'system_activity')
+    rate_limit_ref = db.collection(u'api_rate_limits')
+    documentation_ref = db.collection(u'documentation')
 
     # nro collection
     nro_ref = db.collection(u'nro')
@@ -76,4 +78,5 @@ else:
     nro_ref = db.collection(u'nro-test')
     # Activity logs collection for test environment
     activity_ref = db.collection(u'system_activity-test')
-
+    rate_limit_ref = db.collection(u'api_rate_limits-test')
+    documentation_ref = db.collection(u'documentation-test')

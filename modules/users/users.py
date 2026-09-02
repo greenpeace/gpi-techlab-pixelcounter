@@ -24,15 +24,14 @@ from google.cloud import firestore
 from system.firstoredb import users_ref, counter_ref
 from system.firstoredb import login_config_ref, nro_ref
 # from system.firstoredb import update_records_with_customer_id_and_uuid_in_batches
-from modules.auth.auth import login_is_required, admin_required
+from modules.auth.auth import login_is_required, admin_required, generate_customer_id
 from modules.auth.auth import get_user_data_from_token
+from system.jwt_utils import decode_jwt_token
 
 from system.setenv import project_id
 
 import uuid
 
-# JWT
-import jwt
 usersblue = Blueprint('usersblue',
                       __name__,
                       template_folder='templates')
@@ -72,37 +71,45 @@ def users_create():
     from system.sendnotification import send_notification_email
 
     jwt_token = session.get('jwt_token')
-    decoded_data = jwt.decode(jwt_token, 'secret_key', algorithms=['HS256'])
+    decoded_data = decode_jwt_token(jwt_token)
 
     try:
         # Create the user
+        new_user_uuid = str(uuid.uuid4())
+        display_name = f"{request.form.get('given_name', '')} {request.form.get('last_name', '')}".strip()
         data = {
             u'url': request.form.get('url'),
             u'given_name': request.form.get('given_name'),
-            u'last_name': request.form.get('last_name'),
+            u'family_name': request.form.get('last_name'),
             u'email': request.form.get('email'),
             u'phone': request.form.get('phone'),
             u'designation': request.form.get('designation'),
-            u'role': request.form.get('role'),
+            u'role': request.form.get('role') if request.form.get('role') in {'User', 'Administrator'} else 'User',
             u'disabled': False,
-            u'user': decoded_data.get('name'),
-            u'uuid': decoded_data.get('uuid'),
-            u'customer_id': decoded_data.get('customer_id')
+            u'name': display_name,
+            u'user': display_name,
+            u'uuid': new_user_uuid,
+            u'customer_id': generate_customer_id()
         }
 
         users_ref.document().set(data)
         # Send Email
-        credentials = session['credentials']
-        user_email = 'tzetter@socialclimate.tech'
+        credentials = session.get('credentials')
+        user_email = data['email']
         subject = "Account Created Successfully"
         body = "Dear User,\n\nYour account has been successfully created. \
             Thank you for joining our platform.\n\nBest regards,\nThe App Team"
-        send_notification_email(user_email, subject, body, credentials)
+        if credentials:
+            try:
+                send_notification_email(user_email, subject, body, credentials)
+            except Exception:
+                logging.exception('User created, but the notification email failed')
         flash('Data Succesfully Submitted')
         return redirect(url_for('usersblue.userslist'))
-    except Exception as e:
-        flash('An Error Occvured')
-        return f"An Error Occured: {e}"
+    except Exception:
+        logging.exception('Unable to create user')
+        flash('An error occurred while creating the user')
+        return redirect(url_for('usersblue.userslist'))
 
 #
 # the enable 2fa
@@ -181,7 +188,7 @@ def verify_enable_2fa():
 def userslist():
 
     jwt_token = session.get('jwt_token')
-    decoded_data = jwt.decode(jwt_token, 'secret_key', algorithms=['HS256'])
+    decoded_data = decode_jwt_token(jwt_token)
 
     # Check if ID was passed to URL query
     id = request.args.get('id')
@@ -306,7 +313,7 @@ def users_edit():
 
 
 @usersblue.route("/usersdelete",
-                 methods=['GET', 'DELETE'],
+                 methods=['POST', 'DELETE'],
                  endpoint='users_delete')
 @login_is_required
 @admin_required
@@ -334,47 +341,37 @@ def users_update():
 
     try:
         jwt_token = session.get('jwt_token')
-        decoded_data = jwt.decode(jwt_token, 'secret_key', algorithms=['HS256'])
+        decoded_data = decode_jwt_token(jwt_token)
         # Get the id
         id = request.form.get('id')
-        # Create the user
+        target_ref = users_ref.document(request.form.get('id'))
+        existing_user = target_ref.get().to_dict() or {}
+        # Update the editable user attributes while preserving identity fields.
         data = {
             u'url': request.form.get('url'),
             u'given_name': request.form.get('given_name'),
-            u'last_name': request.form.get('last_name'),
+            u'family_name': request.form.get('family_name'),
             u'email': request.form.get('email'),
             u'phone': request.form.get('phone'),
             u'designation': request.form.get('designation'),
             u'nro': request.form.get('nro'),
-            u'role': request.form.get('role'),
+            u'role': request.form.get('role') if request.form.get('role') in {'User', 'Administrator'} else 'User',
             # Removed separate assigned_counter_id field in favor of updating Counter documents
             u'disabled': False,
-            u'user': decoded_data.get('name'),
-            u'uuid': decoded_data.get('uuid'),
-            u'customer_id': decoded_data.get('customer_id')
+            u'user': existing_user.get('user') or existing_user.get('name'),
+            u'uuid': existing_user.get('uuid'),
+            u'customer_id': existing_user.get('customer_id'),
+            u'updated_by': decoded_data.get('email') or decoded_data.get('name')
         }
 
         # Update User Details
-        users_ref.document(id).update(data)
+        target_ref.update(data)
         
-        # --- Handle Counter Assignments ---
-        # 1. Get current user's UUID
-        # We need to fetch the USER document we just updated (or rely on input) to be sure of the target UUID
-        # But 'data' has the admin's UUID? WAIT. 
-        # The 'data' dict above uses 'decoded_data' which is the ADMIN's session.
-        # This looks like a BUG in the original code for 'users_update'. 
-        # It sets 'user', 'uuid', 'customer_id' to the ADMIN's values, overwriting the target user's identity!
-        #
-        # FIX: We must NOT overwrite the target user's UUID/Name with the Admin's.
-        # The target user's ID is 'id'. We should read their existing UUID or keep it if not changed.
-        # However, looking at the previous code, it seems the intention might have been to stamp 'updatedBy'?
-        # But the keys are 'user', 'uuid'. This looks wrong.
-        # I will fix this to querying the EXISTING user data for the UUID.
-        
+        # Handle counter assignments for the target user.
         target_user_doc = users_ref.document(id).get()
         target_user_data = target_user_doc.to_dict()
         target_uuid = target_user_data.get('uuid')
-        target_name = f"{request.form.get('given_name')} {request.form.get('last_name')}"
+        target_name = f"{request.form.get('given_name')} {request.form.get('family_name')}"
         
         # 2. Get list of selected counter IDs from form
         selected_counter_ids = request.form.getlist('assigned_counter_ids')
@@ -457,7 +454,7 @@ def users_updateform():
 
 
 @usersblue.route("/usersactive",
-                 methods=['GET', 'DELETE'],
+                 methods=['POST'],
                  endpoint='users_active')
 @login_is_required
 @admin_required
@@ -500,61 +497,11 @@ def edit_password():
     if data['newPassword'] != data['confirmPassword']:
         return jsonify({'success': False, 'message': 'New passwords do not match'}), 400
 
-    # Add your password update logic here
-    # Verify current password, update to new password, etc.
+    return jsonify({
+        'success': False,
+        'message': 'Password changes are managed by the configured identity provider.'
+    }), 501
 
-    return jsonify({'success': True, 'message': 'Password updated successfully'})
-
-
-@usersblue.route('/admin/admin_login-config',
-                 methods=['GET', 'POST'],
-                 endpoint='admin_login_config')
-@login_is_required
-@admin_required
-def admin_login_config():
-    if request.method == 'POST':
-        new_config = {
-            'email_login_enabled': 'email_login' in request.form,
-            'okta_login_enabled': 'okta_login' in request.form,
-            'google_login_enabled': 'google_login' in request.form,
-            'apple_login_enabled': 'apple_login' in request.form
-        }
-        login_config_ref.document('config').update(new_config)
-        flash('Login configuration updated successfully')
-        return redirect(url_for('usersblue.admin_login_config'))
-
-    config = get_login_config()
-    return render_template('loginconfig.html', config=config)
-
-
-def get_login_config():
-    try:
-        # Fetch the document using the login_config_ref
-        doc = login_config_ref.document('config').get()
-
-        # Check if the result is a DocumentSnapshot and if the document exists
-        if not isinstance(doc, firestore.DocumentSnapshot):
-            raise TypeError("Expected DocumentSnapshot, got something else.")
-
-        if doc.exists:
-            return doc.to_dict()
-        else:
-            # Default configuration
-            default_config = {
-                'email_login_enabled': True,
-                'okta_login_enabled': True,
-                'google_login_enabled': True,
-                'apple_login_enabled': True
-            }
-            # Save the default configuration to the document
-            login_config_ref.document('config').set(default_config)
-            return default_config
-
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        # Optional: log the error for debugging purposes
-        # Optional: log the error for debugging purposes
-        return None
 
 @usersblue.route("/admin/operations", methods=['GET'])
 @login_is_required
@@ -654,8 +601,6 @@ def auto_link_counters():
 @login_is_required
 @admin_required
 def admin_login_config():
-    from system.getsecret import getsecrets, store_secret
-    
     if request.method == 'POST':
         new_config = {
             'email_login_enabled': 'email_login' in request.form,
@@ -665,12 +610,10 @@ def admin_login_config():
             'apple_login_enabled': 'apple_login' in request.form
         }
         login_config_ref.document('config').update(new_config)
-            
         flash('Login configuration updated successfully')
         return redirect(url_for('usersblue.admin_login_config'))
 
     config = get_login_config()
-    
     return render_template('loginconfig.html', config=config)
 
 
@@ -690,6 +633,7 @@ def get_login_config():
             default_config = {
                 'email_login_enabled': True,
                 'okta_login_enabled': True,
+                'odc_login_enabled': True,
                 'google_login_enabled': True,
                 'apple_login_enabled': True
             }
@@ -743,4 +687,3 @@ def admin_secrets():
     return render_template('admin_secrets.html', 
                          managed_secrets=managed_secrets,
                          secret_values=secret_values)
-

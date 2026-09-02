@@ -1,58 +1,72 @@
 {% extends 'base.html' %}
+
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
-  <!-- Top 5 Counters -->
-  <div class="row mb-4">
-    {% for counter in top_counters %}
-    <div class="col-6 col-md-2">
-      <div class="dashboard-card text-center text-white bg-info">
-        <h5 class="mb-2">{{ counter.name|capitalize }}</h5>
-        <h3 class="display-4 fw-bold">{{ counter.value }}</h3>
-      </div>
-    </div>
-    {% endfor %}
-  </div>
+<main class="dashboard-page">
+  <header class="dashboard-hero">
+    <p class="dashboard-eyebrow">Counter App</p>
+    <h1>Dashboard Overview</h1>
+    <p>Monitor campaign performance and quickly access the tools you use most.</p>
+  </header>
 
-  <!-- Main Cards Row -->
-  <div class="row mb-4">
-    <!-- Quick Links Card -->
-    <div class="col-12 col-lg-6 mb-3">
-      <div class="dashboard-card bg-dark bg-opacity-75 p-3">
-        <h4 class="text-white mb-3">Quick Links</h4>
-        <div class="row">
-          {% for link in quick_links %}
-          <div class="col-6 col-md-3 mb-3">
-            <a href="{{ link.url }}" class="text-decoration-none">
-              <div class="quick-link">
-                <i class="{{ link.icon }}"></i>
-                <span>{{ link.label }}</span>
-              </div>
-            </a>
-          </div>
-          {% endfor %}
-        </div>
+  <section class="counter-summary" aria-label="Top counters">
+    {% for counter in top_counters %}
+    <article class="summary-item">
+      <span class="summary-label"><i class="fa fa-bar-chart" aria-hidden="true"></i> {{ counter.name }}</span>
+      <strong>{{ counter.formatted_value }}</strong>
+    </article>
+    {% else %}
+    <article class="summary-item summary-empty">
+      <span class="summary-label">Top counters</span>
+      <strong>—</strong>
+      <small>No counter data is available yet.</small>
+    </article>
+    {% endfor %}
+  </section>
+
+  <div class="dashboard-grid">
+    <section class="dashboard-panel" aria-labelledby="quick-links-title">
+      <div class="panel-heading">
+        <p class="panel-kicker">Navigation</p>
+        <h2 id="quick-links-title">Quick Links</h2>
       </div>
-    </div>
-    <!-- Recent Activities Card -->
-    <div class="col-12 col-lg-6 mb-3">
-      <div class="dashboard-card bg-dark bg-opacity-75 p-3">
-        <h4 class="text-white mb-3">Recent System Activities</h4>
-        <div class="activity-list">
-          {% for act in activities %}
-          <div class="activity-item d-flex justify-content-between">
-            <div>{{ act.message|default('No description') }}</div>
-            <div class="activity-timestamp">{{ act.timestamp }}</div>
-          </div>
-          {% else %}
-          <div class="activity-item text-muted">No recent activities.</div>
-          {% endfor %}
-        </div>
+      <p class="panel-intro">Manage counters and supporting campaign tools.</p>
+      <nav class="quick-links" aria-label="Dashboard quick links">
+        {% for link in quick_links %}
+        <a href="{{ link.url }}" class="quick-link">
+          <span class="quick-link-icon"><i class="{{ link.icon }}" aria-hidden="true"></i></span>
+          <span>{{ link.label }}</span>
+          <i class="fa fa-chevron-right quick-link-arrow" aria-hidden="true"></i>
+        </a>
+        {% endfor %}
+      </nav>
+    </section>
+
+    <section class="dashboard-panel" aria-labelledby="activity-title">
+      <div class="panel-heading">
+        <p class="panel-kicker">Latest updates</p>
+        <h2 id="activity-title">Recent System Activities</h2>
       </div>
-    </div>
+      <div class="activity-list">
+        {% for act in activities %}
+        <article class="activity-item">
+          <span class="activity-icon"><i class="fa fa-history" aria-hidden="true"></i></span>
+          <div class="activity-copy">
+            <p>{{ act.message|default('System activity') }}</p>
+            {% if act.timestamp %}<time datetime="{{ act.timestamp }}">{{ act.display_timestamp }}</time>{% endif %}
+          </div>
+        </article>
+        {% else %}
+        <div class="empty-state">
+          <i class="fa fa-history" aria-hidden="true"></i>
+          <p>No recent activities.</p>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
   </div>
-</div>
+</main>
 {% endblock %}

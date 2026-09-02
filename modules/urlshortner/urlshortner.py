@@ -7,10 +7,9 @@ from flask import (
     redirect,
     render_template,
     flash,
-    abort
+    abort,
+    current_app
 )
-
-from flask_cors import CORS, cross_origin
 
 # Install Google Libraries
 from google.cloud.firestore import Increment
@@ -23,16 +22,19 @@ from system.getsecret import getsecrets
 # Journalist firestore collection
 from system.firstoredb import molnurl_ref
 from system.date import datenow
+from system.activity import log_activity
+from system.authorization import can_manage_resource, require_resource_access
+from system.url_safety import fetch_public_html
+from system.jwt_utils import decode_jwt_token
 
 # to get meta details from an url
-import requests
 from bs4 import BeautifulSoup
+from werkzeug.exceptions import HTTPException
 import base64
+import re
 
 # Get Logging
 import logging
-
-import jwt
 
 # Get BigQuery
 import system.bigquery
@@ -40,6 +42,15 @@ import system.bigquery
 urlshortnerblue = Blueprint('urlshortnerblue',
                             __name__,
                             template_folder='templates')
+
+
+def is_reserved_short_name(short_name):
+    """Return whether a short name is already occupied by a fixed app route."""
+    candidate = f"/{short_name.strip('/')}"
+    return any(
+        rule.rule == candidate and rule.endpoint != 'urlshortnerblue.urlredirect'
+        for rule in current_app.url_map.iter_rules()
+    )
 
 
 # Get the secret for dataset
@@ -52,8 +63,6 @@ dataset_id = getsecrets("urlshortner_stats_dataset_id", project_id)
 
 table_id = getsecrets("urlshortner_stats_table_id", project_id)
 
-
-CORS(urlshortnerblue)
 
 #
 # API Route add a searchlink by ID - requires json file body with id and count
@@ -76,7 +85,6 @@ def urlshortneradd():
                        methods=['POST'],
                        endpoint='urlshortnercreate')
 @login_is_required
-@cross_origin()
 def urlshortnercreate():
     try:
         # Get the URL from the form and make a request to get data from it
@@ -85,14 +93,14 @@ def urlshortnercreate():
         description = ""
         try:
             # Request URL and get meta data
-            response = requests.get(url)
-            soup = BeautifulSoup(response.text)
+            soup = BeautifulSoup(fetch_public_html(url), 'html.parser')
             # Find the title and description from the URL of the redirect
             title = soup.find("meta",  property="og:title")
             description = soup.find("meta",  property="og:description")
             # meta_tag = soup.find('meta', attrs={'name': 'description'})
-        except Exception as e:
-            flash('Data Succesfully Submitted {}', e)
+        except ValueError as e:
+            flash(str(e))
+            return redirect(url_for('urlshortnerblue.urlshortner'))
 
         # generates id
         doc_ref = molnurl_ref.document()
@@ -100,21 +108,28 @@ def urlshortnercreate():
 
         # CHeck if system generate short name or user provided shortname
         if request.form.get('domain') != "":
+            requested_short = request.form.get('domain', '').strip()
+            if not re.fullmatch(r'[A-Za-z0-9_-]{1,64}', requested_short):
+                flash('Short names may contain only letters, numbers, underscores, and hyphens')
+                return redirect(url_for('urlshortnerblue.urlshortner'))
+            if is_reserved_short_name(requested_short):
+                flash('That short name is reserved by an application route')
+                return redirect(url_for('urlshortnerblue.urlshortner'))
             # check if short exist
-            docshort = molnurl_ref.where('short', '==', request.host_url + request.form.get('domain')).get()
+            docshort = molnurl_ref.where('short', '==', requested_short).limit(1).get()
             if (len(list(docshort))):
                 flash('An Error Occured: The short link name is already in use')
                 return redirect(url_for('urlshortnerblue.urlshortner'))
             else:
-                short = request.form.get('domain')
+                short = requested_short
         else:
             message = id
             message_bytes = message.encode('ascii')
-            base64_bytes = base64.b64encode(message_bytes)
+            base64_bytes = base64.urlsafe_b64encode(message_bytes)
             short = base64_bytes.decode('ascii')[:6]
 
         jwt_token = session.get('jwt_token')
-        decoded_data = jwt.decode(jwt_token, 'secret_key', algorithms=['HS256'])
+        decoded_data = decode_jwt_token(jwt_token)
 
         data = {
             u'active': True,
@@ -133,7 +148,8 @@ def urlshortnercreate():
             u'user': decoded_data.get('name')
         }
 
-        doc_ref = molnurl_ref.document(id).set(data)
+        molnurl_ref.document(id).set(data)
+        log_activity('created', 'URL shortener', id, data.get('short'))
         flash('Data Succesfully Submitted')
         return redirect(url_for('urlshortnerblue.urlshortner'))
     except Exception as e:
@@ -151,14 +167,16 @@ def urlshortnercreate():
 def urlshortner():
     try:
         jwt_token = session.get('jwt_token')
-        decoded_data = jwt.decode(jwt_token, 'secret_key', algorithms=['HS256'])
+        decoded_data = decode_jwt_token(jwt_token)
 
         # Check if ID was passed to URL query
 
         id = request.args.get('id')
         if id:
             urlshortnerlink = molnurl_ref.document(id).get()
-            return jsonify(u'{}'.format(urlshortnerlink.to_dict()['count'])), 200
+            data = require_resource_access(urlshortnerlink)
+            data['docid'] = urlshortnerlink.id
+            return jsonify(data), 200
         else:
             all_urlshortnerlinks = []
             for doc in molnurl_ref.where("uuid",
@@ -166,12 +184,15 @@ def urlshortner():
                                          decoded_data.get('google_id')).where('type', '==', 'local').stream():
                 don = doc.to_dict()
                 don["docid"] = doc.id
+                don["can_manage"] = can_manage_resource(don)
                 all_urlshortnerlinks.append(don)
 
             for doc in molnurl_ref.where('type', '==', 'global').stream():
                 don = doc.to_dict()
                 don["docid"] = doc.id
-                all_urlshortnerlinks.append(don)
+                if doc.id not in {item['docid'] for item in all_urlshortnerlinks}:
+                    don["can_manage"] = can_manage_resource(don)
+                    all_urlshortnerlinks.append(don)
 
             return render_template('urlshortner.html', output=all_urlshortnerlinks)
     except Exception as e:
@@ -192,7 +213,7 @@ def urlshortneredit():
         # Check if ID was passed to URL query
         id = request.args.get('id')
         urlshortnerlink = molnurl_ref.document(id).get()
-        ngo = urlshortnerlink.to_dict()
+        ngo = require_resource_access(urlshortnerlink)
         return render_template('urlshortneredit.html', **locals())
     except Exception as e:
         flash('An Error Occured: ' + str(e))
@@ -205,14 +226,17 @@ def urlshortneredit():
 
 
 @urlshortnerblue.route("/urlshortnerdelete",
-                       methods=['GET', 'DELETE'],
+                       methods=['POST', 'DELETE'],
                        endpoint='urlshortnerdelete')
 @login_is_required
 def urlshortnerdelete():
     try:
         # Check for ID in URL query
         id = request.args.get('id')
-        molnurl_ref.document(id).delete()
+        doc_ref = molnurl_ref.document(id)
+        old_data = require_resource_access(doc_ref.get())
+        doc_ref.delete()
+        log_activity('deleted', 'URL shortener', id, old_data.get('short'))
         return redirect(url_for('urlshortnerblue.urlshortner'))
     except Exception as e:
         flash('An Error Occured: ' + str(e))
@@ -225,15 +249,15 @@ def urlshortnerdelete():
 
 
 @urlshortnerblue.route("/urlshortneractive",
-                       methods=['GET', 'DELETE'],
+                       methods=['POST'],
                        endpoint='urlshortneractive')
 @login_is_required
 def urlshortneractive():
     try:
         # Check if ID was passed to URL query
         id = request.args.get('id')
-        urlshortnerlink = molnurl_ref.document(id).get()
-        urlshortneractive = urlshortnerlink.to_dict()
+        doc_ref = molnurl_ref.document(id)
+        urlshortneractive = require_resource_access(doc_ref.get())
 
         # Update flag that translation done
         if urlshortneractive['active'] is True:
@@ -244,7 +268,13 @@ def urlshortneractive():
             data = {
                 u'active': True,
             }
-        molnurl_ref.document(id).update(data)
+        doc_ref.update(data)
+        log_activity(
+            'activated' if data['active'] else 'deactivated',
+            'URL shortener',
+            id,
+            urlshortneractive.get('short'),
+        )
         return redirect(url_for('urlshortnerblue.urlshortner'))
     except Exception as e:
         flash('An Error Occured: ' + str(e))
@@ -260,55 +290,67 @@ def urlshortneractive():
                        methods=['POST', 'PUT'],
                        endpoint='urlshortnerupdate')
 @login_is_required
-@cross_origin()
 def urlshortnerupdate():
     try:
         id = request.form['id']
 
-        urlshortnerlink = molnurl_ref.document(id).get()
-        ngo = urlshortnerlink.to_dict()
+        doc_ref = molnurl_ref.document(id)
+        ngo = require_resource_access(doc_ref.get())
 
         # Get the URL from the form and make a request to get data from it
         url = request.form.get('url')
+        title = None
+        description = None
         try:
-            response = requests.get(url)
-            soup = BeautifulSoup(response.text)
+            soup = BeautifulSoup(fetch_public_html(url), 'html.parser')
 
             # Find the title and description from the URL of the redirect
             title = soup.find("meta",  property="og:title")
             description = soup.find("meta",  property="og:description")
-        except Exception as e:
-            flash('Data Succesfully Submitted {}' + e)
+        except ValueError as e:
+            flash(str(e))
+            return redirect(url_for('urlshortnerblue.urlshortneredit', id=id))
 
         # CHeck if system generate short name or user provided shortname
         if request.form.get('domain') != "":
-            short = request.form.get('domain')
+            short = request.form.get('domain', '').strip()
+            if not re.fullmatch(r'[A-Za-z0-9_-]{1,64}', short):
+                flash('Short names may contain only letters, numbers, underscores, and hyphens')
+                return redirect(url_for('urlshortnerblue.urlshortneredit', id=id))
+            if is_reserved_short_name(short):
+                flash('That short name is reserved by an application route')
+                return redirect(url_for('urlshortnerblue.urlshortneredit', id=id))
+            duplicate = molnurl_ref.where('short', '==', short).get()
+            if any(doc.id != id for doc in duplicate):
+                flash('The short link name is already in use')
+                return redirect(url_for('urlshortnerblue.urlshortneredit', id=id))
         else:
             message = id
             message_bytes = message.encode('ascii')
-            base64_bytes = base64.b64encode(message_bytes)
+            base64_bytes = base64.urlsafe_b64encode(message_bytes)
             short = base64_bytes.decode('ascii')[:6]
 
         jwt_token = session.get('jwt_token')
-        decoded_data = jwt.decode(jwt_token, 'secret_key', algorithms=['HS256'])
+        decoded_data = decode_jwt_token(jwt_token)
 
         data = {
             u'active': True,
             u'date': ngo['date'] if ngo['date'] else datenow(),
-            u'uid': decoded_data.get('google_id'),
-            u'meta_title': ngo['meta_title'] if ngo['meta_title'] else title["content"],
-            u'meta_description': ngo['meta_description'] if ngo['meta_description'] else description["content"],
+            u'uid': ngo.get('uid') or ngo.get('uuid'),
+            u'meta_title': ngo.get('meta_title') or (title.get('content') if title else 'No meta title given'),
+            u'meta_description': ngo.get('meta_description') or (description.get('content') if description else 'No meta description given'),
             u'domain': request.form.get('domain'),
             u'url': request.form.get('url'),
             u'language': request.form.get('language'),
             u'country': request.form.get('country'),
             u'short': short,
             u'type': request.form.get('type'),
-            u'uuid': decoded_data.get('google_id'),
-            u'user': decoded_data.get('name')
+            u'uuid': ngo.get('uuid'),
+            u'user': ngo.get('user')
         }
 
-        molnurl_ref.document(id).update(data)
+        doc_ref.update(data)
+        log_activity('updated', 'URL shortener', id, data.get('short'))
         # Return to the list
         return redirect(url_for('urlshortnerblue.urlshortner'))
     except Exception as e:
@@ -323,7 +365,10 @@ def urlredirect(id):
     try:
         # short = request.host_url + id
         for doc in molnurl_ref.where(u'short', u'==', id).stream():
-            url = u'{}'.format(doc.to_dict()['url'])
+            link_data = doc.to_dict()
+            if not link_data.get('active', False):
+                abort(404)
+            url = u'{}'.format(link_data['url'])
             # Add Counter
             molnurl_ref.document(doc.id).update({u'click': Increment(1)})
             # writetobigquery(doc)
@@ -331,8 +376,10 @@ def urlredirect(id):
             print("Redirecting to: {}".format(url))
             return redirect(url, code=307)
         abort(404)
-    except Exception as e:
-        print("An error occurred: {}".format(e))
+    except HTTPException:
+        raise
+    except Exception:
+        logging.exception('Unable to resolve short URL')
         return redirect(url_for('frontpageblue.index'))
 
 

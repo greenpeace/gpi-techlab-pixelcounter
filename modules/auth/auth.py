@@ -9,11 +9,14 @@ from flask import (
     url_for,
     flash,
     jsonify,
-    render_template
+    render_template,
+    g,
 )
+import hashlib
+from google.cloud import firestore
 import requests
 import json
-import random
+import secrets
 import string
 import uuid
 import jwt
@@ -30,13 +33,36 @@ from pip._vendor import cachecontrol
 
 from functools import wraps
 
-from system.firstoredb import users_ref, apikeys_ref
-from system.jwt_utils import generate_jwt_token
+from system.firstoredb import db, users_ref, apikeys_ref, rate_limit_ref
+from system.jwt_utils import decode_jwt_token as decode_internal_jwt_token, generate_jwt_token
 from system.getsecret import getsecrets
 # Import project id
 from system.setenv import project_id
 
 authsblue = Blueprint('authsblue', __name__)
+
+
+def _load_or_create_user(id_info):
+    """Load an IdP user, linking an administrator-preprovisioned email record."""
+    subject = id_info.get('sub')
+    user_doc_ref = users_ref.document(subject)
+    snapshot = user_doc_ref.get()
+    if snapshot.exists:
+        user_doc_ref.update({'lastLoginAt': datetime.now()})
+        return snapshot.to_dict() or {}
+
+    email = (id_info.get('email') or '').strip().lower()
+    matches = users_ref.where('email', '==', email).limit(1).get() if email else []
+    if matches:
+        existing = matches[0]
+        user_data = existing.to_dict() or {}
+        user_data['lastLoginAt'] = datetime.now()
+        user_doc_ref.set(user_data)
+        if existing.id != subject:
+            existing.reference.delete()
+        return user_data
+
+    return create_new_user(id_info)
 
 # Get the secrets for authentication
 client_secret = getsecrets("client_secret_key", project_id)
@@ -65,27 +91,46 @@ is_production = os.getenv('IS_PRODUCTION', 'false').lower() == 'true'
 # if not is_production:
 #    # this is to set our environment to https because OAuth 2.0
 #    # only supports https environments
-os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+if not is_production:
+    os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+
+
+def _verify_oidc_token(encoded_token, issuer, audience, expected_nonce):
+    """Verify an OIDC ID token against the configured provider's signing keys."""
+    issuer = issuer.rstrip('/')
+    if not issuer.startswith('https://'):
+        raise jwt.InvalidIssuerError('OIDC issuer must use HTTPS')
+    if not expected_nonce:
+        raise jwt.InvalidTokenError('OIDC nonce is missing from the session')
+    jwks_uri = (
+        f"{issuer}/v1/keys" if '/oauth2' in issuer
+        else f"{issuer}/oauth2/v1/keys"
+    )
+    signing_key = jwt.PyJWKClient(jwks_uri).get_signing_key_from_jwt(encoded_token)
+    claims = jwt.decode(
+        encoded_token,
+        signing_key.key,
+        algorithms=['RS256'],
+        audience=audience,
+        issuer=issuer,
+        options={'require': ['exp', 'iat', 'iss', 'aud', 'sub']},
+    )
+    if not secrets.compare_digest(str(claims.get('nonce', '')), str(expected_nonce)):
+        raise jwt.InvalidTokenError('OIDC nonce mismatch')
+    return claims
 
 # enter your client id you got from Google console
 
 GOOGLE_CLIENT_ID = client_secret
 
-# for test environment - https://pixelcounter-test-170392023448.europe-north1.run.app/callback
-# for prod environment - https://counter.greenpeace.org/callback
-redirect_uri = (
-    "https://counter.greenpeace.org/callback" if is_production else
-    "http://127.0.0.1:8080/callback"
-)
-
-# Flow is OAuth 2.0 a class that stores all the information on
-# how we want to authorize our users
-# Use the production redirect_uri if it's set
-flow = Flow.from_client_config(
-    client_config=client_secret_dict,
-    scopes=scopes,
-    redirect_uri=redirect_uri
-)
+def _google_oauth_flow(state=None):
+    """Create a request-scoped OAuth flow safe for concurrent workers."""
+    return Flow.from_client_config(
+        client_config=client_secret_dict,
+        scopes=scopes,
+        state=state,
+        redirect_uri=url_for('authsblue.callback', _external=True),
+    )
 
 
 #
@@ -111,7 +156,10 @@ def logout():
 @authsblue.route("/loginseq")
 def loginseq():
     # asking the flow class for the authorization (login) url
-    authorization_url, state = flow.authorization_url()
+    oauth_flow = _google_oauth_flow()
+    authorization_url, state = oauth_flow.authorization_url(
+        prompt='select_account',
+    )
     session.permanent = True
     session['state'] = state
     return redirect(authorization_url)
@@ -128,14 +176,17 @@ def oktalogin():
         return redirect(url_for("authsblue.login"))
 
     # Build Okta authorization URL
+    nonce = secrets.token_urlsafe(32)
     params = {
         "client_id": dynamic_okta_client_id,
         "response_type": "code",
         "scope": "openid profile email",
         "redirect_uri": url_for("authsblue.oktacallback", _external=True),
-        "state": uuid.uuid4().hex
+        "state": uuid.uuid4().hex,
+        "nonce": nonce,
     }
     session["okta_state"] = params["state"]
+    session["okta_nonce"] = nonce
     # Build authorize URL from okta_issuer
     base_url = dynamic_okta_issuer.rstrip('/')
     if '/oauth2' not in base_url:
@@ -155,6 +206,7 @@ def oktacallback():
 
     if state != session.get("okta_state"):
         abort(403)
+    session.pop('okta_state', None)
 
     # Fetch latest Okta secrets for token exchange
     dynamic_okta_client_id = getsecrets("okta_client_id", project_id)
@@ -172,7 +224,8 @@ def oktacallback():
         "code": code,
         "redirect_uri": url_for("authsblue.oktacallback", _external=True)
     }
-    response = requests.post(token_url, data=data, auth=auth)
+    response = requests.post(token_url, data=data, auth=auth, timeout=10)
+    response.raise_for_status()
     token_data = response.json()
 
     id_token_jwt = token_data.get("id_token")
@@ -180,8 +233,16 @@ def oktacallback():
         flash("Failed to login with Okta")
         return redirect(url_for("authsblue.login"))
 
-    # Decode ID token (simplified for now, ideally verify RS256 with Okta jwks)
-    decoded_token = jwt.decode(id_token_jwt, options={"verify_signature": False})
+    try:
+        decoded_token = _verify_oidc_token(
+            id_token_jwt,
+            dynamic_okta_issuer,
+            dynamic_okta_client_id,
+            session.pop('okta_nonce', None),
+        )
+    except jwt.PyJWTError:
+        logging.exception('Okta ID token verification failed')
+        abort(403)
 
     # Map Okta claims to id_info style
     id_info = {
@@ -212,13 +273,7 @@ def oktacallback():
         return redirect(url_for('authsblue.login'))
 
     # Check if the user exists in Firestore
-    user_doc_ref = users_ref.document(id_info['sub'])
-    user_data = user_doc_ref.get().to_dict()
-
-    if not user_data:
-        user_data = create_new_user(id_info)
-    else:
-        user_doc_ref.update({'lastLoginAt': datetime.now()})
+    user_data = _load_or_create_user(id_info)
 
     # Generate JWT token
     user_jwt_data = {
@@ -229,6 +284,7 @@ def oktacallback():
         'uuid': user_data.get('uuid'),
         'customer_id': user_data['customer_id'],
         'role': user_data['role'],
+        'nro': user_data.get('nro'),
         'groups': user_data.get('groups', []),
         'language': user_data.get('language')
     }
@@ -243,14 +299,17 @@ def oktacallback():
 @authsblue.route("/odclogin")
 def odclogin():
     # Build ODC authorization URL
+    nonce = secrets.token_urlsafe(32)
     params = {
         "client_id": odc_client_id,
         "response_type": "code",
         "scope": "openid profile email",
         "redirect_uri": url_for("authsblue.odccallback", _external=True),
-        "state": uuid.uuid4().hex
+        "state": uuid.uuid4().hex,
+        "nonce": nonce,
     }
     session["odc_state"] = params["state"]
+    session["odc_nonce"] = nonce
     authorize_url = f"{odc_issuer.rstrip('/')}/v1/authorize"
     request_url = f"{authorize_url}?{urllib.parse.urlencode(params)}"
     return redirect(request_url)
@@ -263,6 +322,7 @@ def odccallback():
 
     if state != session.get("odc_state"):
         abort(403)
+    session.pop('odc_state', None)
 
     token_url = f"{odc_issuer.rstrip('/')}/v1/token"
     auth = (odc_client_id, odc_client_secret)
@@ -271,7 +331,8 @@ def odccallback():
         "code": code,
         "redirect_uri": url_for("authsblue.odccallback", _external=True)
     }
-    response = requests.post(token_url, data=data, auth=auth)
+    response = requests.post(token_url, data=data, auth=auth, timeout=10)
+    response.raise_for_status()
     token_data = response.json()
 
     id_token_jwt = token_data.get("id_token")
@@ -279,7 +340,16 @@ def odccallback():
         flash("Failed to login with ODC")
         return redirect(url_for("authsblue.login"))
 
-    decoded_token = jwt.decode(id_token_jwt, options={"verify_signature": False})
+    try:
+        decoded_token = _verify_oidc_token(
+            id_token_jwt,
+            odc_issuer,
+            odc_client_id,
+            session.pop('odc_nonce', None),
+        )
+    except jwt.PyJWTError:
+        logging.exception('ODC ID token verification failed')
+        abort(403)
 
     id_info = {
         'sub': decoded_token.get('sub'),
@@ -299,13 +369,7 @@ def odccallback():
         flash(f'Your email domain ({domain}) is not authorized. Allowed: {", ".join(allowed_domains)}')
         return redirect(url_for('frontpageblue.index'))
 
-    user_doc_ref = users_ref.document(id_info['sub'])
-    user_data = user_doc_ref.get().to_dict()
-
-    if not user_data:
-        user_data = create_new_user(id_info)
-    else:
-        user_doc_ref.update({'lastLoginAt': datetime.now()})
+    user_data = _load_or_create_user(id_info)
 
     user_jwt_data = {
         'google_id': id_info['sub'],
@@ -315,6 +379,7 @@ def odccallback():
         'uuid': user_data.get('uuid'),
         'customer_id': user_data['customer_id'],
         'role': user_data['role'],
+        'nro': user_data.get('nro'),
         'groups': user_data.get('groups', []),
         'language': user_data.get('language')
     }
@@ -338,6 +403,7 @@ def odccallback():
         'uuid': user_data["uuid"],
         'customer_id': user_data["customer_id"],
         'role': user_data["role"],
+        'nro': user_data.get('nro'),
         'groups': user_data.get('groups', []),
         'language': id_info.get("locale")
     }
@@ -354,23 +420,28 @@ def odccallback():
 
 @authsblue.route("/callback")
 def callback():
-    flow.fetch_token(authorization_response=request.url)
+    expected_state = session.get("state")
+    returned_state = request.args.get("state")
+    if not expected_state or not returned_state or not secrets.compare_digest(expected_state, returned_state):
+        logging.warning(
+            "Google OAuth callback rejected: state cookie was missing or did not match"
+        )
+        session.clear()
+        flash("Your login session expired or could not be verified. Please try signing in again.")
+        return redirect(url_for('authsblue.login'))
 
-    if session.get("state") != request.args.get("state"):
-        logging.info("Callback route not reached!")
-        abort(500)  # State does not match!
+    state = session.pop("state", None)
+    oauth_flow = _google_oauth_flow(state=state)
+    oauth_flow.fetch_token(authorization_response=request.url)
 
-    # Remove the state from the session
-    session.pop("state", None)
-
-    credentials = flow.credentials
+    credentials = oauth_flow.credentials
     request_session = requests.session()
     cached_session = cachecontrol.CacheControl(request_session)
     token_request = google.auth.transport.requests.Request(session=cached_session)
 
     # the final page where the authorized users will end up
     id_info = id_token.verify_oauth2_token(
-        id_token=credentials._id_token,
+        id_token=credentials.id_token,
         request=token_request,
         audience=GOOGLE_CLIENT_ID
     )
@@ -379,22 +450,13 @@ def callback():
     # This code is to limit the login to a specific domain
     #
     email = id_info.get("email")
-    if email.split('@')[1] != restrciteddomain:
+    domain = email.rsplit('@', 1)[-1].lower() if email and '@' in email else ''
+    if domain != str(restrciteddomain).strip().lower():
         flash('You are not allowed to login to this site!')
         return redirect(url_for('frontpageblue.index'))
 
     # Check if the user exists in Firestore
-    users_data = users_ref.document(id_info['sub'])
-    user_data = users_data.get().to_dict()
-
-    if not user_data:
-        user_data = create_new_user(id_info)
-    else:
-        # User exists, update the lastLoginAt field
-        user_doc_ref = users_ref.document(id_info['sub'])
-        user_doc_ref.update({
-            'lastLoginAt': datetime.now()
-        })
+    user_data = _load_or_create_user(id_info)
 
     # Generate user data for JWT token
     user_jwt_data = {
@@ -405,6 +467,7 @@ def callback():
         'uuid': user_data["uuid"],
         'customer_id': user_data["customer_id"],
         'role': user_data["role"],
+        'nro': user_data.get('nro'),
         'language': id_info.get("locale")
     }
 
@@ -420,20 +483,35 @@ def callback():
 
 RATE_LIMIT = 5
 RATE_WINDOW = 60
-rate_cache = {}
 
 
 def rate_limit(limit=RATE_LIMIT, window=RATE_WINDOW):
     def decorator(func):
         @wraps(func)  # preserves original function name
         def _rate_limiter(*args, **kwargs):  # unique inner name
-            ip = request.remote_addr
             now = time.time()
-            history = [t for t in rate_cache.get(ip, []) if now - t < window]
-            if len(history) >= limit:
+            identity = request.headers.get('X-API-Key') or request.remote_addr or 'unknown'
+            bucket = int(now // window)
+            key = hashlib.sha256(
+                f'{request.endpoint}:{identity}:{bucket}'.encode('utf-8')
+            ).hexdigest()
+            doc_ref = rate_limit_ref.document(key)
+            transaction = db.transaction()
+
+            @firestore.transactional
+            def increment_rate_limit(txn):
+                snapshot = doc_ref.get(transaction=txn)
+                count = (snapshot.to_dict() or {}).get('count', 0) if snapshot.exists else 0
+                if count >= limit:
+                    return False
+                txn.set(doc_ref, {
+                    'count': count + 1,
+                    'expires_at': datetime.utcnow() + timedelta(seconds=window * 2),
+                })
+                return True
+
+            if not increment_rate_limit(transaction):
                 return jsonify({"error": "Too many requests"}), 429
-            history.append(now)
-            rate_cache[ip] = history
             return func(*args, **kwargs)
         return _rate_limiter
     return decorator
@@ -450,7 +528,9 @@ def login_is_required(func):
             return redirect(url_for('authsblue.logout'))
 
         try:
-            decoded_data = jwt.decode(jwt_token, 'secret_key', algorithms=['HS256'])
+            decoded_data = decode_internal_jwt_token(jwt_token)
+            if not decoded_data:
+                return redirect(url_for('authsblue.logout'))
             user_id = decoded_data.get('google_id')
         except jwt.ExpiredSignatureError:
             # Handle expired token
@@ -462,6 +542,18 @@ def login_is_required(func):
         if not user_id:
             # Redirect to logout if user ID is not present in the token
             return redirect(url_for('authsblue.logout'))
+
+        user_snapshot = users_ref.document(user_id).get()
+        if not user_snapshot.exists or (user_snapshot.to_dict() or {}).get('disabled', False):
+            session.clear()
+            abort(403)
+        current_user = user_snapshot.to_dict() or {}
+        decoded_data.update({
+            'role': current_user.get('role', 'User'),
+            'nro': current_user.get('nro'),
+            'uuid': current_user.get('uuid'),
+        })
+        g.current_user = decoded_data
 
         # Update the last_activity_time in the session on every request
         session['last_activity_time'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -480,7 +572,9 @@ def admin_required(f):
             return redirect(url_for('authsblue.logout'))
 
         try:
-            decoded = jwt.decode(jwt_token, 'secret_key', algorithms=['HS256'])
+            decoded = getattr(g, 'current_user', None) or decode_internal_jwt_token(jwt_token)
+            if not decoded:
+                return redirect(url_for('authsblue.logout'))
             if decoded.get('role') != 'Administrator':
                 flash('Admins only!')
                 return redirect(url_for('frontpageblue.index'))
@@ -499,7 +593,13 @@ def validate_api_key(provided_api_key):
         return False, "Missing API key"
 
     # Query Firestore for matching key
-    docs = apikeys_ref.where("api_key", "==", provided_api_key).limit(1).get()
+    key_hash = hashlib.sha256(provided_api_key.encode('utf-8')).hexdigest()
+    docs = apikeys_ref.where("api_key_hash", "==", key_hash).limit(1).get()
+    # Temporary compatibility for keys created before hashing was introduced.
+    legacy_key = False
+    if not docs:
+        docs = apikeys_ref.where("api_key", "==", provided_api_key).limit(1).get()
+        legacy_key = bool(docs)
     if not docs:
         return False, "API key not found"
 
@@ -507,6 +607,16 @@ def validate_api_key(provided_api_key):
 
     if not key_data.get("active", False):
         return False, "API key inactive"
+
+    # Transparently migrate old plaintext keys after a successful lookup.
+    if legacy_key:
+        docs[0].reference.update({
+            'api_key_hash': key_hash,
+            'api_key_prefix': provided_api_key[:6],
+            'api_key': firestore.DELETE_FIELD,
+        })
+
+    g.api_key_owner = key_data.get('user_uuid') or 'API user'
 
     return True, None
 
@@ -517,7 +627,12 @@ def require_valid_api_key(function):
         if request.method == "OPTIONS":
             return '', 200
 
-        provided_api_key = request.args.get("apikey") or request.headers.get("X-API-Key")
+        provided_api_key = request.headers.get("X-API-Key")
+        if not provided_api_key:
+            return jsonify({
+                "error": "Unauthorized access",
+                "reason": "Missing API key. Provide it using the X-API-Key header",
+            }), 403
 
         # Pass the users_ref to the helper
         valid, reason = validate_api_key(provided_api_key)
@@ -552,25 +667,13 @@ def after_request(response):
 
 # Decode and verify JWT token
 def decode_jwt_token(token):
-    try:
-        decoded_data = jwt.decode(
-            token,
-            'secret_key',
-            algorithms=['HS256'],
-            options={
-                'verify_exp': True,
-                'leeway': 60  # Add 60 seconds of leeway for clock skew
-            }
-        )
-        return decoded_data
-    except jwt.ExpiredSignatureError:
-        return None
-    except jwt.InvalidTokenError:
-        return None
+    return decode_internal_jwt_token(token)
 
 
 # Function to retrieve user data from JWT token
 def get_user_data_from_token():
+    if getattr(g, 'current_user', None):
+        return g.current_user
     jwt_token = session.get('jwt_token')
     if jwt_token:
         user_data = decode_jwt_token(jwt_token)
@@ -581,7 +684,7 @@ def get_user_data_from_token():
 # Create a cuctomer_id
 def generate_customer_id(length=8):
     characters = string.ascii_letters + string.digits
-    customer_id = ''.join(random.choice(characters) for _ in range(length))
+    customer_id = ''.join(secrets.choice(characters) for _ in range(length))
     return customer_id
 
 
@@ -610,7 +713,7 @@ def create_new_user(id_info, groups=None, permissions=None):
         'createdAt': current_time,
         'lastLoginAt': current_time,
         'phone': '',
-        'role': 'Admin',
+        'role': 'User',
         'permissions': permissions if permissions else [],
         'groups': groups if groups else [],
         'disabled': False,

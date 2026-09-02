@@ -102,7 +102,7 @@ def insert_rows_bq(table_id, dataset_id, project_id, data):
         json_rows = data,
         table = table_ref,
     )
-    
-    assert resp == []
+
+    if resp:
+        raise RuntimeError(f"BigQuery insert failed: {resp}")
     logging.info("Success uploaded to table {}".format(table.table_id))
-    

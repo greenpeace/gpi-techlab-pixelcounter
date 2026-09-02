@@ -8,7 +8,8 @@ from flask import (
     url_for,
     redirect,
     render_template,
-    flash
+    flash,
+    g
 )
 
 from flask_cors import CORS, cross_origin
@@ -19,9 +20,12 @@ from system.firstoredb import (
     allowedorigion_ref,
     disallowedorigion_ref,
     users_ref,
-    nro_ref
+    nro_ref,
+    documentation_ref
 )
 from modules.auth.auth import (
+    admin_required,
+    get_user_data_from_token,
     login_is_required,
     require_valid_api_key,
     rate_limit,
@@ -34,11 +38,14 @@ import google.cloud.logging
 import logging
 import ipaddress
 from datetime import datetime
-import jwt
 import re
+import hashlib
+from google.api_core.exceptions import AlreadyExists
 
 from urllib.parse import urlparse
 from ipaddress import ip_address, IPv6Address
+from system.activity import log_activity
+from system.authorization import can_manage_resource, require_resource_access
 
 # Instantiates a client
 client = google.cloud.logging.Client()
@@ -48,7 +55,95 @@ logger = client.logger('pixelcounter')
 pixelcounterblue = Blueprint('pixelcounterblue',
                              __name__, template_folder='templates')
 
-CORS(pixelcounterblue)
+DEFAULT_DOCUMENTATION_TITLE = 'Pixel Counter Documentation'
+DEFAULT_DOCUMENTATION_SUMMARY = 'Create, update, display, and integrate campaign counters.'
+DEFAULT_DOCUMENTATION_CONTENT = """## Introduction
+Pixel Counter combines petition signatures from Greenpeace campaigns and NROs into shared or local totals.
+
+## Increment a counter
+Send a GET request to:
+
+/count?id=<counter_name>
+
+You can optionally include donation=<amount> and email_hash=<encoded_hash>. The email hash prevents the same signup from being counted more than once.
+
+## Read a counter
+Send a GET request to:
+
+/signups?id=<counter_name>
+
+The response contains unique_count and id as JSON.
+
+## Create a counter through the API
+Send a POST request to /api/createcounter with JSON data and provide the API key in the X-API-Key header. Duplicate counter names return HTTP 409.
+
+## URL shortener
+Create short links from the URL Shortener screen. Short names cannot use an existing application route such as count, signup, or login.
+
+## QR codes
+Create downloadable QR codes from the QR Code screen. QR content is limited to 4096 characters.
+
+## Testing
+Use the testing tools in the Counters menu to verify display and increment integrations before publishing a campaign.
+"""
+
+
+def _documentation_sections(content):
+    """Parse safe `## Heading` sections without rendering user-provided HTML."""
+    sections = []
+    current = None
+    for line in str(content or '').splitlines():
+        if line.startswith('## '):
+            if current:
+                current['body'] = '\n'.join(current.pop('lines')).strip()
+                sections.append(current)
+            heading = line[3:].strip() or 'Section'
+            slug = re.sub(r'[^a-z0-9]+', '-', heading.casefold()).strip('-') or 'section'
+            current = {'heading': heading, 'slug': slug, 'lines': []}
+        else:
+            if current is None:
+                current = {'heading': 'Overview', 'slug': 'overview', 'lines': []}
+            current['lines'].append(line)
+    if current:
+        current['body'] = '\n'.join(current.pop('lines')).strip()
+        sections.append(current)
+    return sections
+
+CORS(pixelcounterblue, resources={
+    r"/count_pixel": {"origins": "*"},
+    r"/counter": {"origins": "*"},
+    r"/count": {"origins": "*"},
+    r"/signups": {"origins": "*"},
+    r"/api/createcounter": {"origins": "*"},
+})
+
+
+def _counter_document_id(name):
+    """Create a stable Firestore ID so concurrent creates cannot duplicate a name."""
+    normalized = str(name or '').strip().casefold().encode('utf-8')
+    return f"counter-{hashlib.sha256(normalized).hexdigest()}"
+
+
+def _get_accessible_counters():
+    """Return counters visible to the current user without duplicate records."""
+    user = get_user_data_from_token() or {}
+    is_admin = user.get('role') == 'Administrator'
+    counters = []
+    seen_names = set()
+
+    for doc in counter_ref.stream():
+        data = doc.to_dict() or {}
+        if not (is_admin or data.get('type') == 'global' or can_manage_resource(data)):
+            continue
+        normalized_name = str(data.get('name', '')).strip().casefold()
+        if not normalized_name or normalized_name in seen_names:
+            continue
+        data['id'] = doc.id
+        data['can_manage'] = can_manage_resource(data)
+        counters.append(data)
+        seen_names.add(normalized_name)
+
+    return sorted(counters, key=lambda item: str(item.get('name', '')).casefold())
 
 
 def get_request_context():
@@ -111,10 +206,13 @@ def normalize_ip(ip):
 def is_allowed_request(referrer_domain, remote_address, referrer_path):
     """Check Firestore allowed/disallowed lists, allowing API key override but still validating disallowed patterns."""
     allowed_origins = [d.to_dict() for d in allowedorigion_ref.stream()]
-    disallowed_patterns = [d.to_dict().get('pattern') for d in disallowedorigion_ref.stream()]
+    disallowed_patterns = [
+        d.to_dict().get('pattern') for d in disallowedorigion_ref.stream()
+        if d.to_dict().get('pattern')
+    ]
 
     # --- Step 1: Check API key override ---
-    provided_api_key = request.args.get('apikey') or request.headers.get('X-API-Key')
+    provided_api_key = request.headers.get('X-API-Key')
     if provided_api_key:
         valid, reason = validate_api_key(provided_api_key)
         if valid:
@@ -160,24 +258,19 @@ def process_email_hash(name, email_hash):
     if not email_hash:
         return "ok", None
 
+    if not re.fullmatch(r'[A-Za-z0-9_-]{16,128}', email_hash):
+        return "invalid_hash", "email_hash must be a 16-128 character encoded hash"
+
     # 2. Check if (name + email_hash) already registered
-    existing = (
-        emailhash_ref
-        .where("name", "==", name)
-        .where("email_hash", "==", email_hash)
-        .limit(1)
-        .get()
-    )
-
-    if existing:
+    hash_id = hashlib.sha256(f'{name.casefold()}:{email_hash}'.encode('utf-8')).hexdigest()
+    try:
+        emailhash_ref.document(hash_id).create({
+            "name": name,
+            "email_hash": email_hash,
+            "created_at": datetime.utcnow()
+        })
+    except AlreadyExists:
         return "duplicate", "Counter + Email_Hash already counted"
-
-    # 3. Safe to store (no duplicate + valid counter)
-    emailhash_ref.document().set({
-        "name": name,
-        "email_hash": email_hash,
-        "created_at": datetime.utcnow()
-    })
 
     return "ok", None
 
@@ -210,6 +303,8 @@ def handle_count_request(is_pixel=False):
 
         name = request.args.get('id')
         amount = int(request.args.get('donation', 1))
+        if amount < 1 or amount > 1_000_000:
+            return jsonify({"error": "donation must be between 1 and 1000000"}), 422
         email_hash = request.args.get('email_hash')
 
         # --- email hash processing (duplicate + counter validation) ---
@@ -223,6 +318,9 @@ def handle_count_request(is_pixel=False):
 
         if status == "duplicate":
             return jsonify({"message": msg}), 200
+
+        if status == "invalid_hash":
+            return jsonify({"error": msg}), 422
         # else: status == "ok" → continue
 
         # --- Increment counter ---
@@ -236,14 +334,14 @@ def handle_count_request(is_pixel=False):
 
     except Exception as e:
         logging.exception("Error in count handler")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Unable to process counter request"}), 500
 
 
 @pixelcounterblue.route("/getsignups",
                         endpoint='getsignups')
 @login_is_required
 def getsignups():
-    return render_template('signups.html', **locals())
+    return redirect(url_for('pixelcounterblue.signup'))
 
 
 @pixelcounterblue.route("/get_my_ip",
@@ -261,8 +359,20 @@ def get_my_ip():
 @login_is_required
 def create():
     try:
-        counter_ref.document.set(request.json)
+        data = request.get_json(silent=True) or {}
+        if not data.get('name'):
+            return jsonify({'error': 'Counter name is required'}), 400
+        if counter_ref.where('name', '==', data['name']).limit(1).get():
+            return jsonify({'error': 'Counter ID already exists'}), 409
+        user = get_user_data_from_token() or {}
+        data['uuid'] = user.get('google_id')
+        data['user'] = user.get('name')
+        doc_ref = counter_ref.document(_counter_document_id(data['name']))
+        doc_ref.create(data)
+        log_activity('created', 'pixel counter', doc_ref.id, data.get('name'))
         return jsonify({"success": True}), 200
+    except AlreadyExists:
+        return jsonify({'error': 'Counter ID already exists'}), 409
     except Exception as e:
         return f"An Error Occured: {e}"
 
@@ -273,14 +383,24 @@ def create():
 #   /addset?id=<id>&count=<count>
 #
 @pixelcounterblue.route("/addset",
-                        methods=['GET'],
+                        methods=['POST'],
                         endpoint='createset')
 @login_is_required
 def createset():
     try:
-        counter_id = request.args.get('id')
-        counter_ref.document(counter_id).set(request.args)
+        payload = request.get_json(silent=True) or request.form.to_dict()
+        counter_id = payload.get('id')
+        if not counter_id:
+            return jsonify({'error': 'Counter ID is required'}), 400
+        name = payload.get('name') or counter_id
+        if counter_ref.where('name', '==', name).limit(1).get():
+            return jsonify({'error': 'Counter ID already exists'}), 409
+        doc_ref = counter_ref.document(_counter_document_id(name))
+        doc_ref.create(payload)
+        log_activity('created', 'pixel counter', doc_ref.id, name)
         return jsonify({"success": True}), 200
+    except AlreadyExists:
+        return jsonify({'error': 'Counter ID already exists'}), 409
     except Exception as e:
         return f"An Error Occured: {e}"
 
@@ -326,7 +446,48 @@ def addlist():
                         endpoint='documentation')
 @login_is_required
 def documentation():
-    return render_template('documentation.html', **locals())
+    snapshot = documentation_ref.document('main').get()
+    stored = snapshot.to_dict() if snapshot.exists else {}
+    title = stored.get('title') or DEFAULT_DOCUMENTATION_TITLE
+    summary = stored.get('summary') or DEFAULT_DOCUMENTATION_SUMMARY
+    content = stored.get('content') or DEFAULT_DOCUMENTATION_CONTENT
+    return render_template('documentation.html', title=title, summary=summary,
+                           sections=_documentation_sections(content))
+
+
+@pixelcounterblue.route("/documentation/edit", methods=['GET', 'POST'],
+                        endpoint='documentation_edit')
+@login_is_required
+@admin_required
+def documentation_edit():
+    doc_ref = documentation_ref.document('main')
+    snapshot = doc_ref.get()
+    stored = snapshot.to_dict() if snapshot.exists else {}
+
+    if request.method == 'POST':
+        title = request.form.get('title', '').strip()
+        summary = request.form.get('summary', '').strip()
+        content = request.form.get('content', '').strip()
+        if not title or not content:
+            flash('A title and documentation content are required')
+        elif len(title) > 120 or len(summary) > 500 or len(content) > 50000:
+            flash('The documentation exceeds the allowed length')
+        else:
+            doc_ref.set({
+                'title': title, 'summary': summary, 'content': content,
+                'updated_at': datetime.utcnow(),
+                'updated_by': (get_user_data_from_token() or {}).get('email', 'Administrator'),
+            })
+            log_activity('updated', 'documentation', 'main', title)
+            flash('Documentation updated successfully')
+            return redirect(url_for('pixelcounterblue.documentation'))
+
+    return render_template(
+        'documentation_edit.html',
+        title=stored.get('title') or DEFAULT_DOCUMENTATION_TITLE,
+        summary=stored.get('summary') or DEFAULT_DOCUMENTATION_SUMMARY,
+        content=stored.get('content') or DEFAULT_DOCUMENTATION_CONTENT,
+    )
 
 
 #
@@ -383,10 +544,7 @@ def testodometer():
 def createlist():
     try:
 
-        jwt_token = session.get('jwt_token')
-        decoded_data = jwt.decode(jwt_token,
-                                  'secret_key',
-                                  algorithms=['HS256'])
+        decoded_data = get_user_data_from_token() or {}
 
         # Check if id already exixst # check if short exist
         docshort = counter_ref.where('name',
@@ -409,9 +567,14 @@ def createlist():
                 u'assigned_users': request.form.getlist('assigned_users')
             }
 
-            counter_ref.document().set(data)
+            doc_ref = counter_ref.document(_counter_document_id(data['name']))
+            doc_ref.create(data)
+            log_activity('created', 'pixel counter', doc_ref.id, data.get('name'))
             flash('Data Succesfully Submitted')
             return redirect(url_for('pixelcounterblue.read'))
+    except AlreadyExists:
+        flash('An Error Occured: The counter name has already been taken')
+        return redirect(url_for('pixelcounterblue.read'))
     except Exception as e:
         flash('An Error Occvured', {e})
         return redirect(url_for('pixelcounterblue.addlist'))
@@ -427,87 +590,14 @@ def createlist():
 @login_is_required
 def read():
     try:
-        # Decode session JWT
-        jwt_token = session.get('jwt_token')
-        decoded_data = jwt.decode(jwt_token, 'secret_key', algorithms=['HS256'])
-
-        user_uuid = decoded_data.get('google_id')
-        user_role = decoded_data.get('role', 'user')  # default = normal user
-
         # If ?id= passed → return single counter
         counter_id = request.args.get('id')
         if counter_id:
             doc = counter_ref.document(counter_id).get()
-            if not doc.exists:
-                return jsonify({"error": "Counter not found"}), 404
-            return jsonify({"count": doc.to_dict().get("count", 0)}), 200
+            data = require_resource_access(doc)
+            return jsonify({"count": data.get("count", 0)}), 200
 
-        # ---- ROLE LOGIC ----
-        all_counters = []
-
-        seen_ids = set()
-
-        if user_role == "Administrator":
-            # ADMIN → see ALL counters
-            docs = counter_ref.stream()
-            for doc in docs:
-                data = doc.to_dict()
-                data["id"] = doc.id
-                all_counters.append(data)
-        else:
-            # NORMAL USER:
-            # 1. Fetch User Profile to get NRO (customer_id or nro field)
-            # We need to query the users collection to get the updated profile for this user
-            user_doc = users_ref.document(user_uuid).get()
-            if not user_doc.exists:
-                # Fallback if user doc missing (shouldn't happen)
-                user_nro = None
-            else:
-                user_data = user_doc.to_dict()
-                user_nro = user_data.get('nro')
-
-            # 2. Get Global Counters (everyone sees these)
-            global_docs = counter_ref.where("type", "==", "global").stream()
-            for doc in global_docs:
-                if doc.id not in seen_ids:
-                    data = doc.to_dict()
-                    data["id"] = doc.id
-                    all_counters.append(data)
-                    seen_ids.add(doc.id)
-
-            # 3. Get Owned Counters (uuid match)
-            # Note: This might overlap with NRO/Global, so we check seen_ids
-            owned_docs = counter_ref.where("uuid", "==", user_uuid).stream()
-            for doc in owned_docs:
-                if doc.id not in seen_ids:
-                    data = doc.to_dict()
-                    data["id"] = doc.id
-                    all_counters.append(data)
-                    seen_ids.add(doc.id)
-
-            # 4. Get NRO Local Counters
-            if user_nro:
-                # Fetch all local counters for this NRO
-                nro_docs = counter_ref.where("nro", "==", user_nro).stream()
-                for doc in nro_docs:
-                    if doc.id not in seen_ids:
-                        d = doc.to_dict()
-                        if d.get('type') == 'local':
-                            data = d
-                            data["id"] = doc.id
-                            all_counters.append(data)
-                        seen_ids.add(doc.id)
-
-            # 5. Get Manually Assigned Counters
-            assigned_docs = counter_ref.where("assigned_users", "array_contains", user_uuid).stream()
-            for doc in assigned_docs:
-                if doc.id not in seen_ids:
-                    data = doc.to_dict()
-                    data["id"] = doc.id
-                    all_counters.append(data)
-                    seen_ids.add(doc.id)
-
-        return render_template('list.html', output=all_counters)
+        return render_template('list.html', output=_get_accessible_counters())
 
     except Exception as e:
         return f"An Error Occurred: {e}"
@@ -527,7 +617,7 @@ def listedit():
         # Check if ID was passed to URL query
         id = request.args.get('id')
         counterlist = counter_ref.document(id).get()
-        don = counterlist.to_dict()
+        don = require_resource_access(counterlist)
         don["id"] = counterlist.id
         lists.append(don)
         
@@ -563,13 +653,16 @@ def listedit():
 # API Enfpoint /delete?id=<id>
 #
 @pixelcounterblue.route("/listdelete",
-                        methods=['GET', 'DELETE'])
+                        methods=['POST', 'DELETE'])
 @login_is_required
 def listdelete():
     try:
         # Check for ID in URL query
         id = request.args.get('id')
-        counter_ref.document(id).delete()
+        doc_ref = counter_ref.document(id)
+        old_data = require_resource_access(doc_ref.get())
+        doc_ref.delete()
+        log_activity('deleted', 'pixel counter', id, old_data.get('name'))
         return redirect(url_for('pixelcounterblue.read'))
     except Exception as e:
         return f"An Error Occured: {e}"
@@ -585,7 +678,13 @@ def listdelete():
 def update():
     try:
         id = request.json['id']
-        counter_ref.document(id).update(request.json)
+        doc_ref = counter_ref.document(id)
+        require_resource_access(doc_ref.get())
+        allowed_fields = {'name', 'nro', 'url', 'count', 'contactpoint', 'campaign', 'type'}
+        updates = {key: value for key, value in request.json.items() if key in allowed_fields}
+        doc_ref.update(updates)
+        updated = doc_ref.get().to_dict() or {}
+        log_activity('updated', 'pixel counter', id, updated.get('name'))
         return jsonify({"success": True}), 200
     except Exception as e:
         return f"An Error Occured: {e}"
@@ -602,12 +701,10 @@ def update():
 def updateform():
     try:
 
-        jwt_token = session.get('jwt_token')
-        decoded_data = jwt.decode(jwt_token,
-                                  'secret_key',
-                                  algorithms=['HS256'])
-
         id = request.form['id']
+        doc_ref = counter_ref.document(id)
+        old_data = require_resource_access(doc_ref.get())
+        current_user = get_user_data_from_token() or {}
 
         data = {
             u'name': request.form.get('name'),
@@ -617,11 +714,16 @@ def updateform():
             u'contactpoint': request.form.get('contactpoint'),
             u'campaign': request.form.get('campaign'),
             u'type': request.form.get('type'),
-            u'uuid': decoded_data.get('google_id'),
-            u'user': decoded_data.get('name'),
-            u'assigned_users': request.form.getlist('assigned_users')
+            u'uuid': old_data.get('uuid'),
+            u'user': old_data.get('user'),
+            u'assigned_users': (
+                request.form.getlist('assigned_users')
+                if current_user.get('role') == 'Administrator'
+                else old_data.get('assigned_users', [])
+            )
         }
-        counter_ref.document(id).update(data)
+        doc_ref.update(data)
+        log_activity('updated', 'pixel counter', id, data.get('name'))
         return redirect(url_for('pixelcounterblue.read'))
     except Exception as e:
         flash(f"An Error Occured: {e}")
@@ -635,6 +737,7 @@ def updateform():
 #
 @pixelcounterblue.route('/count_pixel', methods=['GET', 'POST'])
 @cross_origin()
+@rate_limit(limit=300, window=60)
 def count_pixel():
     return handle_count_request(is_pixel=True)
 
@@ -647,6 +750,7 @@ def count_pixel():
 @pixelcounterblue.route("/counter",
                         methods=['POST', 'PUT'])
 @cross_origin()
+@rate_limit(limit=300, window=60)
 def counter():
     return handle_count_request(is_pixel=False)
 
@@ -658,6 +762,7 @@ def counter():
 @pixelcounterblue.route("/count",
                         methods=['GET', 'POST',])
 @cross_origin()
+@rate_limit(limit=300, window=60)
 def count():
     return handle_count_request(is_pixel=False)
 
@@ -667,30 +772,36 @@ def count():
 # API endpoint /signup?id=<id>
 ##
 @pixelcounterblue.route("/signup",
-                        methods=['POST', 'PUT'],
+                        methods=['GET', 'POST'],
                         endpoint='signup')
 @login_is_required
 def signup():
-    try:
-        if request.method == "POST":
-            name = request.form['name']
-            docRef = counter_ref.where('name', '==', name).limit(1).get()
+    counters = _get_accessible_counters()
+    selected_name = ''
+    result = None
+    error = None
 
-            # Check if the query returned any documents
-            if docRef:
-                # Get the first document from the query result
-                doc = docRef[0]
-                # Convert the document to a dictionary
-                output = f"{ doc.to_dict()['count'] }"
+    if request.method == 'POST':
+        selected_name = request.form.get('name', '').strip()
+        if not selected_name:
+            error = 'Please select a counter.'
+        else:
+            selected = next(
+                (counter for counter in counters if counter.get('name') == selected_name),
+                None,
+            )
+            if selected is None:
+                error = 'That counter does not exist or you do not have access to it.'
             else:
-                # Handle the case where no document is found
-                output = None
-            return render_template('signups.html', output=output)
-        return render_template('signups.html',
-                               output="No NRO name has been given")
-    except Exception as e:
-        return render_template('signups.html',
-                               output="An Error Occured: {}" + e)
+                result = selected
+
+    return render_template(
+        'signups.html',
+        counters=counters,
+        selected_name=selected_name,
+        result=result,
+        error=error,
+    )
 
 
 ##
@@ -732,6 +843,7 @@ def signups():
                         methods=['GET'],
                         endpoint='allowedlistadd')
 @login_is_required
+@admin_required
 def allowedlistadd():
     return render_template('allowedlistadd.html', **locals())
 
@@ -743,6 +855,7 @@ def allowedlistadd():
                         methods=['GET'],
                         endpoint='allowedlist')
 @login_is_required
+@admin_required
 def allowedlist():
     try:
         allowedlist = []
@@ -763,6 +876,7 @@ def allowedlist():
                         methods=['POST'],
                         endpoint='allowedlistcreate')
 @login_is_required
+@admin_required
 def allowedlistcreate():
     try:
         data = {
@@ -787,6 +901,7 @@ def allowedlistcreate():
                         methods=['POST', 'PUT'],
                         endpoint='allowedlistupdate')
 @login_is_required
+@admin_required
 def allowedlistupdate():
     try:
         id = request.form['id']
@@ -809,6 +924,7 @@ def allowedlistupdate():
                         methods=['GET'],
                         endpoint='allowedlistedit')
 @login_is_required
+@admin_required
 def allowedlistedit():
     try:
         allowedlists = []
@@ -829,9 +945,10 @@ def allowedlistedit():
 # API Enfpoint /delete?id=<id>
 #
 @pixelcounterblue.route("/allowedlistdelete",
-                        methods=['GET', 'DELETE'],
+                        methods=['POST', 'DELETE'],
                         endpoint='allowedlistdelete')
 @login_is_required
+@admin_required
 def allowedlistdelete():
     try:
         # Check for ID in URL query
@@ -849,6 +966,7 @@ def allowedlistdelete():
                         methods=['GET'],
                         endpoint='disallowedlistadd')
 @login_is_required
+@admin_required
 def disallowedlistadd():
     return render_template('disallowedlistadd.html', **locals())
 
@@ -861,6 +979,7 @@ def disallowedlistadd():
                         methods=['GET'],
                         endpoint='disallowedlist')
 @login_is_required
+@admin_required
 def disallowedlist():
     try:
         disallowedlist = []
@@ -881,10 +1000,10 @@ def disallowedlist():
                         methods=['POST'],
                         endpoint='disallowedlistcreate')
 @login_is_required
+@admin_required
 def disallowedlistcreate():
     try:
-        jwt_token = session.get('jwt_token')
-        decoded_data = jwt.decode(jwt_token, 'secret_key', algorithms=['HS256'])
+        decoded_data = get_user_data_from_token() or {}
 
         data = {
             u'name': request.form.get('name'),
@@ -910,6 +1029,7 @@ def disallowedlistcreate():
                         methods=['POST', 'PUT'],
                         endpoint='disallowedlistupdate')
 @login_is_required
+@admin_required
 def disallowedlistupdate():
     try:
         id = request.form['id']
@@ -930,6 +1050,7 @@ def disallowedlistupdate():
                         methods=['GET'],
                         endpoint='disallowedlistedit')
 @login_is_required
+@admin_required
 def disallowedlistedit():
     try:
         disallowedlists = []
@@ -950,9 +1071,10 @@ def disallowedlistedit():
 # API Enfpoint /delete?id=<id>
 #
 @pixelcounterblue.route("/disallowedlistdelete",
-                        methods=['GET', 'DELETE'],
+                        methods=['POST', 'DELETE'],
                         endpoint='disallowedlistdelete')
 @login_is_required
+@admin_required
 def disallowedlistdelete():
     try:
         # Check for ID in URL query
@@ -968,13 +1090,16 @@ def disallowedlistdelete():
 # API Enfpoint /delete?id=<id>
 #
 @pixelcounterblue.route("/delete",
-                        methods=['GET', 'DELETE'])
+                        methods=['POST', 'DELETE'])
 @login_is_required
 def delete():
     try:
         # Check for ID in URL query
         id = request.args.get('id')
-        counter_ref.document(id).delete()
+        doc_ref = counter_ref.document(id)
+        old_data = require_resource_access(doc_ref.get())
+        doc_ref.delete()
+        log_activity('deleted', 'pixel counter', id, old_data.get('name'))
         return jsonify({"success": True}), 200
     except Exception as e:
         return f"An Error Occured: {e}"
@@ -1022,10 +1147,20 @@ def create_counter():
             "user": data.get("user", ""),
             "uuid": data.get("uuid", "")
         }
-        counter_ref.document().set(record)
+        doc_ref = counter_ref.document(_counter_document_id(counter_name))
+        doc_ref.create(record)
+        log_activity(
+            'created',
+            'pixel counter',
+            doc_ref.id,
+            counter_name,
+            user=getattr(g, 'api_key_owner', 'API user'),
+        )
         return jsonify({
             "message": "Counter created successfully",
             "counter_name": counter_name
         }), 201
+    except AlreadyExists:
+        return jsonify({"error": "Counter ID already exists"}), 409
     except Exception as e:
         return jsonify({"error": f"An error occurred: {e}"}), 500

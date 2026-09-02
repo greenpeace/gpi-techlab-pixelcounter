@@ -54,11 +54,16 @@
               <td>{{ ngo.campaign }}</td>
               <td><b>/count?id={{ ngo.name }}</b></td>
               <td>
+                {% if ngo.can_manage %}
                 <a class="btn btn-sm btn-success" href="/listedit?id={{ ngo.id }}" onclick="showSpinner(this)"
                   title="Edit"><i class="glyphicon glyphicon-pencil"></i> Edit</a>
-                <a class="btn btn-sm btn-danger" href="/listdelete?id={{ ngo.id }}"
-                  onclick="if(confirm('Are you sure you want to delete this counter?')) { showSpinner(this); return true; } else { return false; }"
-                  title="Delete"><i class="glyphicon glyphicon-trash"></i> Delete</a>
+                <form action="{{ url_for('pixelcounterblue.listdelete', id=ngo.id) }}" method="post" class="d-inline"
+                  onsubmit="return confirm('Are you sure you want to delete this counter?');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn btn-sm btn-danger" type="submit" title="Delete"><i
+                      class="glyphicon glyphicon-trash"></i> Delete</button>
+                </form>
+                {% endif %}
               </td>
             </tr>
             {% endfor %}

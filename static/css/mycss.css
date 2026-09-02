@@ -38,3 +38,158 @@
 }
 
 /* End of overrides */
+
+/* Sidebar application branding */
+.site_title.site-brand {
+    align-items: center;
+    display: flex !important;
+    gap: 10px;
+    padding: 0 14px !important;
+}
+
+.site-brand-logo {
+    display: block;
+    flex: 0 0 30px;
+    height: 30px;
+    object-fit: contain;
+    width: 30px;
+}
+
+.site_title.site-brand span {
+    color: #fff;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.nav-sm .site_title.site-brand {
+    gap: 0;
+    justify-content: center;
+    padding: 0 7px !important;
+}
+
+.nav-sm .site-brand-logo {
+    height: 30px;
+    margin: 0 !important;
+    width: 30px;
+}
+.signup-page {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 52px 28px;
+}
+
+.signup-header {
+  margin-bottom: 28px;
+}
+
+.signup-header h1 {
+  margin: 4px 0 10px;
+  color: #29445b;
+  font-size: clamp(2rem, 5vw, 3.4rem);
+  font-weight: 700;
+}
+
+.signup-header p {
+  color: #68839a;
+  font-size: 1.1rem;
+}
+
+.signup-kicker {
+  color: #4f9b00 !important;
+  font-size: .78rem !important;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.signup-panel {
+  padding: 30px;
+  border: 1px solid #dce5eb;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 12px 35px rgba(41, 68, 91, .08);
+}
+
+.signup-form label {
+  display: block;
+  margin-bottom: 8px;
+  color: #29445b;
+  font-weight: 600;
+}
+
+.signup-controls {
+  display: flex;
+  gap: 12px;
+}
+
+.signup-controls select {
+  min-width: 0;
+  flex: 1;
+  padding: 11px 13px;
+  border: 1px solid #b9c8d2;
+  border-radius: 6px;
+  background: #fff;
+  color: #29445b;
+}
+
+.signup-result {
+  display: grid;
+  justify-items: center;
+  margin-top: 28px;
+  padding: 34px 20px;
+  border-radius: 10px;
+  background: #f3f8fb;
+  color: #68839a;
+}
+
+.signup-result strong {
+  color: #29445b;
+  font-size: clamp(3rem, 10vw, 5.5rem);
+  line-height: 1.1;
+}
+
+.signup-result-label {
+  color: #4f9b00;
+  font-weight: 700;
+}
+
+.signup-message {
+  margin-top: 22px;
+  padding: 14px 16px;
+  border-radius: 6px;
+  background: #eef4f7;
+  color: #29445b;
+}
+
+.signup-error {
+  background: #fbeaec;
+  color: #8d2635;
+}
+
+@media (max-width: 640px) {
+  .signup-controls {
+    flex-direction: column;
+  }
+}
+.docs-page { max-width: 1180px; margin: 0 auto; padding: 48px 28px 72px; }
+.docs-hero { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 38px; }
+.docs-hero h1 { margin: 4px 0 10px; color: #29445b; font-size: clamp(2.2rem, 5vw, 3.7rem); font-weight: 700; }
+.docs-hero p { max-width: 720px; color: #68839a; font-size: 1.08rem; }
+.docs-kicker { margin: 0 !important; color: #4f9b00 !important; font-size: .78rem !important; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.docs-layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 42px; }
+.docs-nav { position: sticky; top: 24px; align-self: start; display: grid; gap: 4px; padding: 20px; border-left: 3px solid #66cc00; background: #f3f8fb; }
+.docs-nav strong { color: #29445b; margin-bottom: 8px; }
+.docs-nav a { padding: 6px 0; color: #58758d; }
+.docs-content { overflow: hidden; border: 1px solid #dce5eb; border-radius: 12px; background: #fff; box-shadow: 0 12px 35px rgba(41, 68, 91, .07); }
+.docs-content section { padding: 28px 32px; scroll-margin-top: 24px; }
+.docs-content section + section { border-top: 1px solid #e4ebef; }
+.docs-content h2 { margin: 0 0 14px; color: #29445b; font-weight: 650; }
+.docs-body { color: #49677e; line-height: 1.75; white-space: pre-wrap; }
+.docs-editor { display: grid; gap: 10px; padding: 30px; border: 1px solid #dce5eb; border-radius: 12px; background: #fff; box-shadow: 0 12px 35px rgba(41, 68, 91, .07); }
+.docs-editor label { margin-top: 10px; color: #29445b; font-weight: 650; }
+.docs-editor input, .docs-editor textarea { width: 100%; padding: 11px 13px; border: 1px solid #b9c8d2; border-radius: 6px; color: #29445b; }
+.docs-editor textarea { resize: vertical; font-family: inherit; line-height: 1.55; }
+#docs-content { font-family: Menlo, Monaco, Consolas, monospace; font-size: .9rem; }
+.docs-editor-actions { display: flex; gap: 10px; margin-top: 18px; }
+.docs-alert { margin-bottom: 18px; padding: 13px 16px; border-radius: 6px; background: #edf7e5; color: #315e08; }
+@media (max-width: 760px) { .docs-hero { flex-direction: column; } .docs-layout { grid-template-columns: 1fr; } .docs-nav { position: static; } }

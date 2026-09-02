@@ -27,6 +27,8 @@ steps:
       - europe-north1
       - --platform
       - managed
+      - --set-env-vars
+      - IS_PRODUCTION=true,IS_PRODUCTION_DB=false
       - --quiet
 
 images:

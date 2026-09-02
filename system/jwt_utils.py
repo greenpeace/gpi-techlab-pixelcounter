@@ -1,15 +1,30 @@
 import jwt
-from flask import session
+from datetime import datetime, timedelta, timezone
+from flask import current_app, session
 
 
 def generate_jwt_token(user_data):
-    jwt_token = jwt.encode(user_data, 'secret_key', algorithm='HS256')
-    return jwt_token
+    now = datetime.now(timezone.utc)
+    claims = dict(user_data)
+    claims.update({
+        'iat': now,
+        'exp': now + timedelta(minutes=30),
+        'iss': 'pixelcounter',
+        'aud': 'pixelcounter-web',
+    })
+    return jwt.encode(claims, current_app.config['JWT_SECRET'], algorithm='HS256')
 
 
 def decode_jwt_token(token):
     try:
-        decoded_data = jwt.decode(token, 'secret_key', algorithms=['HS256'])
+        decoded_data = jwt.decode(
+            token,
+            current_app.config['JWT_SECRET'],
+            algorithms=['HS256'],
+            audience='pixelcounter-web',
+            issuer='pixelcounter',
+            options={'require': ['exp', 'iat', 'iss', 'aud']},
+        )
         return decoded_data
     except jwt.ExpiredSignatureError:
         # Handle expired token

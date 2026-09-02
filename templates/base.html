@@ -38,10 +38,10 @@
     <!-- Custom Theme Style -->
     <link href="{{ url_for('static', filename='css/custom.min.css') }}" rel="stylesheet">
     <!-- Custom my css Style -->
-    <link href="{{ url_for('static', filename='css/mycss.css') }}">
+    <link href="{{ url_for('static', filename='css/mycss.css') }}" rel="stylesheet">
 
     <link rel="manifest" href="/manifest.json">
-    <script nonce="{{ nonce }}">
+    <script nonce="{{ g.nonce }}">
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function () {
                 navigator.serviceWorker.register("/sw.js").then(function (registration) {
@@ -74,9 +74,10 @@
             <div class="col-md-3 left_col">
                 <div class="left_col scroll-view">
                     <div class="navbar nav_title border-0">
-                        <a href="{{ url_for('dashboardblue.main') }}" class="site_title flex items-center space-x-2">
-                            <i class="fa fa-paw text-white"></i>
-                            <span class="text-white font-semibold">Counter App</span>
+                        <a href="{{ url_for('dashboardblue.main') }}" class="site_title site-brand">
+                            <img src="{{ url_for('static', filename='images/greenpeace-g.png') }}"
+                                alt="" class="site-brand-logo">
+                            <span>Counter App</span>
                         </a>
                     </div>
 

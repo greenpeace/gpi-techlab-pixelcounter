@@ -80,12 +80,13 @@ A pixel-based API app for CRUD counters, duplicate-safe petition/form tracking, 
 ## Create a counter through the API
 
 Send a `POST` request to `/api/createcounter`. Supply the API key in the
-`apikey` query parameter (or the `X-API-Key` header) and supply the counter
+`X-API-Key` header and supply the counter
 fields as a JSON request body.
 
 ```bash
 curl --request POST \
-  'http://localhost:8080/api/createcounter?apikey=<apikey>' \
+  'http://localhost:8080/api/createcounter' \
+  --header 'X-API-Key: <apikey>' \
   --header 'Content-Type: application/json' \
   --data '{
     "name": "gpaotest3",
@@ -157,12 +158,14 @@ This is an API driven pixel approach based on the CRUD API concept.
 | No API key | Returns **"Missing API key"** |
 | API key included in request | Bypasses origin/IP restrictions |
 
-You can pass API keys via:
-- `apikey` query parameter
-- `X-API-Key` request header
+Pass API keys using the `X-API-Key` request header. Query-string API keys are
+not accepted because URLs are commonly retained in browser, proxy, and access logs.
 
 Example:
-http://localhost:8080/count_pixel?id=<counter>&email_hash=<hash>&apikey=<apikey>
+```bash
+curl 'http://localhost:8080/count_pixel?id=<counter>&email_hash=<hash>' \
+  --header 'X-API-Key: <apikey>'
+```
 
 
 ###
@@ -360,8 +363,14 @@ git push origin v0.34.0
 
 Cloud Build builds and pushes the images to the existing Artifact Registry
 repositories in `europe-north1`, then deploys them to the corresponding Cloud
-Run service. The older `cloudbuild.yaml` is retained for reference but targets
-the legacy `eu.gcr.io` registry and should not be selected by either trigger.
+Run service. The obsolete configuration that targeted the legacy `eu.gcr.io`
+registry has been removed.
+
+API and public counter rate limits are stored in `api_rate_limits-test` for
+test and `api_rate_limits` for production. Enable a Firestore TTL policy on
+the `expires_at` field of both collections so expired documents are removed
+automatically. The Cloud Build files explicitly set `IS_PRODUCTION_DB=false`
+for test and `IS_PRODUCTION_DB=true` for production.
 
 # Push To Multiple Git Repositories
 

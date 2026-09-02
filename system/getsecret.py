@@ -34,6 +34,13 @@ def _load_config_from_secret(secret_name, project_id):
 
 
 def getsecrets(secret_name, project_id=None):
+    # Environment overrides make local/test startup deterministic while Cloud
+    # Run continues to use Secret Manager by default.
+    environment_name = f"PIXELCOUNTER_SECRET_{secret_name.upper().replace('-', '_')}"
+    environment_value = os.getenv(environment_name)
+    if environment_value is not None:
+        return environment_value
+
     if not project_id:
         project_id = os.getenv('GOOGLE_CLOUD_PROJECT')
 

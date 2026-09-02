@@ -1,18 +1,195 @@
-.wd-xl{
-    width: 428px;
-  }
+:root {
+  --login-navy: #06102f;
+  --login-slate: #294158;
+  --login-muted: #6f8192;
+  --login-green: #66cc00;
+  --login-border: #dce4e8;
+}
 
-  .block-center { margin: 0 auto; }
+* { box-sizing: border-box; }
 
-  .bg {
-    /* The image used */
-    background-image: url("/static/images/greenpeace-espy.jpg");
-    background-size: 100% 100%;
-    width: 100%;
-    height: 110vh;
+body.login-page {
+  background: #f5f8fa;
+  color: var(--login-slate);
+  display: flex;
+  flex-direction: column;
+  font-family: "Work Sans", Arial, sans-serif;
+  margin: 0;
+  min-height: 100vh;
+}
 
-    /* Center and scale the image nicely */
-    background-position: center;
-    background-repeat: no-repeat;
-    background-size: cover;
-  }
+.login-header {
+  align-items: center;
+  background: var(--login-green);
+  display: flex;
+  justify-content: space-between;
+  min-height: 92px;
+  padding: 17px clamp(24px, 7vw, 110px);
+}
+
+.login-brand img {
+  display: block;
+  height: auto;
+  max-width: 185px;
+}
+
+.home-link {
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 999px;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 10px 17px;
+  text-decoration: none;
+  transition: background-color 160ms ease, border-color 160ms ease;
+}
+
+.home-link:hover,
+.home-link:focus {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: #fff;
+}
+
+.login-main {
+  align-items: center;
+  display: flex;
+  flex: 1;
+  justify-content: center;
+  padding: 54px 24px;
+}
+
+.login-card {
+  background: #fff;
+  border: 1px solid var(--login-border);
+  box-shadow: 0 20px 55px rgba(23, 45, 65, 0.1);
+  display: grid;
+  grid-template-columns: minmax(300px, 0.9fr) minmax(360px, 1.1fr);
+  max-width: 980px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.login-copy {
+  align-self: center;
+  padding: clamp(36px, 6vw, 72px);
+}
+
+.login-eyebrow {
+  color: #338400;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  margin: 0 0 10px;
+  text-transform: uppercase;
+}
+
+.login-copy h1 {
+  color: var(--login-slate);
+  font-size: clamp(2.15rem, 5vw, 3.15rem);
+  letter-spacing: -0.04em;
+  line-height: 1;
+  margin: 0 0 20px;
+}
+
+.login-intro,
+.login-help {
+  color: var(--login-muted);
+  line-height: 1.6;
+}
+
+.login-intro { margin: 0 0 30px; }
+.login-help { font-size: 0.78rem; margin: 14px 0 0; }
+
+.provider-button {
+  align-items: center;
+  background: #fff;
+  border: 1px solid #bfcbd4;
+  border-radius: 5px;
+  box-shadow: 0 2px 5px rgba(25, 45, 65, 0.08);
+  color: #263f56;
+  display: flex;
+  font-size: 0.96rem;
+  font-weight: 600;
+  gap: 13px;
+  justify-content: center;
+  min-height: 52px;
+  padding: 10px 18px;
+  text-decoration: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  width: 100%;
+}
+
+.provider-button:hover,
+.provider-button:focus {
+  border-color: #7b909f;
+  box-shadow: 0 6px 15px rgba(25, 45, 65, 0.13);
+  transform: translateY(-1px);
+}
+
+.google-mark {
+  align-items: center;
+  border: 1px solid var(--login-border);
+  border-radius: 50%;
+  color: #4285f4;
+  display: inline-flex;
+  font-family: Arial, sans-serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  height: 29px;
+  justify-content: center;
+  width: 29px;
+}
+
+.login-alert {
+  background: #fff2f2;
+  border-left: 3px solid #c83d4b;
+  color: #8c2934;
+  font-size: 0.88rem;
+  margin-bottom: 22px;
+  padding: 12px 14px;
+}
+
+.login-alert p { margin: 0; }
+
+.login-visual {
+  align-items: center;
+  background: #07172a;
+  display: flex;
+  justify-content: center;
+  min-height: 520px;
+  overflow: hidden;
+  position: relative;
+}
+
+.login-visual::after {
+  background: var(--login-green);
+  bottom: 0;
+  content: "";
+  height: 7px;
+  left: 0;
+  position: absolute;
+  right: 0;
+}
+
+.login-visual img {
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  width: 100%;
+}
+
+.login-footer {
+  color: #788a98;
+  display: flex;
+  font-size: 0.78rem;
+  justify-content: space-between;
+  padding: 19px clamp(24px, 7vw, 110px);
+}
+
+@media (max-width: 760px) {
+  .login-card { grid-template-columns: 1fr; }
+  .login-visual { display: none; }
+  .login-header { min-height: 76px; }
+  .login-brand img { max-width: 145px; }
+  .login-copy { padding: 40px 28px; }
+}

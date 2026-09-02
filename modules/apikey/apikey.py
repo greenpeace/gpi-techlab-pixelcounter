@@ -1,22 +1,21 @@
 # modules/apikey/apikey.py
 import secrets
+import hashlib
 from datetime import datetime
 from flask import (
     Blueprint, render_template, request, session,
-    redirect, url_for, jsonify, current_app
+    redirect, url_for, jsonify
 )
-import jwt
 from modules.auth.auth import login_is_required
+from modules.auth.auth import admin_required
 from system.firstoredb import apikeys_ref, users_ref
+from system.jwt_utils import decode_jwt_token
 
 apikeyblue = Blueprint(
     "apikeyblue",
     __name__,
     template_folder="templates"
 )
-
-JWT_SECRET = current_app.config.get("JWT_SECRET", "secret_key") if current_app else "secret_key"
-
 
 def generate_api_key(length=32):
     """Generate a 12-character hex API key."""
@@ -28,9 +27,8 @@ def _get_decoded_jwt():
     if not jwt_token:
         return None
     try:
-        decoded = jwt.decode(jwt_token, JWT_SECRET, algorithms=["HS256"])
-        return decoded
-    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
+        return decode_jwt_token(jwt_token)
+    except Exception:
         return None
 
 
@@ -78,7 +76,10 @@ def apikey_list():
              
         api_keys.append({
             "id": doc.id,
-            "api_key": d.get("api_key"),
+            "api_key": (
+                f"{d.get('key_prefix', '')}..." if d.get('api_key_hash')
+                else f"{d.get('api_key', '')[:6]}...{d.get('api_key', '')[-4:]}"
+            ),
             "created_at": d.get("created_at"),
             "user_uuid": owner_uuid,
             "user_name": display_name,
@@ -107,7 +108,8 @@ def generateapikey():
         now = datetime.utcnow()
 
         apikeys_ref.document().set({
-            "api_key": api_key,
+            "api_key_hash": hashlib.sha256(api_key.encode('utf-8')).hexdigest(),
+            "key_prefix": api_key[:6],
             "created_at": now,
             "user_uuid": user_uuid,
             "active": True
@@ -145,8 +147,7 @@ def toggle_apikey(key_id):
     # optional: ensure only owner (or admin) can toggle
     owner_uuid = data.get("user_uuid")
     # If you have admin role check, add it here. For now only owner can toggle.
-    if owner_uuid != user_uuid:
-        # If you want admins to toggle, check decoded['role'] etc.
+    if owner_uuid != user_uuid and decoded.get('role') != 'Administrator':
         return jsonify({"success": False, "error": "Forbidden"}), 403
 
     current = data.get("active", True)
@@ -172,9 +173,15 @@ def delete_apikey(key_id):
     if not decoded:
         return jsonify({"success": False, "error": "Unauthorized"}), 403
 
-    # Delete the api key directly without ownership check as requested
     try:
-        apikeys_ref.document(key_id).delete()
+        doc_ref = apikeys_ref.document(key_id)
+        doc = doc_ref.get()
+        if not doc.exists:
+            return jsonify({"success": False, "error": "Not found"}), 404
+        data = doc.to_dict() or {}
+        if decoded.get('role') != 'Administrator' and data.get('user_uuid') != decoded.get('uuid'):
+            return jsonify({"success": False, "error": "Forbidden"}), 403
+        doc_ref.delete()
         return jsonify({"success": True})
     except Exception as e:
         return jsonify({"success": False, "error": f"Failed to delete: {e}"}), 500

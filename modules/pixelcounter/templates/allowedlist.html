@@ -48,8 +48,7 @@
               <td>
                 <a class="btn btn-sm btn-success" href="/allowedlistedit?id={{ ngo.id }}" title="Edit"><i
                     class="glyphicon glyphicon-pencil"></i> Edit</a>
-                <a class="btn btn-sm btn-danger" href="/allowedlistdelete?id={{ ngo.id }}" title="Delete"><i
-                    class="glyphicon glyphicon-pencil"></i> Delete</a>
+                <form action="{{ url_for('pixelcounterblue.allowedlistdelete', id=ngo.id) }}" method="post" class="d-inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-danger" type="submit"><i class="glyphicon glyphicon-trash"></i> Delete</button></form>
               </td>
             </tr>
             {% endfor %}
