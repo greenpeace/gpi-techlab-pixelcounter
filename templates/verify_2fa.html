@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/fonts.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/login.css') }}">
+  <title>Verify your identity | Counter App</title>
+</head>
+<body class="login-page">
+  <header class="login-header">
+    <span class="login-brand"><img src="{{ url_for('static', filename='images/greenpeace.png') }}" alt="Greenpeace"></span>
+    <a href="{{ url_for('authsblue.logout') }}" class="home-link">Cancel</a>
+  </header>
+  <main class="login-main">
+    <section class="login-card login-card-compact" aria-labelledby="two-factor-title">
+      <div class="login-copy">
+        <p class="login-eyebrow">Counter App</p>
+        <h1 id="two-factor-title">Two-factor verification</h1>
+        <p class="login-intro">Enter the six-digit code from your authenticator app, or use one of your recovery codes.</p>
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}<div class="login-alert" role="alert">{% for message in messages %}<p>{{ message }}</p>{% endfor %}</div>{% endif %}
+        {% endwith %}
+        <form method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label for="token">Authentication code</label>
+          <input id="token" name="token" class="login-code-input" inputmode="numeric" autocomplete="one-time-code" required autofocus>
+          <button class="provider-button two-factor-submit" type="submit">Verify and continue</button>
+        </form>
+        <p class="login-help">Signing in as {{ account_email }}</p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

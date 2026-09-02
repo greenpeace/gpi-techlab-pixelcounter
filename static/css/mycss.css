@@ -195,6 +195,10 @@
 @media (max-width: 760px) { .docs-hero { flex-direction: column; } .docs-layout { grid-template-columns: 1fr; } .docs-nav { position: static; } }
 .version-item { display: flex; align-items: center; min-height: 58px; }
 .version-badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border: 1px solid #d8e1e7; border-radius: 999px; background: #fff; color: #58758d; font-size: 12px; font-weight: 600; }
+.top_nav .navbar-right { display: flex; align-items: center; justify-content: flex-end; }
+.topbar-profile-item { display: flex; align-items: center; min-height: 58px; padding-left: 14px; }
+.topbar-profile-item .user-profile { display: inline-flex; align-items: center; gap: 8px; }
+.topbar-profile-item .user-profile img { width: 34px; height: 34px; margin: 0; border-radius: 50%; object-fit: cover; background: #fff; }
 .provider-button-secondary { margin-top: 10px; background: #fff; color: #29445b; border: 1px solid #ccd8df; }
 .provider-mark { display: inline-flex; min-width: 28px; height: 28px; align-items: center; justify-content: center; border-radius: 5px; background: #29445b; color: #fff; font-size: 11px; font-weight: 700; }
 .admin-config-page { max-width: 850px; margin: 0 auto; padding: 48px 28px; }
@@ -210,3 +214,32 @@
 .provider-setting small { color: #68839a; font-weight: 400; }
 .provider-setting input { width: 21px; height: 21px; accent-color: #5cba00; }
 .admin-config-actions { display: flex; gap: 10px; padding: 22px 26px; border-top: 1px solid #e4ebef; background: #f7fafb; }
+.two-factor-qr {
+  border: 1px solid #dce4e8;
+  height: auto;
+  max-width: 260px;
+  width: 100%;
+}
+
+.two-factor-secret {
+  background: #f4f7f8;
+  display: inline-block;
+  font-size: 1rem;
+  letter-spacing: .08em;
+  overflow-wrap: anywhere;
+  padding: .75rem 1rem;
+}
+
+.two-factor-codes {
+  background: #f4f7f8;
+  display: grid;
+  gap: .55rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: 420px;
+  padding: 1rem;
+}
+
+.two-factor-codes code {
+  color: #294158;
+  font-size: 1rem;
+}

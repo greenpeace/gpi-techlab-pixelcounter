@@ -1,36 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Greenpeace Counter App for campaign counters, QR codes and short links.">
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/fonts.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
+  <title>Counter App | Greenpeace</title>
+</head>
+<body>
+  <header class="landing-header">
+    <a class="landing-brand" href="{{ url_for('frontpageblue.index') }}" aria-label="Counter App home">
+      <img src="{{ url_for('static', filename='images/greenpeace-g.png') }}" alt="">
+      <span>Counter App</span>
+    </a>
+    <nav aria-label="Main navigation">
+      <a href="#tools">Tools</a>
+      {% if session.get('jwt_token') %}
+        <a class="landing-login" href="{{ url_for('dashboardblue.main') }}">Open dashboard</a>
+      {% else %}
+        <a class="landing-login" href="{{ url_for('authsblue.login') }}">Sign in</a>
+      {% endif %}
+    </nav>
+  </header>
 
-{% include "frontheader.html" %}
-
-<!--hero section start-->
-
-<section class="custom-pt-1 custom-pb-2 position-relative bg-primary">
-  <div class="container">
-    <div class="row justify-content-center text-center">
-      <div class="col-12 col-lg-10">
-        <!-- Heading -->
-        <h4 class="text-white">Join <span class="typer text-white" data-words="Greenpeace" ></span>
-        <span style="font-size:1.2em;vertical-align:middle;" class="cursor" data-cursorDisplay="|" data-owner="some-id"></span></h4>
-        <h1 class="display-4 mt-3 font-w-5 text-white">Engage, Connect, Innovate, Join Force<br> for a sustainable future.</h1>
-        <!-- Text -->
-        <p class="lead text-light">Be part of the solution to climate change and help protect our planet by engaging with the latest Greenpeace advancements.</p>
-        <!-- Buttons
-        <a href="http://vimeo.com/99025203" class="btn text-white popup-vimeo me-1"> <i class="la la-play-circle me-1 ic-3x align-middle line-h-0"></i> Watch Video</a>
-         <a href="#" class="btn btn-dark">Learn More</a>
-        -->
+  <main>
+    <section class="landing-hero">
+      <div class="landing-hero-copy">
+        <p class="landing-kicker">Greenpeace campaign tools</p>
+        <h1>Turn every action into measurable impact.</h1>
+        <p class="landing-lead">Create reliable counters, campaign QR codes and memorable short links from one secure workspace.</p>
+        <div class="landing-actions">
+          {% if session.get('jwt_token') %}
+            <a class="landing-primary" href="{{ url_for('dashboardblue.main') }}">Go to dashboard <span aria-hidden="true">→</span></a>
+          {% else %}
+            <a class="landing-primary" href="{{ url_for('authsblue.login') }}">Sign in to Counter App <span aria-hidden="true">→</span></a>
+          {% endif %}
+          <a class="landing-secondary" href="#tools">Explore the tools</a>
+        </div>
+        <div class="landing-trust">
+          <span><i aria-hidden="true">✓</i> Protected access</span>
+          <span><i aria-hidden="true">✓</i> Activity tracking</span>
+          <span><i aria-hidden="true">✓</i> Built for campaigns</span>
+        </div>
       </div>
+      <div class="landing-hero-image">
+        <img src="{{ url_for('static', filename='images/greenpeace-espy.jpg') }}" alt="Greenpeace ship at sea">
+        <div class="landing-image-note">
+          <strong>One workspace</strong>
+          <span>From campaign link to measurable action</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="landing-tools" id="tools" aria-labelledby="tools-title">
+      <div class="landing-section-heading">
+        <div>
+          <p class="landing-kicker">Everything in one place</p>
+          <h2 id="tools-title">Simple tools for digital campaigning</h2>
+        </div>
+        <p>Manage campaign touchpoints without switching between separate systems.</p>
+      </div>
+      <div class="landing-card-grid">
+        <article class="landing-tool-card">
+          <span class="landing-tool-number">01</span>
+          <div class="landing-tool-icon" aria-hidden="true">↗</div>
+          <h3>Pixel Counters</h3>
+          <p>Track campaign actions with counters that are easy to create, share and monitor.</p>
+        </article>
+        <article class="landing-tool-card">
+          <span class="landing-tool-number">02</span>
+          <div class="landing-tool-icon landing-tool-qr" aria-hidden="true"></div>
+          <h3>QR Codes</h3>
+          <p>Connect printed campaign materials to digital destinations with managed QR codes.</p>
+        </article>
+        <article class="landing-tool-card">
+          <span class="landing-tool-number">03</span>
+          <div class="landing-tool-icon" aria-hidden="true">⌁</div>
+          <h3>URL Shortener</h3>
+          <p>Create recognizable short links that are easier to publish, remember and maintain.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="landing-cta">
+      <div>
+        <p class="landing-kicker">Ready when you are</p>
+        <h2>Bring your next campaign into focus.</h2>
+      </div>
+      <a href="{{ url_for('authsblue.login') if not session.get('jwt_token') else url_for('dashboardblue.main') }}">
+        {{ 'Sign in securely' if not session.get('jwt_token') else 'Open dashboard' }} <span aria-hidden="true">→</span>
+      </a>
+    </section>
+  </main>
+
+  <footer class="landing-footer">
+    <div class="landing-footer-brand">
+      <img src="{{ url_for('static', filename='images/greenpeace.png') }}" alt="Greenpeace">
+      <span>Counter App</span>
     </div>
-  <div class="shape-1 bottom" style="height: 200px; overflow: hidden;">
-    <svg viewBox="0 0 500 150" preserveAspectRatio="none" style="height: 100%; width: 100%;">
-      <path d="M0.00,49.98 C150.00,150.00 349.20,-50.00 500.00,49.98 L500.00,150.00 L0.00,150.00 Z" style="stroke: none; fill: #060927;"></path>
-    </svg>
-  </div>
-</section>
-
-
-
-</div>
-
-<!--body content end--> 
-
-
-{% include "frontfooter.html" %}
+    <p>&copy; {{ now().year }} Greenpeace. Internal campaign platform.</p>
+  </footer>
+</body>
+</html>

@@ -10,13 +10,14 @@
                 </div>
                 <div class="card-body">
                     <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="mb-3">
                             <label for="given_name" class="form-label">First Name</label>
                             <input type="text" class="form-control" id="given_name" name="given_name" value="{{ user.given_name }}">
                         </div>
                         <div class="mb-3">
-                            <label for="last_name" class="form-label">Last Name</label>
-                            <input type="text" class="form-control" id="last_name" name="last_name" value="{{ user.last_name }}">
+                            <label for="family_name" class="form-label">Last Name</label>
+                            <input type="text" class="form-control" id="family_name" name="family_name" value="{{ user.get('family_name', user.get('last_name', '')) }}" required>
                         </div>
                         <div class="mb-3">
                             <label for="email" class="form-label">Email</label>
@@ -37,8 +38,13 @@
                 </div>
                 <div class="card-body">
                     {% if user.totp_enabled %}
-                        <p>2FA is currently enabled for your account.</p>
-                        <a href="{{ url_for('usersblue.disable_2fa') }}" class="btn btn-warning">Disable 2FA</a>
+                        <p>2FA is enabled. Enter a current authenticator code or one of your recovery codes to disable it.</p>
+                        <form action="{{ url_for('usersblue.disable_2fa') }}" method="post" class="form-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <label class="sr-only" for="disable-2fa-token">Authentication code</label>
+                            <input id="disable-2fa-token" name="token" class="form-control mr-2" autocomplete="one-time-code" inputmode="numeric" required placeholder="Authentication code">
+                            <button type="submit" class="btn btn-warning">Disable 2FA</button>
+                        </form>
                     {% else %}
                         <p>2FA is currently disabled for your account.</p>
                         <a href="{{ url_for('usersblue.enable_2fa') }}" class="btn btn-success">Enable 2FA</a>
@@ -49,4 +55,3 @@
     </div>
 </div>
 {% endblock content %}
-

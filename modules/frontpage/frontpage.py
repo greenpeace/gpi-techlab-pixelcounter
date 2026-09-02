@@ -25,20 +25,6 @@ frontpageblue = Blueprint('frontpageblue', __name__,
 def index():
     return render_template('landing.html', **locals())
 
-#
-# About Us Page
-#
-
-
-@frontpageblue.route("/aboutus")
-def aboutus():
-    return render_template('aboutus.html', **locals())
-
-#
-# API Route Default displays a webpage
-#
-
-
 @frontpageblue.route("/contactus")
 def contactus():
     return render_template('contactus.html', **locals())

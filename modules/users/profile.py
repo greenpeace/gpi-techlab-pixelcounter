@@ -12,6 +12,8 @@ from flask import (
 from system.firstoredb import users_ref
 from modules.auth.auth import login_is_required
 from modules.auth.auth import get_user_data_from_token
+from system.activity import log_activity
+import logging
 
 profileblue = Blueprint('profileblue',
                         __name__,
@@ -34,17 +36,27 @@ def user_profile():
         user_doc = users_ref.document(user_data['google_id']).get().to_dict()
 
         if request.method == 'POST':
+            given_name = request.form.get('given_name', '').strip()
+            family_name = request.form.get('family_name', '').strip()
+            if not given_name or not family_name:
+                flash('First name and last name are required.', 'error')
+                return redirect(url_for('profileblue.user_profile'))
+
             # Update user profile
             updates = {
-                'given_name': request.form.get('given_name'),
-                'last_name': request.form.get('last_name'),
-                'phone': request.form.get('phone')
+                'given_name': given_name,
+                'family_name': family_name,
+                'name': f'{given_name} {family_name}',
+                'user': f'{given_name} {family_name}',
+                'phone': request.form.get('phone', '').strip()
             }
             users_ref.document(user_data['google_id']).update(updates)
+            log_activity('updated', 'user profile', user_data['google_id'], updates['name'])
             flash('Profile updated successfully.', 'success')
             return redirect(url_for('profileblue.user_profile'))
 
         return render_template('profile.html', user=user_doc,
                                nonce=nonce)
-    except Exception as e:
-        return f"An Error Occured: {e}"
+    except Exception:
+        logging.exception('Unable to load or update user profile')
+        return render_template('500.html'), 500

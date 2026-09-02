@@ -16,6 +16,8 @@ import qrcode
 import io
 import base64
 import logging
+import hashlib
+import secrets
 
 # Firestore
 from google.cloud import firestore
@@ -120,33 +122,42 @@ def users_create():
 @usersblue.route('/enable-2fa',
                  endpoint='enable_2fa')
 @login_is_required
-@admin_required
 def enable_2fa():
     user_data = get_user_data_from_token()
-    user_doc = users_ref.document(user_data['google_id']).get().to_dict()
+    user_doc = users_ref.document(user_data['google_id']).get().to_dict() or {}
 
-    if not user_doc.get('totp_enabled', False):
-        totp_secret = pyotp.random_base32()
-        users_ref.document(user_data['google_id']).update({'totp_secret': totp_secret})
+    if user_doc.get('totp_enabled', False):
+        flash('Two-factor authentication is already enabled.', 'info')
+        return redirect(url_for('profileblue.user_profile'))
 
-        totp = pyotp.TOTP(totp_secret)
-        totp_uri = totp.provisioning_uri(user_data['email'], issuer_name="YourAppName")
+    # Keep unverified setup material in the signed session. Nothing is enabled in
+    # Firestore until the user proves that their authenticator is configured.
+    totp_secret = session.get('pending_totp_secret') or pyotp.random_base32()
+    recovery_codes = session.get('pending_totp_recovery_codes')
+    if not recovery_codes:
+        recovery_codes = [
+            f'{secrets.token_hex(2).upper()}-{secrets.token_hex(2).upper()}'
+            for _ in range(10)
+        ]
+    session['pending_totp_secret'] = totp_secret
+    session['pending_totp_recovery_codes'] = recovery_codes
 
-        # Generate QR code
-        qr = qrcode.QRCode(version=1, box_size=10, border=5)
-        qr.add_data(totp_uri)
-        qr.make(fit=True)
-        img = qr.make_image(fill_color="black", back_color="white")
+    totp_uri = pyotp.TOTP(totp_secret).provisioning_uri(
+        user_data['email'], issuer_name='Greenpeace Counter App'
+    )
+    qr = qrcode.QRCode(version=1, box_size=8, border=4)
+    qr.add_data(totp_uri)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color='black', back_color='white')
 
-        # Convert image to base64 for displaying in HTML
-        buffered = io.BytesIO()
-        img.save(buffered)
-        img_str = base64.b64encode(buffered.getvalue()).decode()
+    buffered = io.BytesIO()
+    img.save(buffered)
+    img_str = base64.b64encode(buffered.getvalue()).decode()
 
-        return render_template('enable_2fa.html', qr_code=img_str, secret=totp_secret)
-    else:
-        flash('2FA is already enabled for your account.', 'info')
-        return redirect(url_for('usersblue.user_profile'))
+    return render_template(
+        'enable_2fa.html', qr_code=img_str, secret=totp_secret,
+        recovery_codes=recovery_codes, account_email=user_data['email']
+    )
 
 #
 # the enable 2fa
@@ -157,24 +168,65 @@ def enable_2fa():
                  methods=['POST'],
                  endpoint='verify_enable_2fa')
 @login_is_required
-@admin_required
 def verify_enable_2fa():
     user_data = get_user_data_from_token()
     user_doc_ref = users_ref.document(user_data['google_id'])
-    user_doc = user_doc_ref.get().to_dict()
+    totp_secret = session.get('pending_totp_secret')
+    recovery_codes = session.get('pending_totp_recovery_codes') or []
+    user_token = (request.form.get('token') or '').replace(' ', '')
 
-    totp_secret = user_doc['totp_secret']
-    totp = pyotp.TOTP(totp_secret)
-
-    user_token = request.form.get('token')
-
-    if totp.verify(user_token):
-        user_doc_ref.update({'totp_enabled': True})
-        flash('2FA has been successfully enabled for your account.', 'success')
-        return redirect(url_for('dashboardblue.main'))
-    else:
-        flash('Invalid token. Please try again.', 'error')
+    if not totp_secret:
+        flash('Your 2FA setup session expired. Please start again.', 'error')
         return redirect(url_for('usersblue.enable_2fa'))
+    if not pyotp.TOTP(totp_secret).verify(user_token, valid_window=1):
+        flash('The verification code is invalid. Please try again.', 'error')
+        return redirect(url_for('usersblue.enable_2fa'))
+
+    recovery_hashes = [
+        hashlib.sha256(code.replace('-', '').encode('utf-8')).hexdigest()
+        for code in recovery_codes
+    ]
+    user_doc_ref.update({
+        'totp_enabled': True,
+        'totp_secret': totp_secret,
+        'totp_recovery_code_hashes': recovery_hashes,
+        'totp_enabled_at': firestore.SERVER_TIMESTAMP,
+    })
+    session.pop('pending_totp_secret', None)
+    session.pop('pending_totp_recovery_codes', None)
+    log_activity('enabled', 'two-factor authentication', user_data['google_id'])
+    return render_template(
+        'enable_2fa.html', enabled=True, recovery_codes=recovery_codes,
+        account_email=user_data['email']
+    )
+
+
+@usersblue.route('/disable-2fa', methods=['POST'], endpoint='disable_2fa')
+@login_is_required
+def disable_2fa():
+    user_data = get_user_data_from_token()
+    user_doc_ref = users_ref.document(user_data['google_id'])
+    user_doc = user_doc_ref.get().to_dict() or {}
+    supplied_code = (request.form.get('token') or '').replace(' ', '').replace('-', '')
+    secret = user_doc.get('totp_secret')
+    recovery_hashes = user_doc.get('totp_recovery_code_hashes') or []
+    recovery_hash = hashlib.sha256(supplied_code.upper().encode('utf-8')).hexdigest()
+    valid_totp = bool(secret and pyotp.TOTP(secret).verify(supplied_code, valid_window=1))
+    valid_recovery = recovery_hash in recovery_hashes
+
+    if not supplied_code or not (valid_totp or valid_recovery):
+        flash('Enter a valid authenticator or recovery code to disable 2FA.', 'error')
+        return redirect(url_for('profileblue.user_profile'))
+
+    user_doc_ref.update({
+        'totp_enabled': False,
+        'totp_secret': firestore.DELETE_FIELD,
+        'totp_recovery_code_hashes': firestore.DELETE_FIELD,
+        'totp_enabled_at': firestore.DELETE_FIELD,
+    })
+    log_activity('disabled', 'two-factor authentication', user_data['google_id'])
+    flash('Two-factor authentication has been disabled.', 'success')
+    return redirect(url_for('profileblue.user_profile'))
 
 #
 # API Route list all or a speific counter by ID - requires json file body with id and count

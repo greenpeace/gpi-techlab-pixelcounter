@@ -24,6 +24,7 @@ import logging
 import time
 from datetime import datetime, timedelta
 import urllib.parse
+import pyotp
 
 # Get Google Login with oauth
 from google.oauth2 import id_token
@@ -137,6 +138,64 @@ def _login_provider_enabled(config_key):
     """Honor the administrator-controlled login configuration."""
     from modules.users.users import get_login_config
     return bool(get_login_config().get(config_key, False))
+
+
+def _complete_login(user_jwt_data, user_data):
+    """Finish login immediately, or require the user's configured second factor."""
+    if user_data.get('totp_enabled') and user_data.get('totp_secret'):
+        session.pop('jwt_token', None)
+        session['pending_2fa_user_id'] = user_jwt_data['google_id']
+        session['pending_2fa_claims'] = user_jwt_data
+        session['pending_2fa_started_at'] = int(time.time())
+        return redirect(url_for('authsblue.verify_2fa_login'))
+
+    session['jwt_token'] = generate_jwt_token(user_jwt_data)
+    session['email'] = user_data['email']
+    session['role'] = user_data['role']
+    return redirect(url_for('dashboardblue.main'))
+
+
+def _clear_pending_2fa():
+    session.pop('pending_2fa_user_id', None)
+    session.pop('pending_2fa_claims', None)
+    session.pop('pending_2fa_started_at', None)
+
+
+@authsblue.route('/verify-2fa', methods=['GET', 'POST'])
+def verify_2fa_login():
+    user_id = session.get('pending_2fa_user_id')
+    claims = session.get('pending_2fa_claims')
+    started_at = session.get('pending_2fa_started_at', 0)
+    if not user_id or not claims or time.time() - started_at > 300:
+        _clear_pending_2fa()
+        flash('Your two-factor verification session expired. Please sign in again.')
+        return redirect(url_for('authsblue.login'))
+
+    user_ref = users_ref.document(user_id)
+    user_data = user_ref.get().to_dict() or {}
+    if not user_data.get('totp_enabled') or not user_data.get('totp_secret'):
+        _clear_pending_2fa()
+        return _complete_login(claims, user_data)
+
+    if request.method == 'POST':
+        supplied = (request.form.get('token') or '').replace(' ', '').replace('-', '')
+        valid_totp = pyotp.TOTP(user_data['totp_secret']).verify(supplied, valid_window=1)
+        recovery_hash = hashlib.sha256(supplied.upper().encode('utf-8')).hexdigest()
+        recovery_hashes = user_data.get('totp_recovery_code_hashes') or []
+        valid_recovery = recovery_hash in recovery_hashes
+
+        if valid_totp or valid_recovery:
+            if valid_recovery:
+                remaining = [value for value in recovery_hashes if value != recovery_hash]
+                user_ref.update({'totp_recovery_code_hashes': remaining})
+            _clear_pending_2fa()
+            session['jwt_token'] = generate_jwt_token(claims)
+            session['email'] = user_data['email']
+            session['role'] = user_data['role']
+            return redirect(url_for('dashboardblue.main'))
+        flash('The authentication code is invalid. Please try again.')
+
+    return render_template('verify_2fa.html', account_email=user_data.get('email'))
 
 
 #
@@ -300,12 +359,7 @@ def oktacallback():
         'groups': user_data.get('groups', []),
         'language': user_data.get('language')
     }
-    jwt_token = generate_jwt_token(user_jwt_data)
-    session['jwt_token'] = jwt_token
-    session['email'] = user_data['email']
-    session['role'] = user_data["role"]
-    
-    return redirect(url_for('dashboardblue.main'))
+    return _complete_login(user_jwt_data, user_data)
 
 
 @authsblue.route("/odclogin")
@@ -398,39 +452,7 @@ def odccallback():
         'groups': user_data.get('groups', []),
         'language': user_data.get('language')
     }
-    jwt_token = generate_jwt_token(user_jwt_data)
-    session['jwt_token'] = jwt_token
-    session['email'] = user_data['email']
-    session['role'] = user_data["role"]
-    
-    return redirect(url_for('dashboardblue.main'))
-
-    if not user_data.get("role"):
-        flash("Your account is not yet assigned a role. Please contact an administrator.")
-        return render_template("unauthorized.html")
-
-    # Generate user data for JWT token
-    user_jwt_data = {
-        'google_id': id_info.get("sub"),
-        'name': id_info.get("name"),
-        'photo': id_info.get("picture"),
-        'email': id_info.get("email"),
-        'uuid': user_data["uuid"],
-        'customer_id': user_data["customer_id"],
-        'role': user_data["role"],
-        'nro': user_data.get('nro'),
-        'groups': user_data.get('groups', []),
-        'language': id_info.get("locale")
-    }
-
-    # Generate JWT token
-    jwt_token = generate_jwt_token(user_jwt_data)
-
-    # Store JWT token in session
-    session['jwt_token'] = jwt_token
-    session['role'] = user_data["role"]
-
-    return redirect(url_for('dashboardblue.main'))
+    return _complete_login(user_jwt_data, user_data)
 
 
 @authsblue.route("/callback")
@@ -486,14 +508,7 @@ def callback():
         'language': id_info.get("locale")
     }
 
-    # Generate JWT token
-    jwt_token = generate_jwt_token(user_jwt_data)
-
-    # Store JWT token in session
-    session['jwt_token'] = jwt_token
-    session['role'] = user_data["role"]
-
-    return redirect(url_for('dashboardblue.main'))
+    return _complete_login(user_jwt_data, user_data)
 
 
 RATE_LIMIT = 5
@@ -567,6 +582,9 @@ def login_is_required(func):
             'role': current_user.get('role', 'User'),
             'nro': current_user.get('nro'),
             'uuid': current_user.get('uuid'),
+            'name': current_user.get('name') or current_user.get('user') or decoded_data.get('name'),
+            'email': current_user.get('email') or decoded_data.get('email'),
+            'photo': current_user.get('avatar') or decoded_data.get('photo'),
         })
         g.current_user = decoded_data
 

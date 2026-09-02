@@ -9,13 +9,14 @@
                   <li class="nav-item version-item">
                     <span class="version-badge"><i class="fa fa-tag"></i> {{ app_version }}</span>
                   </li>
-                  <li class="nav-item dropdown open" style="padding-left: 15px;">
+                  <li class="nav-item dropdown open topbar-profile-item">
                     <a href="javascript:;" class="user-profile dropdown-toggle" aria-haspopup="true" id="navbarDropdown" data-toggle="dropdown" aria-expanded="false">
-                      {% if not session['photo'] != "None" %}  
-                      <img src="{{session['photo']}}" alt="">{{session["name"]}}
+                      {% if user_data and user_data.get('photo') and user_data.get('photo') != 'None' %}
+                      <img src="{{ user_data.get('photo') }}" alt="" referrerpolicy="no-referrer">
                       {% else %}
-                        <img src="{{ url_for('static', filename='images/user.png') }}" alt="">{{session["name"]}}
-                      {%endif %}
+                      <img src="{{ url_for('static', filename='images/user.png') }}" alt="">
+                      {% endif %}
+                      <span>{{ user_data.get('name') if user_data else session.get('name', '') }}</span>
                     </a>
                     <div class="dropdown-menu dropdown-usermenu pull-right" aria-labelledby="navbarDropdown">
                       <a class="dropdown-item" href="{{ url_for('profileblue.user_profile') }}"><i class="fa fa-user pull-right"></i> Profile</a>

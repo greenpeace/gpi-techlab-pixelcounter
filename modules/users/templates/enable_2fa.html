@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4 mb-5">
+  <div class="row"><div class="col-lg-8 mx-auto">
+    <div class="card two-factor-card">
+      <div class="card-header"><h3 class="card-title mb-0">Two-Factor Authentication</h3></div>
+      <div class="card-body">
+        {% if enabled %}
+          <div class="alert alert-success"><strong>2FA is now enabled.</strong> Save these recovery codes before leaving this page.</div>
+        {% else %}
+          <p>Use Google Authenticator or another authenticator app to scan this QR code.</p>
+          <div class="text-center my-4">
+            <img class="two-factor-qr" src="data:image/png;base64,{{ qr_code }}" alt="QR code for {{ account_email }}">
+          </div>
+          <p>If you cannot scan the code, enter this setup key manually:</p>
+          <p><code class="two-factor-secret">{{ secret }}</code></p>
+        {% endif %}
+
+        <hr>
+        <h4>Recovery codes</h4>
+        <p>Each code can be used once if you lose access to your authenticator. Store them somewhere secure.</p>
+        <div id="recovery-codes" class="two-factor-codes">
+          {% for code in recovery_codes %}<code>{{ code }}</code>{% endfor %}
+        </div>
+        <button type="button" class="btn btn-default mt-3" id="download-recovery-codes">Download recovery codes</button>
+
+        {% if enabled %}
+          <a class="btn btn-success mt-3" href="{{ url_for('profileblue.user_profile') }}">Return to profile</a>
+        {% else %}
+          <hr>
+          <form action="{{ url_for('usersblue.verify_enable_2fa') }}" method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group">
+              <label for="token">Enter the six-digit code shown in your app</label>
+              <input id="token" name="token" class="form-control" maxlength="6" pattern="[0-9]{6}" inputmode="numeric" autocomplete="one-time-code" required autofocus>
+            </div>
+            <button type="submit" class="btn btn-success">Verify and enable 2FA</button>
+            <a href="{{ url_for('profileblue.user_profile') }}" class="btn btn-default">Cancel</a>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+  </div></div>
+</div>
+<script nonce="{{ g.nonce }}">
+document.getElementById('download-recovery-codes').addEventListener('click', function () {
+  const codes = Array.from(document.querySelectorAll('#recovery-codes code')).map(el => el.textContent.trim());
+  const content = 'Greenpeace Counter App recovery codes\nAccount: {{ account_email|e }}\n\n' + codes.join('\n') + '\n';
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(new Blob([content], {type: 'text/plain'}));
+  link.download = 'counter-app-recovery-codes.txt';
+  link.click();
+  URL.revokeObjectURL(link.href);
+});
+</script>
+{% endblock content %}

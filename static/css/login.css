@@ -74,6 +74,28 @@ body.login-page {
   padding: clamp(36px, 6vw, 72px);
 }
 
+.login-card-compact {
+  display: block;
+  max-width: 560px;
+}
+
+.login-code-input {
+  border: 1px solid var(--login-border);
+  border-radius: 5px;
+  display: block;
+  font-size: 1.35rem;
+  letter-spacing: .18em;
+  margin: 8px 0 18px;
+  padding: 13px 15px;
+  width: 100%;
+}
+
+.two-factor-submit {
+  background: var(--login-green);
+  border-color: #55aa00;
+  cursor: pointer;
+}
+
 .login-eyebrow {
   color: #338400;
   font-size: 0.78rem;
