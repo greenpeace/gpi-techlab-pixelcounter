@@ -27,6 +27,7 @@ from system.firstoredb import login_config_ref, nro_ref
 from modules.auth.auth import login_is_required, admin_required, generate_customer_id
 from modules.auth.auth import get_user_data_from_token
 from system.jwt_utils import decode_jwt_token
+from system.activity import log_activity
 
 from system.setenv import project_id
 
@@ -603,13 +604,15 @@ def auto_link_counters():
 def admin_login_config():
     if request.method == 'POST':
         new_config = {
-            'email_login_enabled': 'email_login' in request.form,
             'okta_login_enabled': 'okta_login' in request.form,
             'odc_login_enabled': 'odc_login' in request.form,
             'google_login_enabled': 'google_login' in request.form,
-            'apple_login_enabled': 'apple_login' in request.form
         }
-        login_config_ref.document('config').update(new_config)
+        if not any(new_config.values()):
+            flash('At least one login provider must remain enabled', 'error')
+            return redirect(url_for('usersblue.admin_login_config'))
+        login_config_ref.document('config').set(new_config, merge=True)
+        log_activity('updated', 'login configuration', 'config')
         flash('Login configuration updated successfully')
         return redirect(url_for('usersblue.admin_login_config'))
 
@@ -618,33 +621,18 @@ def admin_login_config():
 
 
 def get_login_config():
+    default_config = {
+        'okta_login_enabled': False,
+        'odc_login_enabled': False,
+        'google_login_enabled': True,
+    }
     try:
-        # Fetch the document using the login_config_ref
         doc = login_config_ref.document('config').get()
-
-        # Check if the result is a DocumentSnapshot and if the document exists
-        if not isinstance(doc, firestore.DocumentSnapshot):
-            raise TypeError("Expected DocumentSnapshot, got something else.")
-
         if doc.exists:
-            return doc.to_dict()
-        else:
-            # Default configuration
-            default_config = {
-                'email_login_enabled': True,
-                'okta_login_enabled': True,
-                'odc_login_enabled': True,
-                'google_login_enabled': True,
-                'apple_login_enabled': True
-            }
-            # Save the default configuration to the document
-            login_config_ref.document('config').set(default_config)
-            return default_config
-
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        # Optional: log the error for debugging purposes
-        return None
+            default_config.update(doc.to_dict() or {})
+    except Exception:
+        logging.exception('Unable to load login configuration')
+    return default_config
 
 @usersblue.route('/admin/secrets', methods=['GET', 'POST'], endpoint='admin_secrets')
 @login_is_required
@@ -654,9 +642,10 @@ def admin_secrets():
     
     # Define the list of secrets we want to manage via the UI
     managed_secrets = [
+        'client_secret_key', 'client_secret_file',
         'odc_client_id', 'odc_client_secret', 'odc_issuer',
         'okta_client_id', 'okta_client_secret', 'okta_issuer',
-        'restrciteddomain', 'app_api_key'
+        'restrciteddomain'
     ]
     
     if request.method == 'POST':
@@ -668,11 +657,12 @@ def admin_secrets():
         if secret_name in managed_secrets and secret_value:
             try:
                 store_secret(secret_name, secret_value, project_id)
+                log_activity('updated', 'system secret', secret_name)
                 logging.info(f"Secret '{secret_name}' update called successfully.")
                 flash(f"Secret '{secret_name}' updated successfully.")
             except Exception as e:
-                logging.error(f"Error in admin_secrets POST: {str(e)}")
-                flash(f"Error updating secret: {str(e)}", "error")
+                logging.exception("Unable to update Secret Manager secret '%s'", secret_name)
+                flash('The secret could not be updated. Check Cloud Run permissions and logs.', 'error')
         else:
             logging.warning(f"Invalid secret update attempt: name={secret_name}, has_value={bool(secret_value)}")
             flash("Invalid secret name or value.", "error")

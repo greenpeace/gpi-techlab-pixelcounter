@@ -32,11 +32,26 @@
           {% endif %}
         {% endwith %}
 
+        {% set login_config = get_login_config() %}
+        {% if login_config.google_login_enabled %}
         <a href="{{ url_for('authsblue.loginseq') }}" class="provider-button">
           <span class="google-mark" aria-hidden="true">G</span>
           <span>Continue with Google</span>
         </a>
-        <p class="login-help">Use your authorized organizational account.</p>
+        {% endif %}
+        {% if login_config.okta_login_enabled %}
+        <a href="{{ url_for('authsblue.oktalogin') }}" class="provider-button provider-button-secondary">
+          <span class="provider-mark" aria-hidden="true">O</span><span>Continue with Okta</span>
+        </a>
+        {% endif %}
+        {% if login_config.odc_login_enabled %}
+        <a href="{{ url_for('authsblue.odclogin') }}" class="provider-button provider-button-secondary">
+          <span class="provider-mark" aria-hidden="true">ODC</span><span>Continue with ODC</span>
+        </a>
+        {% endif %}
+        {% if not login_config.google_login_enabled and not login_config.okta_login_enabled and not login_config.odc_login_enabled %}
+        <div class="login-alert" role="alert"><p>No login provider is currently enabled. Contact an administrator.</p></div>
+        {% else %}<p class="login-help">Use your authorized organizational account.</p>{% endif %}
       </div>
 
       <div class="login-visual" aria-hidden="true">

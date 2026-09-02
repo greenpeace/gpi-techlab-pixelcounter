@@ -88,8 +88,12 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True
 # CSRF protection
 csrf = CSRFProtect(app)
 
-# Make get_login_config available in all templates
-app.jinja_env.globals.update(get_login_config=get_login_config)
+# Version and login configuration available in all templates.
+APP_VERSION = os.getenv('APP_VERSION', '').strip() or 'development'
+app.jinja_env.globals.update(
+    get_login_config=get_login_config,
+    app_version=APP_VERSION,
+)
 
 
 # Logging server calls

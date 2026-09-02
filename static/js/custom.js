@@ -142,6 +142,15 @@ function init_sidebar() {
         });
     }
 }
+
+// In compact mode, expose each submenu on hover as well as on click.
+$(document).on('mouseenter', 'body.nav-sm #sidebar-menu > .menu_section > ul > li', function () {
+    $(this).children('ul.child_menu').stop(true, true).show();
+}).on('mouseleave', 'body.nav-sm #sidebar-menu > .menu_section > ul > li', function () {
+    if (!$(this).hasClass('active-sm')) {
+        $(this).children('ul.child_menu').stop(true, true).hide();
+    }
+});
 // /Sidebar
 
 // Panel toolbox
@@ -421,4 +430,4 @@ function init_DataTables() {
 $(document).ready(function () {
     init_sidebar();
     init_DataTables();
-});	
+});

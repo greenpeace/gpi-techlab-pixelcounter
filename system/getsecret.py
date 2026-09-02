@@ -1,5 +1,7 @@
 import os
 import json
+import logging
+from google.api_core.exceptions import NotFound
 
 try:
     from google.cloud import secretmanager
@@ -74,6 +76,32 @@ def getsecrets(secret_name, project_id=None):
     print(f"[Local] Falling back to local config.json for '{secret_name}'")
     local_config = _load_local_config()
     return local_config.get(secret_name, None)
+
+
+def store_secret(secret_name, secret_value, project_id):
+    """Create a Secret Manager secret when needed and add a new version."""
+    if not client:
+        raise RuntimeError('Google Secret Manager is unavailable')
+    if not project_id or not secret_name or secret_value is None:
+        raise ValueError('Project, secret name, and value are required')
+
+    parent = f"projects/{project_id}"
+    secret_path = f"{parent}/secrets/{secret_name}"
+    try:
+        client.get_secret(request={'name': secret_path})
+    except NotFound:
+        client.create_secret(request={
+            'parent': parent,
+            'secret_id': secret_name,
+            'secret': {'replication': {'automatic': {}}},
+        })
+
+    response = client.add_secret_version(request={
+        'parent': secret_path,
+        'payload': {'data': secret_value.encode('utf-8')},
+    })
+    logging.info("Added a new version for Secret Manager secret '%s'", secret_name)
+    return response.name
 
 
 def store_api_key_in_secrets_manager(api_key, secret_name, project_id):

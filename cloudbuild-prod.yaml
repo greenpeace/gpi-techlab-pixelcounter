@@ -28,7 +28,7 @@ steps:
       - --platform
       - managed
       - --set-env-vars
-      - IS_PRODUCTION=true,IS_PRODUCTION_DB=true
+      - IS_PRODUCTION=true,IS_PRODUCTION_DB=true,APP_VERSION=${TAG_NAME}
       - --quiet
 
 images:

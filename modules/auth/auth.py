@@ -133,6 +133,12 @@ def _google_oauth_flow(state=None):
     )
 
 
+def _login_provider_enabled(config_key):
+    """Honor the administrator-controlled login configuration."""
+    from modules.users.users import get_login_config
+    return bool(get_login_config().get(config_key, False))
+
+
 #
 # API Route Default displays a webpage
 #
@@ -155,6 +161,9 @@ def logout():
 #
 @authsblue.route("/loginseq")
 def loginseq():
+    if not _login_provider_enabled('google_login_enabled'):
+        flash('Google login is currently disabled')
+        return redirect(url_for('authsblue.login'))
     # asking the flow class for the authorization (login) url
     oauth_flow = _google_oauth_flow()
     authorization_url, state = oauth_flow.authorization_url(
@@ -167,6 +176,9 @@ def loginseq():
 # Okta login route
 @authsblue.route("/oktalogin")
 def oktalogin():
+    if not _login_provider_enabled('okta_login_enabled'):
+        flash('Okta login is currently disabled')
+        return redirect(url_for('authsblue.login'))
     # Fetch latest Okta secrets
     dynamic_okta_client_id = getsecrets("okta_client_id", project_id)
     dynamic_okta_issuer = getsecrets("okta_issuer", project_id)
@@ -298,6 +310,9 @@ def oktacallback():
 
 @authsblue.route("/odclogin")
 def odclogin():
+    if not _login_provider_enabled('odc_login_enabled'):
+        flash('ODC login is currently disabled')
+        return redirect(url_for('authsblue.login'))
     # Build ODC authorization URL
     nonce = secrets.token_urlsafe(32)
     params = {

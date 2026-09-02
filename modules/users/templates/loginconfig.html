@@ -1,123 +1,35 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="page-title">
-    <div class="title_left">
-        <h3>System Configuration <small>Login Methods</small></h3>
+<div class="admin-config-page">
+  <header class="admin-config-header">
+    <p>Administrator</p>
+    <h1>Login configuration</h1>
+    <span>Choose which identity providers appear on the login page.</span>
+  </header>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% for category, message in messages %}
+  <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }}" role="alert">{{ message }}</div>
+  {% endfor %}
+  {% endwith %}
+
+  <form method="post" class="admin-config-card">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% for provider in [
+      ('google_login', 'Google Workspace', 'Sign in with an authorized Google organizational account', config.google_login_enabled),
+      ('okta_login', 'Okta SSO', 'Sign in through the configured Okta organization', config.okta_login_enabled),
+      ('odc_login', 'OutSystems ODC', 'Sign in through OutSystems Developer Cloud', config.odc_login_enabled)
+    ] %}
+    <label class="provider-setting" for="{{ provider[0] }}">
+      <span><strong>{{ provider[1] }}</strong><small>{{ provider[2] }}</small></span>
+      <input type="checkbox" id="{{ provider[0] }}" name="{{ provider[0] }}" {% if provider[3] %}checked{% endif %}>
+    </label>
+    {% endfor %}
+    <div class="admin-config-actions">
+      <button type="submit" class="btn btn-success"><i class="fa fa-save"></i> Save configuration</button>
+      <a class="btn btn-default" href="{{ url_for('usersblue.admin_secrets') }}">Manage provider secrets</a>
     </div>
-</div>
-
-<div class="clearfix"></div>
-
-<div class="row">
-    <div class="col-md-8 col-sm-12">
-        {% with messages = get_flashed_messages() %}
-        {% if messages %}
-        {% for message in messages %}
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            {{ message }}
-            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                <span aria-hidden="true">&times;</span>
-            </button>
-        </div>
-        {% endfor %}
-        {% endif %}
-        {% endwith %}
-
-        <div class="x_panel shadow-sm border-0">
-            <div class="x_title">
-                <h2>Authentication Settings</h2>
-                <div class="clearfix"></div>
-            </div>
-            <div class="x_content">
-                <br />
-                <form method="POST" class="form-horizontal form-label-left">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                    <p class="text-muted mb-4">Toggle the authentication providers available on the login screen.</p>
-
-                    <div class="form-group row border-bottom pb-3 mb-3">
-                        <label class="control-label col-md-4 col-sm-4 font-weight-bold">Email/Password</label>
-                        <div class="col-md-8 col-sm-8">
-                            <div class="custom-control custom-switch">
-                                <input type="checkbox" class="custom-control-input" id="email_login" name="email_login"
-                                    {% if config.email_login_enabled %}checked{% endif %}>
-                                <label class="custom-control-label" for="email_login">Enable standard email
-                                    authentication</label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="form-group row border-bottom pb-3 mb-3">
-                        <label class="control-label col-md-4 col-sm-4 font-weight-bold">Okta SSO</label>
-                        <div class="col-md-8 col-sm-8">
-                            <div class="custom-control custom-switch mb-3">
-                                <input type="checkbox" class="custom-control-input" id="okta_login" name="okta_login" {%
-                                    if config.okta_login_enabled %}checked{% endif %}>
-                                <label class="custom-control-label" for="okta_login">Enable Okta Single Sign-On</label>
-                            </div>
-                            <small class="text-muted">Configuration secrets (Client ID, Secret, Issuer) are managed in the <a href="{{ url_for('usersblue.admin_secrets') }}">System Secrets</a> page.</small>
-                        </div>
-                    </div>
-
-                    <div class="form-group row border-bottom pb-3 mb-3">
-                        <label class="control-label col-md-4 col-sm-4 font-weight-bold">OutSystems ODC</label>
-                        <div class="col-md-8 col-sm-8">
-                            <div class="custom-control custom-switch">
-                                <input type="checkbox" class="custom-control-input" id="odc_login" name="odc_login" {%
-                                    if config.odc_login_enabled %}checked{% endif %}>
-                                <label class="custom-control-label" for="odc_login">Enable OutSystems Developer Cloud
-                                    login</label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="form-group row border-bottom pb-3 mb-3">
-                        <label class="control-label col-md-4 col-sm-4 font-weight-bold">Google Auth</label>
-                        <div class="col-md-8 col-sm-8">
-                            <div class="custom-control custom-switch">
-                                <input type="checkbox" class="custom-control-input" id="google_login"
-                                    name="google_login" {% if config.google_login_enabled %}checked{% endif %}>
-                                <label class="custom-control-label" for="google_login">Allow users to log in with Google
-                                    Workspace</label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="form-group row border-bottom pb-3 mb-3">
-                        <label class="control-label col-md-4 col-sm-4 font-weight-bold">Apple ID</label>
-                        <div class="col-md-8 col-sm-8">
-                            <div class="custom-control custom-switch">
-                                <input type="checkbox" class="custom-control-input" id="apple_login" name="apple_login"
-                                    {% if config.apple_login_enabled %}checked{% endif %}>
-                                <label class="custom-control-label" for="apple_login">Enable Sign in with Apple</label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="form-group row border-bottom pb-3 mb-3">
-                        <label class="control-label col-md-4 col-sm-4 font-weight-bold">Biometrics</label>
-                        <div class="col-md-8 col-sm-8">
-                            <div class="custom-control custom-switch">
-                                <input type="checkbox" class="custom-control-input" id="biometric_login"
-                                    name="biometric_login" {% if config.biometric_login_enabled %}checked{% endif %}>
-                                <label class="custom-control-label" for="biometric_login">Enable Fingerprint/FaceID
-                                    support</label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="ln_solid"></div>
-                    <div class="form-group row text-right">
-                        <div class="col-md-12">
-                            <button type="submit" class="btn btn-success btn-lg px-5">
-                                <i class="fa fa-save mr-1"></i> Save Configuration
-                            </button>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
+  </form>
 </div>
 {% endblock content %}

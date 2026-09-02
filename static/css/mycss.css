@@ -193,3 +193,20 @@
 .docs-editor-actions { display: flex; gap: 10px; margin-top: 18px; }
 .docs-alert { margin-bottom: 18px; padding: 13px 16px; border-radius: 6px; background: #edf7e5; color: #315e08; }
 @media (max-width: 760px) { .docs-hero { flex-direction: column; } .docs-layout { grid-template-columns: 1fr; } .docs-nav { position: static; } }
+.version-item { display: flex; align-items: center; min-height: 58px; }
+.version-badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border: 1px solid #d8e1e7; border-radius: 999px; background: #fff; color: #58758d; font-size: 12px; font-weight: 600; }
+.provider-button-secondary { margin-top: 10px; background: #fff; color: #29445b; border: 1px solid #ccd8df; }
+.provider-mark { display: inline-flex; min-width: 28px; height: 28px; align-items: center; justify-content: center; border-radius: 5px; background: #29445b; color: #fff; font-size: 11px; font-weight: 700; }
+.admin-config-page { max-width: 850px; margin: 0 auto; padding: 48px 28px; }
+.admin-config-header { margin-bottom: 28px; }
+.admin-config-header p { margin: 0; color: #4f9b00; font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.admin-config-header h1 { margin: 5px 0 8px; color: #29445b; font-size: 38px; }
+.admin-config-header span { color: #68839a; }
+.admin-config-card { overflow: hidden; border: 1px solid #dce5eb; border-radius: 12px; background: #fff; box-shadow: 0 12px 35px rgba(41, 68, 91, .07); }
+.provider-setting { display: flex; align-items: center; justify-content: space-between; gap: 25px; margin: 0; padding: 22px 26px; cursor: pointer; }
+.provider-setting + .provider-setting { border-top: 1px solid #e4ebef; }
+.provider-setting span { display: grid; gap: 5px; }
+.provider-setting strong { color: #29445b; font-size: 16px; }
+.provider-setting small { color: #68839a; font-weight: 400; }
+.provider-setting input { width: 21px; height: 21px; accent-color: #5cba00; }
+.admin-config-actions { display: flex; gap: 10px; padding: 22px 26px; border-top: 1px solid #e4ebef; background: #f7fafb; }
