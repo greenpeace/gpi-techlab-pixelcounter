@@ -28,7 +28,7 @@ steps:
       - --platform
       - managed
       - --set-env-vars
-      - IS_PRODUCTION=true,IS_PRODUCTION_DB=false,APP_VERSION=${SHORT_SHA}
+      - IS_PRODUCTION=true,IS_PRODUCTION_DB=false
       - --quiet
 
 images:

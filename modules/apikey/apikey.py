@@ -77,7 +77,7 @@ def apikey_list():
         api_keys.append({
             "id": doc.id,
             "api_key": (
-                f"{d.get('key_prefix', '')}..." if d.get('api_key_hash')
+                f"{d.get('key_prefix') or d.get('api_key_prefix', '')}..." if d.get('api_key_hash')
                 else f"{d.get('api_key', '')[:6]}...{d.get('api_key', '')[-4:]}"
             ),
             "created_at": d.get("created_at"),
@@ -106,12 +106,15 @@ def generateapikey():
     if request.method == "POST":
         api_key = generate_api_key()
         now = datetime.utcnow()
+        owner_name = decoded.get('name') or decoded.get('email') or 'API user'
 
         apikeys_ref.document().set({
             "api_key_hash": hashlib.sha256(api_key.encode('utf-8')).hexdigest(),
             "key_prefix": api_key[:6],
             "created_at": now,
             "user_uuid": user_uuid,
+            "owner_name": owner_name,
+            "owner_email": decoded.get('email', ''),
             "active": True
         })
 

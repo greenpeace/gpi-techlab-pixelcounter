@@ -88,8 +88,19 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True
 # CSRF protection
 csrf = CSRFProtect(app)
 
+# Prefer an explicit deployment version (production tags), then use the
+# committed version file for local development and test deployments.
+APP_VERSION = os.getenv('APP_VERSION', '').strip()
+if not APP_VERSION:
+    version_file = os.path.join(os.path.dirname(__file__), 'VERSION')
+    try:
+        with open(version_file, encoding='utf-8') as version_handle:
+            APP_VERSION = version_handle.read().strip()
+    except OSError:
+        logging.warning('Version file could not be read: %s', version_file)
+        APP_VERSION = 'unknown'
+
 # Version and login configuration available in all templates.
-APP_VERSION = os.getenv('APP_VERSION', '').strip() or 'development'
 app.jinja_env.globals.update(
     get_login_config=get_login_config,
     app_version=APP_VERSION,

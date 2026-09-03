@@ -29,7 +29,7 @@
           Add Another Domain</a>
         <br />
         <br />
-        <table id="datast" class="table table-striped">
+        <table id="datast" class="table table-striped app-data-table" data-datatable>
           <thead>
             <tr>
               <th scope="col">Name</th>
@@ -61,15 +61,3 @@
 </div>
 <hr>
 {% endblock content %}
-
-{% block script %}
-
-<script>
-  $(document).ready(function () {
-    $('#datast').DataTable({
-      stateSave: true
-    });
-  });
-</script>
-
-{% endblock script %}

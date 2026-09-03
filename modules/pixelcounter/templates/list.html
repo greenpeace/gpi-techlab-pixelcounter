@@ -27,7 +27,7 @@
           Another Counter</a>
         <br />
         <br />
-        <table id="datast" class="table table-striped" style="width:100%; table-layout: fixed; word-wrap: break-word;">
+        <table id="datast" class="table table-striped app-data-table" data-datatable style="width:100%; table-layout: fixed; word-wrap: break-word;">
           <thead>
             <tr>
               <th scope="col">Counter Name</th>
@@ -76,15 +76,3 @@
 </div>
 <hr>
 {% endblock content %}
-
-{% block script %}
-
-<script>
-  $(document).ready(function () {
-    $('#datast').DataTable({
-      stateSave: true
-    });
-  });
-</script>
-
-{% endblock script %}

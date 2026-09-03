@@ -1,8 +1,8 @@
 # Get the Flask Files Required
-from flask import Blueprint, render_template, session, url_for
+from flask import Blueprint, flash, redirect, render_template, session, url_for
 
 # Auth requirement
-from modules.auth.auth import login_is_required
+from modules.auth.auth import admin_required, login_is_required
 
 # Firestore references
 from system.firstoredb import db, counter_ref, activity_ref
@@ -11,6 +11,22 @@ from firebase_admin import firestore
 # Set Blueprint’s name
 
 dashboardblue = Blueprint('dashboardblue', __name__, template_folder='templates')
+
+
+def _display_activity(doc):
+    activity = doc.to_dict() or {}
+    timestamp = activity.get('timestamp')
+    activity.update({
+        'id': doc.id,
+        'display_timestamp': (
+            timestamp.strftime('%Y-%m-%d %H:%M:%S UTC')
+            if hasattr(timestamp, 'strftime') else str(timestamp or '')
+        ),
+        'sort_timestamp': (
+            timestamp.isoformat() if hasattr(timestamp, 'isoformat') else str(timestamp or '')
+        ),
+    })
+    return activity
 
 
 @dashboardblue.route("/main", endpoint='main')
@@ -56,14 +72,7 @@ def main():
     )
     activities = []
     for doc in recent_activities:
-        activity = doc.to_dict()
-        timestamp = activity.get('timestamp')
-        activity['display_timestamp'] = (
-            timestamp.strftime('%Y-%m-%d %H:%M UTC')
-            if hasattr(timestamp, 'strftime')
-            else str(timestamp or '')
-        )
-        activities.append(activity)
+        activities.append(_display_activity(doc))
 
     # Quick links configuration
     quick_links = [
@@ -86,3 +95,27 @@ def main():
         activities=activities,
         quick_links=quick_links,
     )
+
+
+@dashboardblue.route('/admin/activities', methods=['GET'], endpoint='activities')
+@login_is_required
+@admin_required
+def activities():
+    documents = activity_ref.order_by(
+        u'timestamp', direction=firestore.Query.DESCENDING
+    ).stream()
+    return render_template(
+        'activities.html', activities=[_display_activity(doc) for doc in documents]
+    )
+
+
+@dashboardblue.route(
+    '/admin/activities/<activity_id>/delete', methods=['POST'],
+    endpoint='delete_activity'
+)
+@login_is_required
+@admin_required
+def delete_activity(activity_id):
+    activity_ref.document(activity_id).delete()
+    flash('Activity entry deleted successfully.', 'success')
+    return redirect(url_for('dashboardblue.activities'))

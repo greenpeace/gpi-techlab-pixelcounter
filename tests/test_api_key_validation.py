@@ -1,6 +1,7 @@
+import hashlib
 import pytest
 from unittest.mock import MagicMock, patch
-from flask import Flask, jsonify
+from flask import Flask, g, jsonify
 from modules.auth.auth import require_valid_api_key  # Replace with your actual module path
 
 
@@ -12,7 +13,7 @@ def app():
     @app.route("/protected")
     @require_valid_api_key
     def protected():
-        return jsonify({"message": "Access granted"})
+        return jsonify({"message": "Access granted", "actor": g.api_key_owner})
 
     return app
 
@@ -50,6 +51,27 @@ def test_valid_active_api_key(mock_apikeys_ref, app):
     resp = client.get("/protected", headers={"X-API-Key": "key123"})
     assert resp.status_code == 200
     assert "Access granted" in resp.get_data(as_text=True)
+
+
+@patch("modules.auth.auth.users_ref")
+@patch("modules.auth.auth.apikeys_ref")
+def test_api_key_activity_actor_resolves_to_owner_email(mock_apikeys_ref, mock_users_ref, app):
+    api_key_doc = MagicMock()
+    api_key_doc.to_dict.return_value = {
+        "api_key_hash": hashlib.sha256(b"key123").hexdigest(),
+        "key_prefix": "key123",
+        "user_uuid": "user-uuid",
+        "active": True,
+    }
+    mock_apikeys_ref.where.return_value.limit.return_value.get.return_value = [api_key_doc]
+    user_doc = MagicMock()
+    user_doc.to_dict.return_value = {"email": "owner@example.org"}
+    mock_users_ref.where.return_value.limit.return_value.get.return_value = [user_doc]
+
+    resp = app.test_client().get("/protected", headers={"X-API-Key": "key123"})
+
+    assert resp.status_code == 200
+    assert resp.get_json()["actor"] == "owner@example.org"
 
 
 @patch("modules.auth.auth.apikeys_ref")

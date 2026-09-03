@@ -2,7 +2,7 @@
 
 {% block content %}
 <h1>Manage Modules</h1>
-<table id="modulesTable" class="display">
+<table id="modulesTable" class="table app-data-table" data-datatable data-order-column="3" data-order-direction="desc">
     <thead>
         <tr>
             <th>Name</th>
@@ -66,14 +66,6 @@
 
 {% block script %}
 <script>
-    $(document).ready(function () {
-        $('#modulesTable').DataTable({
-            responsive: true,
-            stateSave: true,
-            order: [[3, 'desc']] // Sort by date added
-        });
-    });
-
     function showResults(title, content) {
         const modal = new bootstrap.Modal(document.getElementById('resultsModal'));
         document.querySelector('#resultsModal .modal-title').textContent = title;

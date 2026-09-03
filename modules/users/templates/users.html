@@ -28,7 +28,7 @@
 -->
         <br />
         <br />
-        <table id="datausers" class="table table-striped"
+        <table id="datausers" class="table table-striped app-data-table" data-datatable
           style="width:100%; table-layout: fixed; word-wrap: break-word;">
           <thead>
             <tr>
@@ -71,17 +71,3 @@
 </div>
 <!-- /page content -->
 {% endblock content %}
-
-{% block script %}
-
-<script nonce="{{ nonce }}">
-  $(document).ready(function () {
-    $('#datausers').DataTable({
-      colReorder: true,
-      autoFill: false,
-      stateSave: true,
-    });
-  });
-</script>
-
-{% endblock script %}

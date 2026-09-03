@@ -331,8 +331,9 @@ def users_edit():
             
             # Simple name: Key ID + snippet
             k_id = doc.id
-            key_val = k_data.get('api_key', '???')
-            mask = f"{key_val[:6]}...{key_val[-4:]}"
+            key_val = k_data.get('api_key', '')
+            key_prefix = k_data.get('key_prefix') or k_data.get('api_key_prefix')
+            mask = f"{key_prefix}..." if key_prefix else f"{key_val[:6]}...{key_val[-4:]}"
             
             apikeys.append({
                 "id": k_id,
@@ -467,14 +468,18 @@ def users_update():
         to_unassign_keys = set(current_owned_key_ids) - set(selected_apikey_ids)
         for k_id in to_unassign_keys:
             apikeys_ref.document(k_id).update({
-                'user_uuid': None
+                'user_uuid': None,
+                'owner_name': firestore.DELETE_FIELD,
+                'owner_email': firestore.DELETE_FIELD,
             })
             
         # 4. Assign selected keys
         for k_id in selected_apikey_ids:
             # We assign them to this user
             apikeys_ref.document(k_id).update({
-                'user_uuid': target_uuid
+                'user_uuid': target_uuid,
+                'owner_name': target_name,
+                'owner_email': request.form.get('email'),
             })
 
         return redirect(url_for('usersblue.userslist'))

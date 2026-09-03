@@ -1,0 +1,29 @@
+.management-page { margin: 0 auto; max-width: 1500px; padding: 42px 24px 70px; }
+.right_col { background: #f4f7f8 !important; min-height: 100vh !important; }
+.right_col .page-title { margin-bottom: 24px; padding-top: 18px; }
+.right_col .page-title h3 { color: #294158; font-size: 34px; font-weight: 650; letter-spacing: -.03em; }
+.right_col .page-title h3 small { color: #7890a2; font-size: 15px; font-weight: 400; }
+.right_col .card { border: 1px solid #dce5eb; border-radius: 10px; box-shadow: 0 12px 34px rgba(41, 65, 88, .07); }
+.right_col .card-header { background: #fff; border-bottom: 1px solid #e5ecef; color: #294158; padding: 18px 22px; }
+.right_col .card-body { padding: 24px; }
+.right_col .btn { border-radius: 4px; font-weight: 600; }
+.right_col .btn-success, .right_col .btn-primary { background: #5cba00; border-color: #5cba00; color: #fff; }
+.right_col .form-control, .right_col select { border: 1px solid #bdcbd4; border-radius: 5px; min-height: 38px; }
+.management-header { align-items: end; display: flex; justify-content: space-between; margin-bottom: 28px; }
+.management-header h1 { color: #294158; font-size: 38px; font-weight: 650; letter-spacing: -.035em; margin: 4px 0 8px; }
+.management-header p { color: #68839a; margin: 0; }
+.management-kicker { color: #4f9b00 !important; font-size: 12px !important; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; }
+.management-card { background: #fff; border: 1px solid #dce5eb; border-radius: 10px; box-shadow: 0 12px 34px rgba(41, 65, 88, .07); padding: 24px; }
+.management-alert { background: #edf7e5; border-left: 3px solid #66cc00; color: #315e08; margin-bottom: 18px; padding: 12px 15px; }
+.app-data-table, table[data-datatable] { border-collapse: separate !important; border-spacing: 0; width: 100% !important; }
+.app-data-table thead th, table[data-datatable] thead th { background: #294158; border: 0 !important; color: #fff; font-size: 12px; font-weight: 650; letter-spacing: .045em; padding: 14px 12px !important; text-transform: uppercase; }
+.app-data-table tbody td, table[data-datatable] tbody td { border-bottom: 1px solid #e7edf1 !important; color: #405d73; padding: 14px 12px !important; vertical-align: middle; }
+.app-data-table tbody tr:hover, table[data-datatable] tbody tr:hover { background: #f7fafb; }
+.dataTables_wrapper .dataTables_filter input, .dataTables_wrapper .dataTables_length select { background: #fff; border: 1px solid #b9c8d2; border-radius: 5px; color: #294158; min-height: 36px; padding: 6px 10px; }
+.dataTables_wrapper .dataTables_filter, .dataTables_wrapper .dataTables_length { color: #68839a; margin-bottom: 18px; }
+.dataTables_wrapper .dataTables_info { color: #68839a; padding-top: 18px; }
+.dataTables_wrapper .dataTables_paginate { padding-top: 14px; }
+.dataTables_wrapper .dataTables_paginate .paginate_button { border: 0 !important; border-radius: 4px !important; color: #526e83 !important; margin-left: 3px; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #66cc00 !important; color: #06102f !important; }
+.activity-action { background: #edf7e5; border-radius: 999px; color: #397900; display: inline-block; font-size: 12px; font-weight: 650; padding: 5px 10px; }
+@media (max-width: 700px) { .management-page { padding: 28px 12px 50px; } .management-card { padding: 14px; } .management-header h1 { font-size: 30px; } }

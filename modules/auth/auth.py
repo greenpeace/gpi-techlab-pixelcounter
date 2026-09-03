@@ -645,11 +645,27 @@ def validate_api_key(provided_api_key):
     if legacy_key:
         docs[0].reference.update({
             'api_key_hash': key_hash,
-            'api_key_prefix': provided_api_key[:6],
+            'key_prefix': provided_api_key[:6],
             'api_key': firestore.DELETE_FIELD,
         })
 
-    g.api_key_owner = key_data.get('user_uuid') or 'API user'
+    # Audit records should identify the person behind the key, never expose the
+    # key itself or display an opaque user UUID as the actor.
+    owner = key_data.get('owner_email') or key_data.get('owner_name')
+    owner_uuid = key_data.get('user_uuid')
+    if not owner and owner_uuid:
+        owner_docs = users_ref.where('uuid', '==', owner_uuid).limit(1).get()
+        if owner_docs:
+            owner_data = owner_docs[0].to_dict() or {}
+            owner = (
+                owner_data.get('email')
+                or owner_data.get('name')
+                or owner_data.get('user')
+            )
+    prefix = key_data.get('key_prefix') or key_data.get('api_key_prefix')
+    if not prefix and legacy_key:
+        prefix = provided_api_key[:6]
+    g.api_key_owner = owner or (f'API key {prefix}…' if prefix else 'API user')
 
     return True, None
 

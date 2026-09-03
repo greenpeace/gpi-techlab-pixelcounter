@@ -348,6 +348,8 @@ production deployments:
 | Test | Push to `main` | `cloudbuild-test.yaml` | `pixelcounter-test` |
 | Production | Version tag such as `v0.34.0` | `cloudbuild-prod.yaml` | `pixelcounter` |
 
+The version displayed in the application is read from the root `VERSION` file for local and test environments. Update this file as part of a release. Production deployments use the Git tag supplied by Cloud Build through `APP_VERSION`.
+
 Configure the test trigger with the branch regular expression `^main$`.
 Configure the production trigger with the tag regular expression
 `^v[0-9]+\.[0-9]+\.[0-9]+$` and enable build approval for production.
