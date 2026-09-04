@@ -48,6 +48,7 @@ if is_production_db:
     activity_ref = db.collection(u'system_activity')
     rate_limit_ref = db.collection(u'api_rate_limits')
     documentation_ref = db.collection(u'documentation')
+    page_permissions_ref = db.collection(u'page_permissions')
 
     # nro collection
     nro_ref = db.collection(u'nro')
@@ -80,3 +81,4 @@ else:
     activity_ref = db.collection(u'system_activity-test')
     rate_limit_ref = db.collection(u'api_rate_limits-test')
     documentation_ref = db.collection(u'documentation-test')
+    page_permissions_ref = db.collection(u'page_permissions-test')

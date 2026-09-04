@@ -27,6 +27,7 @@ from modules.auth.auth import (
     admin_required,
     get_user_data_from_token,
     login_is_required,
+    page_permission_required,
     require_valid_api_key,
     rate_limit,
     validate_api_key
@@ -860,7 +861,7 @@ def signups():
                         methods=['GET'],
                         endpoint='allowedlistadd')
 @login_is_required
-@admin_required
+@page_permission_required('allowed_list', ['User', 'Administrator'])
 def allowedlistadd():
     return render_template('allowedlistadd.html', **locals())
 
@@ -872,7 +873,7 @@ def allowedlistadd():
                         methods=['GET'],
                         endpoint='allowedlist')
 @login_is_required
-@admin_required
+@page_permission_required('allowed_list', ['User', 'Administrator'])
 def allowedlist():
     try:
         allowedlist = []
@@ -893,7 +894,7 @@ def allowedlist():
                         methods=['POST'],
                         endpoint='allowedlistcreate')
 @login_is_required
-@admin_required
+@page_permission_required('allowed_list', ['User', 'Administrator'])
 def allowedlistcreate():
     try:
         data = {
@@ -918,7 +919,7 @@ def allowedlistcreate():
                         methods=['POST', 'PUT'],
                         endpoint='allowedlistupdate')
 @login_is_required
-@admin_required
+@page_permission_required('allowed_list', ['User', 'Administrator'])
 def allowedlistupdate():
     try:
         id = request.form['id']
@@ -941,7 +942,7 @@ def allowedlistupdate():
                         methods=['GET'],
                         endpoint='allowedlistedit')
 @login_is_required
-@admin_required
+@page_permission_required('allowed_list', ['User', 'Administrator'])
 def allowedlistedit():
     try:
         allowedlists = []
@@ -965,7 +966,7 @@ def allowedlistedit():
                         methods=['POST', 'DELETE'],
                         endpoint='allowedlistdelete')
 @login_is_required
-@admin_required
+@page_permission_required('allowed_list', ['User', 'Administrator'])
 def allowedlistdelete():
     try:
         # Check for ID in URL query
@@ -983,7 +984,7 @@ def allowedlistdelete():
                         methods=['GET'],
                         endpoint='disallowedlistadd')
 @login_is_required
-@admin_required
+@page_permission_required('disallowed_list', ['User', 'Administrator'])
 def disallowedlistadd():
     return render_template('disallowedlistadd.html', **locals())
 
@@ -996,7 +997,7 @@ def disallowedlistadd():
                         methods=['GET'],
                         endpoint='disallowedlist')
 @login_is_required
-@admin_required
+@page_permission_required('disallowed_list', ['User', 'Administrator'])
 def disallowedlist():
     try:
         disallowedlist = []
@@ -1017,7 +1018,7 @@ def disallowedlist():
                         methods=['POST'],
                         endpoint='disallowedlistcreate')
 @login_is_required
-@admin_required
+@page_permission_required('disallowed_list', ['User', 'Administrator'])
 def disallowedlistcreate():
     try:
         decoded_data = get_user_data_from_token() or {}
@@ -1046,7 +1047,7 @@ def disallowedlistcreate():
                         methods=['POST', 'PUT'],
                         endpoint='disallowedlistupdate')
 @login_is_required
-@admin_required
+@page_permission_required('disallowed_list', ['User', 'Administrator'])
 def disallowedlistupdate():
     try:
         id = request.form['id']
@@ -1067,7 +1068,7 @@ def disallowedlistupdate():
                         methods=['GET'],
                         endpoint='disallowedlistedit')
 @login_is_required
-@admin_required
+@page_permission_required('disallowed_list', ['User', 'Administrator'])
 def disallowedlistedit():
     try:
         disallowedlists = []
@@ -1091,7 +1092,7 @@ def disallowedlistedit():
                         methods=['POST', 'DELETE'],
                         endpoint='disallowedlistdelete')
 @login_is_required
-@admin_required
+@page_permission_required('disallowed_list', ['User', 'Administrator'])
 def disallowedlistdelete():
     try:
         # Check for ID in URL query

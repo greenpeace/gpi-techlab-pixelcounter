@@ -34,7 +34,7 @@ from pip._vendor import cachecontrol
 
 from functools import wraps
 
-from system.firstoredb import db, users_ref, apikeys_ref, rate_limit_ref
+from system.firstoredb import db, users_ref, apikeys_ref, rate_limit_ref, page_permissions_ref
 from system.jwt_utils import decode_jwt_token as decode_internal_jwt_token, generate_jwt_token
 from system.getsecret import getsecrets
 # Import project id
@@ -588,6 +588,10 @@ def login_is_required(func):
         })
         g.current_user = decoded_data
 
+        # Keep presentation logic in sync with the authoritative Firestore
+        # record. A user's role may be changed while their session is active.
+        session['role'] = decoded_data['role']
+
         # Update the last_activity_time in the session on every request
         session['last_activity_time'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -618,6 +622,41 @@ def admin_required(f):
 
         return f(*args, **kwargs)
     return decorated_function
+
+
+def get_page_permission(page_key, default_roles=None):
+    """Return configured roles for a page, with a safe default."""
+    roles = list(default_roles or ['Administrator'])
+    try:
+        snapshot = page_permissions_ref.document(page_key).get()
+        if snapshot.exists:
+            configured = (snapshot.to_dict() or {}).get('roles')
+            if isinstance(configured, list):
+                roles = [role for role in configured if role in {'User', 'Administrator'}]
+    except Exception:
+        logging.exception('Unable to load permission for page %s', page_key)
+    if 'Administrator' not in roles:
+        roles.append('Administrator')
+    return roles
+
+
+def has_page_permission(page_key, default_roles=None):
+    current_user = getattr(g, 'current_user', None) or {}
+    role = current_user.get('role') or session.get('role')
+    return role in get_page_permission(page_key, default_roles)
+
+
+def page_permission_required(page_key, default_roles=None):
+    """Enforce administrator-configurable page access."""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if not has_page_permission(page_key, default_roles):
+                flash('You do not have permission to access this page.', 'error')
+                return redirect(url_for('dashboardblue.main'))
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
 
 
 def validate_api_key(provided_api_key):

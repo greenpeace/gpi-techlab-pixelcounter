@@ -24,7 +24,7 @@ from google.cloud import firestore
 
 # Fake News firestore collection
 from system.firstoredb import users_ref, counter_ref
-from system.firstoredb import login_config_ref, nro_ref
+from system.firstoredb import login_config_ref, nro_ref, page_permissions_ref
 # from system.firstoredb import update_records_with_customer_id_and_uuid_in_batches
 from modules.auth.auth import login_is_required, admin_required, generate_customer_id
 from modules.auth.auth import get_user_data_from_token
@@ -690,6 +690,40 @@ def get_login_config():
     except Exception:
         logging.exception('Unable to load login configuration')
     return default_config
+
+
+PAGE_PERMISSION_OPTIONS = [
+    ('allowed_list', 'Allowed Domain List'),
+    ('disallowed_list', 'Disallowed URL Patterns List'),
+]
+
+
+@usersblue.route('/admin/page-permissions', methods=['GET', 'POST'], endpoint='page_permissions')
+@login_is_required
+@admin_required
+def page_permissions():
+    if request.method == 'POST':
+        for page_key, _ in PAGE_PERMISSION_OPTIONS:
+            roles = ['Administrator']
+            if request.form.get(f'{page_key}_user'):
+                roles.append('User')
+            page_permissions_ref.document(page_key).set({'roles': roles}, merge=True)
+        log_activity('updated', 'page permissions', 'settings-pages')
+        flash('Page permissions updated successfully')
+        return redirect(url_for('usersblue.page_permissions'))
+
+    permissions = {}
+    for page_key, _ in PAGE_PERMISSION_OPTIONS:
+        snapshot = page_permissions_ref.document(page_key).get()
+        permissions[page_key] = (
+            (snapshot.to_dict() or {}).get('roles', ['User', 'Administrator'])
+            if snapshot.exists else ['User', 'Administrator']
+        )
+    return render_template(
+        'page_permissions.html',
+        pages=PAGE_PERMISSION_OPTIONS,
+        permissions=permissions,
+    )
 
 @usersblue.route('/admin/secrets', methods=['GET', 'POST'], endpoint='admin_secrets')
 @login_is_required

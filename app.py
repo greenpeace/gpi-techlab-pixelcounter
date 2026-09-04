@@ -33,7 +33,7 @@ import warnings
 from system.setenv import project_id
 # Import Modules
 from modules.frontpage.frontpage import frontpageblue
-from modules.auth.auth import authsblue
+from modules.auth.auth import authsblue, has_page_permission
 from modules.pixelcounter.pixelcounter import pixelcounterblue
 from modules.dashboard.dashboard import dashboardblue
 from modules.qrcode.qrcode import qrcodeblue
@@ -104,6 +104,7 @@ if not APP_VERSION:
 app.jinja_env.globals.update(
     get_login_config=get_login_config,
     app_version=APP_VERSION,
+    has_page_permission=has_page_permission,
 )
 
 
