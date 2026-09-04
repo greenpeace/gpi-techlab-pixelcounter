@@ -32,7 +32,7 @@ from modules.auth.auth import (
     validate_api_key
 )
 # Install Google Libraries
-from google.cloud.firestore import Increment
+from google.cloud.firestore import Increment, SERVER_TIMESTAMP
 import google.cloud.logging
 # Import logging
 import logging
@@ -140,6 +140,15 @@ def _get_accessible_counters():
             continue
         data['id'] = doc.id
         data['can_manage'] = can_manage_resource(data)
+        for field in ('updated_at', 'last_count_at'):
+            timestamp = data.get(field)
+            data[f'{field}_display'] = (
+                timestamp.strftime('%Y-%m-%d %H:%M UTC')
+                if hasattr(timestamp, 'strftime') else '—'
+            )
+            data[f'{field}_sort'] = (
+                timestamp.isoformat() if hasattr(timestamp, 'isoformat') else ''
+            )
         counters.append(data)
         seen_names.add(normalized_name)
 
@@ -285,7 +294,10 @@ def increment_counter(name, amount=1):
     # totals_docs = counter_ref.where('name', '==', 'totals').limit(1).get()
     # totals_doc = totals_docs[0] if totals_docs else None
 
-    counter_ref.document(counter_doc.id).update({'count': Increment(amount)})
+    counter_ref.document(counter_doc.id).update({
+        'count': Increment(amount),
+        'last_count_at': SERVER_TIMESTAMP,
+    })
 
     # if totals_doc:
         # counter_ref.document(totals_doc.id).update({'count': Increment(1)})
@@ -367,6 +379,7 @@ def create():
         user = get_user_data_from_token() or {}
         data['uuid'] = user.get('google_id')
         data['user'] = user.get('name')
+        data['updated_at'] = SERVER_TIMESTAMP
         doc_ref = counter_ref.document(_counter_document_id(data['name']))
         doc_ref.create(data)
         log_activity('created', 'pixel counter', doc_ref.id, data.get('name'))
@@ -395,6 +408,7 @@ def createset():
         name = payload.get('name') or counter_id
         if counter_ref.where('name', '==', name).limit(1).get():
             return jsonify({'error': 'Counter ID already exists'}), 409
+        payload['updated_at'] = SERVER_TIMESTAMP
         doc_ref = counter_ref.document(_counter_document_id(name))
         doc_ref.create(payload)
         log_activity('created', 'pixel counter', doc_ref.id, name)
@@ -564,7 +578,8 @@ def createlist():
                 u'type': request.form.get('type'),
                 u'uuid': decoded_data.get('google_id'),
                 u'user': decoded_data.get('name'),
-                u'assigned_users': request.form.getlist('assigned_users')
+                u'assigned_users': request.form.getlist('assigned_users'),
+                u'updated_at': SERVER_TIMESTAMP
             }
 
             doc_ref = counter_ref.document(_counter_document_id(data['name']))
@@ -682,6 +697,7 @@ def update():
         require_resource_access(doc_ref.get())
         allowed_fields = {'name', 'nro', 'url', 'count', 'contactpoint', 'campaign', 'type'}
         updates = {key: value for key, value in request.json.items() if key in allowed_fields}
+        updates['updated_at'] = SERVER_TIMESTAMP
         doc_ref.update(updates)
         updated = doc_ref.get().to_dict() or {}
         log_activity('updated', 'pixel counter', id, updated.get('name'))
@@ -720,7 +736,8 @@ def updateform():
                 request.form.getlist('assigned_users')
                 if current_user.get('role') == 'Administrator'
                 else old_data.get('assigned_users', [])
-            )
+            ),
+            u'updated_at': SERVER_TIMESTAMP
         }
         doc_ref.update(data)
         log_activity('updated', 'pixel counter', id, data.get('name'))
@@ -1145,7 +1162,8 @@ def create_counter():
             "type": data.get("type", "global"),
             "url": data.get("url", ""),
             "user": data.get("user", ""),
-            "uuid": data.get("uuid", "")
+            "uuid": data.get("uuid", ""),
+            "updated_at": SERVER_TIMESTAMP
         }
         doc_ref = counter_ref.document(_counter_document_id(counter_name))
         doc_ref.create(record)

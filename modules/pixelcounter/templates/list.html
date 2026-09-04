@@ -35,9 +35,9 @@
               <th scope="col">Counter</th>
               <th scope="col">URL</th>
               <th scope="col">Type</th>
-              <th scope="col">Contact</th>
+              <th scope="col">Last Updated</th>
               <th scope="col">Campaign</th>
-              <th scope="col">End point</th>
+              <th scope="col">Last Count</th>
               <th style="width:200px;">Action</th>
             </tr>
           </thead>
@@ -50,9 +50,9 @@
               <td>{{'{:,}'.format(ngo.count)}}</td>
               <td><a href="{{ ngo.url }}" target="new"><strong>Visit</strong></a></td>
               <td>{{ ngo.type }}</td>
-              <td>{{ ngo.contactpoint }}</td>
+              <td data-order="{{ ngo.updated_at_sort }}">{{ ngo.updated_at_display }}</td>
               <td>{{ ngo.campaign }}</td>
-              <td><b>/count?id={{ ngo.name }}</b></td>
+              <td data-order="{{ ngo.last_count_at_sort }}">{{ ngo.last_count_at_display }}</td>
               <td>
                 {% if ngo.can_manage %}
                 <a class="btn btn-sm btn-success" href="/listedit?id={{ ngo.id }}" onclick="showSpinner(this)"
