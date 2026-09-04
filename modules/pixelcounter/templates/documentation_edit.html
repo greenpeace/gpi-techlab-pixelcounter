@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="docs-page docs-editor-page">
+  <header class="docs-hero">
+    <div>
+      <p class="docs-kicker">Administrator</p>
+      <h1>Edit documentation</h1>
+      <p>Use a line beginning with <code>##</code> to create a section and navigation link.</p>
+    </div>
+    <a class="btn btn-default" href="{{ url_for('pixelcounterblue.documentation') }}">Cancel</a>
+  </header>
+
+  {% with messages = get_flashed_messages() %}
+  {% if messages %}<div class="docs-alert" role="alert">{{ messages[-1] }}</div>{% endif %}
+  {% endwith %}
+
+  <form method="post" class="docs-editor">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="docs-title">Page title</label>
+    <input id="docs-title" name="title" maxlength="120" value="{{ title }}" required>
+    <label for="docs-summary">Introduction</label>
+    <textarea id="docs-summary" name="summary" maxlength="500" rows="3">{{ summary }}</textarea>
+    <label for="docs-content">Documentation</label>
+    <textarea id="docs-content" name="content" maxlength="50000" rows="24" required>{{ content }}</textarea>
+    <div class="docs-editor-actions">
+      <button type="submit" class="btn btn-success">Save documentation</button>
+      <a class="btn btn-default" href="{{ url_for('pixelcounterblue.documentation') }}">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock content %}

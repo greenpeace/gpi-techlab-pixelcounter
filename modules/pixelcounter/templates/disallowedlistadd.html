@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<!-- page content -->
+    <div class="page-title">
+      <div class="title_left">
+        <h3>Add <small>a url pattern</small></h3>
+      </div>
+    </div>
+
+    <div class="clearfix"></div>
+
+<!--blog start-->
+    
+      <div class="container-fluid">
+            <form action="/disallowedlistcreate" method="post">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <hr>
+              <div class="form-group">
+                <label for="name">Name</label>  
+                <input type="text" name="name" class="form-control" placeholder="Pattern Name"></input>
+              </div>
+              <div class="form-group">
+                <label for="url">Pattern</label>
+                <input type="text" class="form-control" name="pattern" placeholder="URL Pattern"></input>
+              </div>
+                <br>
+                <input type="submit" class="btn btn-primary"  value="Add"></input>
+            </form>
+            </div>
+        <hr>
+
+    {% endblock content %}
+    

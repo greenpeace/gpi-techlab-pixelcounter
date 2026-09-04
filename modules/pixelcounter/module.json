@@ -1,0 +1,7 @@
+{
+  "name": "pixelcounter",
+  "active": true,
+  "version": "1.0",
+  "description": "This module sets up a Flask Blueprint called 'pixelcounterblue' to handle web routes in a web application. It incorporates Cross-Origin Resource Sharing (CORS) and utilizes Firestore for storing and updating visit counts, permitted origins, and hashed emails. It requires user authentication to access certain routes and integrates Google Cloud logging for event tracking.",
+  "date_added": "2025-04-13T11:38:02.164108"
+}

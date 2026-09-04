@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<!-- page content -->
+    <div class="page-title">
+      <div class="title_left">
+        <h3>Edit <small>Url patterns</small></h3>
+      </div>
+    </div>
+
+    <div class="clearfix"></div>
+
+<!--blog start-->
+    
+      <div class="container-fluid">
+            <form action="/disallowedlistupdate" method="post">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="id" value="{{ ngo.id }}">
+              <hr>
+              <div class="form-group">
+                <label for="id">Name</label>  
+                <input type="text" name="name" class="form-control" value="{{ ngo.name }}"></input>
+              </div>
+              <hr>
+              <div class="form-group">
+                <label for="nro">IP Address or Domain name</label>  
+                <input type="text" name="pattern" class="form-control" value="{{ ngo.pattern }}"></input>
+              </div>
+                <hr>
+              <br>
+                <br>
+                <input type="submit" class="btn btn-primary" value="Update"></input>
+            </form>
+            </div>
+        <hr>
+{% endblock content %}

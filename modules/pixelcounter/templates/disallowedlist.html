@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<!-- page content -->
+<div class="page-title">
+  <div class="title_left">
+    <h3>List <small>of url patterns</small></h3>
+  </div>
+</div>
+
+<div class="clearfix"></div>
+
+<!--blog start-->
+
+<div class="container-fluid">
+  <!-- Example row of columns -->
+  <div class="row">
+    {% with messages = get_flashed_messages() %}
+    {% if messages %}
+    {% for message in messages %}
+    {{ message }}
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+    <div class="card" id="output">
+      <div class="card-body">
+        <a class="btn btn-sm btn-success" href="/disallowedlistadd" title="Add"><i
+            class="glyphicon glyphicon-pencil"></i> Add Another URL Pattern</a>
+        <br />
+        <br />
+        <table id="datast" class="table table-striped app-data-table" data-datatable>
+          <thead>
+            <tr>
+              <th scope="col">Name of pattern</th>
+              <th scope="col">URL Pattern</th>
+              <th style="width:200px;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if allowed %}
+            {% for ngo in allowed %}
+            <tr>
+              <td>{{ ngo.name }}</td>
+              <td>{{ ngo.pattern }}</td>
+              <td>
+                <a class="btn btn-sm btn-success" href="/disallowedlistedit?id={{ ngo.id }}" title="Edit"><i
+                    class="glyphicon glyphicon-pencil"></i> Edit</a>
+                <form action="{{ url_for('pixelcounterblue.disallowedlistdelete', id=ngo.id) }}" method="post" class="d-inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-danger" type="submit"><i class="glyphicon glyphicon-trash"></i> Delete</button></form>
+              </td>
+            </tr>
+            {% endfor %}
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<hr>
+{% endblock content %}
