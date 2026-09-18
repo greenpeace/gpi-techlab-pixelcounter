@@ -1,32 +1,26 @@
-{% extends "base.html" %}
+{% extends "modal_form_base.html" if request.headers.get("X-Modal-Form") == "1" else "base.html" %}
 
 {% block content %}
-<div class="docs-page docs-editor-page">
-  <header class="docs-hero">
-    <div>
-      <p class="docs-kicker">Administrator</p>
-      <h1>Edit documentation</h1>
-      <p>Use a line beginning with <code>##</code> to create a section and navigation link.</p>
-    </div>
-    <a class="btn btn-default" href="{{ url_for('pixelcounterblue.documentation') }}">Cancel</a>
-  </header>
-
-  {% with messages = get_flashed_messages() %}
-  {% if messages %}<div class="docs-alert" role="alert">{{ messages[-1] }}</div>{% endif %}
+<div class="container-fluid">
+  <div class="page-title"><h3>Documentation settings</h3></div>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% for category, message in messages %}
+  <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }}" role="alert">{{ message }}</div>
+  {% endfor %}
   {% endwith %}
-
-  <form method="post" class="docs-editor">
+  <form method="post" action="{{ url_for('pixelcounterblue.documentation_settings') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <label for="docs-title">Page title</label>
-    <input id="docs-title" name="title" maxlength="120" value="{{ title }}" required>
-    <label for="docs-summary">Introduction</label>
-    <textarea id="docs-summary" name="summary" maxlength="500" rows="3">{{ summary }}</textarea>
-    <label for="docs-content">Documentation</label>
-    <textarea id="docs-content" name="content" maxlength="50000" rows="24" required>{{ content }}</textarea>
-    <div class="docs-editor-actions">
-      <button type="submit" class="btn btn-success">Save documentation</button>
-      <a class="btn btn-default" href="{{ url_for('pixelcounterblue.documentation') }}">Cancel</a>
+    <div class="form-group">
+      <label for="google-doc-id">Google Doc ID or link</label>
+      <input type="text" id="google-doc-id" name="google_doc_id" class="form-control"
+             value="{{ document_id }}" required maxlength="2048" autocomplete="off"
+             aria-describedby="google-doc-help" placeholder="Paste the document ID or its Google Docs link">
+      <small class="form-text text-muted" id="google-doc-help">The ID is the part between <code>/d/</code> and <code>/edit</code> in a Google Docs link. You can also paste the full link.</small>
     </div>
+    <p>Changes are made in Google Docs. This app displays the document directly instead of keeping a separate copy.</p>
+    <p class="text-muted">Share the document with the people who need to read it. Their Google permissions still apply; saving this setting does not change sharing.</p>
+    <button type="submit" class="btn btn-success">Save</button>
+    <a class="btn btn-secondary" href="{{ url_for('pixelcounterblue.documentation') }}">Cancel</a>
   </form>
 </div>
 {% endblock content %}

@@ -25,7 +25,7 @@
     {% endwith %}
     <div class="card" id="output">
       <div class="card-body">
-        <a class="btn btn-sm btn-success" href="/allowedlistadd" title="Add"><i class="glyphicon glyphicon-pencil"></i>
+        <a data-modal-form class="btn btn-sm btn-success" href="/allowedlistadd" title="Add"><i class="glyphicon glyphicon-pencil"></i>
           Add Another Domain</a>
         <br />
         <br />
@@ -46,7 +46,7 @@
               <td>{{ ngo.domain }}</td>
               <td>{{ ngo.ipaddress }}</td>
               <td>
-                <a class="btn btn-sm btn-success" href="/allowedlistedit?id={{ ngo.id }}" title="Edit"><i
+                <a data-modal-form class="btn btn-sm btn-success" href="/allowedlistedit?id={{ ngo.id }}" title="Edit"><i
                     class="glyphicon glyphicon-pencil"></i> Edit</a>
                 <form action="{{ url_for('pixelcounterblue.allowedlistdelete', id=ngo.id) }}" method="post" class="d-inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-danger" type="submit"><i class="glyphicon glyphicon-trash"></i> Delete</button></form>
               </td>

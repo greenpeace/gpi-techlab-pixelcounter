@@ -1,3 +1,4 @@
+from system.modal_forms import form_success, form_error
 from flask import (
     Blueprint,
     request,
@@ -99,8 +100,7 @@ def urlshortnercreate():
             description = soup.find("meta",  property="og:description")
             # meta_tag = soup.find('meta', attrs={'name': 'description'})
         except ValueError as e:
-            flash(str(e))
-            return redirect(url_for('urlshortnerblue.urlshortner'))
+            return form_error(str(e), 'urlshortnerblue.urlshortner')
 
         # generates id
         doc_ref = molnurl_ref.document()
@@ -110,16 +110,13 @@ def urlshortnercreate():
         if request.form.get('domain') != "":
             requested_short = request.form.get('domain', '').strip()
             if not re.fullmatch(r'[A-Za-z0-9_-]{1,64}', requested_short):
-                flash('Short names may contain only letters, numbers, underscores, and hyphens')
-                return redirect(url_for('urlshortnerblue.urlshortner'))
+                return form_error('Short names may contain only letters, numbers, underscores, and hyphens', 'urlshortnerblue.urlshortner')
             if is_reserved_short_name(requested_short):
-                flash('That short name is reserved by an application route')
-                return redirect(url_for('urlshortnerblue.urlshortner'))
+                return form_error('That short name is reserved by an application route', 'urlshortnerblue.urlshortner')
             # check if short exist
             docshort = molnurl_ref.where('short', '==', requested_short).limit(1).get()
             if (len(list(docshort))):
-                flash('An Error Occured: The short link name is already in use')
-                return redirect(url_for('urlshortnerblue.urlshortner'))
+                return form_error('An Error Occured: The short link name is already in use', 'urlshortnerblue.urlshortner')
             else:
                 short = requested_short
         else:
@@ -150,11 +147,10 @@ def urlshortnercreate():
 
         molnurl_ref.document(id).set(data)
         log_activity('created', 'URL shortener', id, data.get('short'))
-        flash('Data Succesfully Submitted')
-        return redirect(url_for('urlshortnerblue.urlshortner'))
+        return form_success('urlshortnerblue.urlshortner')
     except Exception as e:
-        flash('An Error Occured: ' + str(e))
-        return redirect(url_for('urlshortnerblue.urlshortner'))
+        return form_error('An Error Occured: ' + str(e), 'urlshortnerblue.urlshortner')
+
 #
 # API Route list all or a speific counter by ID - requires json file body with id and count
 #
@@ -308,22 +304,18 @@ def urlshortnerupdate():
             title = soup.find("meta",  property="og:title")
             description = soup.find("meta",  property="og:description")
         except ValueError as e:
-            flash(str(e))
-            return redirect(url_for('urlshortnerblue.urlshortneredit', id=id))
+            return form_error(str(e), 'urlshortnerblue.urlshortneredit', id=id)
 
         # CHeck if system generate short name or user provided shortname
         if request.form.get('domain') != "":
             short = request.form.get('domain', '').strip()
             if not re.fullmatch(r'[A-Za-z0-9_-]{1,64}', short):
-                flash('Short names may contain only letters, numbers, underscores, and hyphens')
-                return redirect(url_for('urlshortnerblue.urlshortneredit', id=id))
+                return form_error('Short names may contain only letters, numbers, underscores, and hyphens', 'urlshortnerblue.urlshortneredit', id=id)
             if is_reserved_short_name(short):
-                flash('That short name is reserved by an application route')
-                return redirect(url_for('urlshortnerblue.urlshortneredit', id=id))
+                return form_error('That short name is reserved by an application route', 'urlshortnerblue.urlshortneredit', id=id)
             duplicate = molnurl_ref.where('short', '==', short).get()
             if any(doc.id != id for doc in duplicate):
-                flash('The short link name is already in use')
-                return redirect(url_for('urlshortnerblue.urlshortneredit', id=id))
+                return form_error('The short link name is already in use', 'urlshortnerblue.urlshortneredit', id=id)
         else:
             message = id
             message_bytes = message.encode('ascii')
@@ -352,10 +344,10 @@ def urlshortnerupdate():
         doc_ref.update(data)
         log_activity('updated', 'URL shortener', id, data.get('short'))
         # Return to the list
-        return redirect(url_for('urlshortnerblue.urlshortner'))
+        return form_success('urlshortnerblue.urlshortner')
     except Exception as e:
-        flash('An Error Occured: ' + str(e))
-        return redirect(url_for('urlshortnerblue.urlshortner'))
+        return form_error('An Error Occured: ' + str(e), 'urlshortnerblue.urlshortner')
+
 
 
 @urlshortnerblue.route('/<id>',

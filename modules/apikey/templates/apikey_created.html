@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "modal_form_base.html" if request.headers.get("X-Modal-Form") == "1" else "base.html" %}
 {% block content %}
 <div class="container py-4">
   <div class="card">
@@ -6,7 +6,7 @@
       <h4>API key created</h4>
       <p>Save this API key now — you will not be able to see it again:</p>
       <pre class="p-3 bg-light">{{ api_key }}</pre>
-      <a href="{{ url_for('apikeyblue.apikey_list') }}" class="btn btn-secondary">Back to list</a>
+      {% if request.headers.get("X-Modal-Form") != "1" %}<a href="{{ url_for('apikeyblue.apikey_list') }}" class="btn btn-secondary">Back to list</a>{% endif %}
     </div>
   </div>
 </div>

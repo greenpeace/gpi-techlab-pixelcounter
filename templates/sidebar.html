@@ -5,7 +5,7 @@
     <ul class="nav side-menu">
       <li><a><i class="fa fa-clone"></i> Counters<span class="fa fa-chevron-down"></span></a>
         <ul class="nav child_menu">
-          <li><a href="{{ url_for('pixelcounterblue.read') }}">Pixelcounters</a></li>
+          <li><a href="{{ url_for('pixelcounterblue.read') }}">Counters</a></li>
           <li><a href="{{ url_for('pixelcounterblue.getsignups') }}">Test NRO Signups</a></li>
           <li><a href="{{ url_for('urlshortnerblue.urlshortner') }}">URL Shortner</a></li>
           <li><a href="{{ url_for('qrcodeblue.qrcode') }}">QR Code Generator</a></li>
@@ -17,6 +17,9 @@
     <ul class="nav side-menu">
       <li><a><i class="fa fa-clone"></i> Settings<span class="fa fa-chevron-down"></span></a>
         <ul class="nav child_menu">
+          {% if session.get('role') == 'Administrator' %}
+          <li><a data-modal-form href="{{ url_for('pixelcounterblue.documentation_settings') }}">Documentation settings</a></li>
+          {% endif %}
           {% if has_page_permission('allowed_list', ['User', 'Administrator']) %}
           <li><a href="{{ url_for('pixelcounterblue.allowedlist') }}">Allowed Domain List</a></li>
           {% endif %}

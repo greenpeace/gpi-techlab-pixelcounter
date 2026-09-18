@@ -7,13 +7,9 @@
       <h2 class="mb-0">Your API Keys</h2>
     </div>
     <div class="col-auto">
-      <!-- POST form to generate a new key (CSRF included) -->
-      <form method="POST" action="{{ url_for('apikeyblue.generateapikey') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="btn btn-primary">
-          <i class="fa fa-key"></i> Generate New Key
-        </button>
-      </form>
+      <a href="{{ url_for('apikeyblue.generateapikey') }}" data-modal-form class="btn btn-primary">
+        <i class="fa fa-key"></i> Generate New Key
+      </a>
     </div>
   </div>
 

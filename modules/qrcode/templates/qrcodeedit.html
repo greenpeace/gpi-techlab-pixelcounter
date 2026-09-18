@@ -1,11 +1,11 @@
-{% extends "base.html" %}
+{% extends "modal_form_base.html" if request.headers.get("X-Modal-Form") == "1" else "base.html" %}
 
 {% block content %}
 
 <!-- page content -->
     <div class="page-title">
       <div class="title_left">
-        <h3>Edit <small> Qrcode</small></h3>
+        <h3>Edit QR code</h3>
       </div>
     </div>
 

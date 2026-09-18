@@ -1,11 +1,11 @@
-{% extends "base.html" %}
+{% extends "modal_form_base.html" if request.headers.get("X-Modal-Form") == "1" else "base.html" %}
 
 {% block content %}
 
 <!-- page content -->
 <div class="page-title">
   <div class="title_left">
-    <h3>Edit <small>Users</small></h3>
+    <h3>Edit user</h3>
   </div>
 </div>
 
@@ -54,6 +54,7 @@
       <option value="Administrator" {% if users.role=="Administrator" %}selected{% endif %}>Administrator</option>
       <option value="User" {% if users.role=="User" %}selected{% endif %}>User</option>
     </select>
+  </div>
     <div class="form-group">
       <label for="assigned_counter_ids">Assigned Counters (Hold Ctrl/Cmd to select multiple)</label>
       <select class="form-control" name="assigned_counter_ids" id="assigned_counter_ids" multiple size="8">
@@ -88,26 +89,3 @@
     <input class="btn btn-sm btn-success" type="submit" value="Update"></input>
 </form>
 {% endblock content %}
-
-{% block scripts %}
-<script nonce="{{ nonce }}">
-  $(document).ready(function () {
-
-
-    // Handle form submission
-    $('form').submit(function (event) {
-      // Prevent the default form submission
-      event.preventDefault();
-
-      // Uncomment the line below to submit the form
-      $(this).submit();
-
-      // Retrieve the value of the toggle switch
-      var isActive = $('#toggle').prop('checked');
-
-      // Set the hidden input value based on the toggle switch state
-      $('input[name="disabled"]').val(!isActive);
-    });
-  });
-</script>
-{% endblock scripts %}

@@ -25,7 +25,7 @@
   <div class="row">
     <div class="card" id="output">
       <div class="card-body">
-        <a class="btn btn-sm btn-success" href="/qrcodeadd" title="Add"><i class="glyphicon glyphicon-pencil"></i> Add
+        <a data-modal-form class="btn btn-sm btn-success" href="/qrcodeadd" title="Add"><i class="glyphicon glyphicon-pencil"></i> Add
           Qrcode</a>
         <br />
         <br />
@@ -68,7 +68,7 @@
               <td>{{ ngo.type }}</td>
               <td>
                 {% if ngo.can_manage %}
-                <a class="btn btn-sm btn-success" href="/qrcodeedit?id={{ ngo.docid }}" title="Edit"><i
+                <a data-modal-form class="btn btn-sm btn-success" href="/qrcodeedit?id={{ ngo.docid }}" title="Edit"><i
                     class="glyphicon glyphicon-pencil"></i> Edit</a>
                 <form action="{{ url_for('qrcodeblue.qrcodedelete', id=ngo.docid) }}" method="post" class="d-inline" onsubmit="return confirm('Delete this QR code?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-danger" type="submit">Delete</button></form>
                 {% endif %}

@@ -1,3 +1,4 @@
+from system.modal_forms import form_success, form_error
 # Get the Flask Files Required
 from flask import (
     Blueprint,
@@ -156,14 +157,13 @@ def qrcodecreate():
         doc_ref.set(data)
         log_activity('created', 'QR code', doc_ref.id, data.get('qrcodename'))
         # Remove local file
-        flash('Data Succesfully Submitted')
-        return redirect(url_for('qrcodeblue.qrcode'))
+        return form_success('qrcodeblue.qrcode')
     except Exception as e:
-        flash('An Error Occured: ' + str(e))
-        return redirect(url_for('qrcodeblue.qrcode'))
+        return form_error('An Error Occured: ' + str(e), 'qrcodeblue.qrcode')
     finally:
         if temporary_path and os.path.exists(temporary_path):
             os.remove(temporary_path)
+
 #
 # API Route Update a counter by ID - requires json file body with id and count
 # API endpoint /update?id=<id>&count=<count>
@@ -233,12 +233,13 @@ def qrcodeupdate():
             bucket.blob(f'qrcode/{old_filename}').delete()
         log_activity('updated', 'QR code', id, data.get('qrcodename'))
         # Return to the list
-        return redirect(url_for('qrcodeblue.qrcode'))
+        return form_success('qrcodeblue.qrcode')
     except Exception as e:
-        return f"An Error Occured: {e}"
+        return form_error(e, status=500)
     finally:
         if temporary_path and os.path.exists(temporary_path):
             os.remove(temporary_path)
+
 #
 # API Route list all or a speific counter by ID - requires json file body with id and count
 #

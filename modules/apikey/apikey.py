@@ -1,3 +1,4 @@
+from system.modal_forms import is_modal_request
 # modules/apikey/apikey.py
 import secrets
 import hashlib
@@ -119,10 +120,13 @@ def generateapikey():
         })
 
         # Render a small page showing the newly created key (only shown once)
+        if is_modal_request():
+            response = jsonify(success=True, result_html=render_template("apikey_created.html", api_key=api_key))
+            response.headers['Cache-Control'] = 'no-store'
+            return response
         return render_template("apikey_created.html", api_key=api_key)
 
-    # If GET, redirect to list page
-    return redirect(url_for("apikeyblue.apikey_list"))
+    return render_template('apikey_generate_form.html')
 
 
 # --- Toggle active/inactive ---

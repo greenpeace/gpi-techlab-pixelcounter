@@ -437,3 +437,37 @@ accept the optional boolean `history_enabled`. Count and history updates commit
 in a single Firestore transaction. No data migration or scheduled cleanup job is
 required. A history document is never created separately from its counter, so
 counter deletion also removes its history.
+
+### Add and Edit dialogs
+
+Add/Edit actions open a shared modal for counters, allowed domains, blocked URL
+patterns, short links, QR codes, users, NROs, and documentation. API-key generation
+also uses a modal and keeps the one-time key visible until it is closed. Forms
+keep browser validation, CSRF protection, and the existing authorization checks.
+Validation errors remain in the dialog without clearing entered values. Successful
+saves refresh the original page; DataTables retains its filter, sorting, and page.
+Cancel, Escape, and backdrop clicks ask before discarding changed fields.
+
+The shared controller is `static/js/modal-forms.js`. Form links opt in with
+`data-modal-form`; their templates render a fragment for the `X-Modal-Form: 1`
+header and a regular page otherwise. Save handlers use `form_success` and
+`form_error` from `system/modal_forms.py` to distinguish success from validation
+errors. Direct form URLs remain available as a non-JavaScript fallback.
+
+### Live documentation from Google Docs
+
+Administrators can open **Settings → Documentation settings** and paste a Google
+Doc ID or its regular `https://docs.google.com/document/d/…/edit` link. The
+Documentation page then displays that document directly in an embedded viewer.
+Use **Refresh** to load recent edits or **Open in Google Docs** to open it in a
+separate tab. The app does not import or maintain a separate copy of the content.
+
+Google sharing permissions still apply. Readers must have access to the source
+document; saving the setting does not publish it or change its permissions. If
+Google sign-in or browser restrictions prevent the embedded view from loading,
+use the external link. No Drive API credentials are required for this viewer.
+
+The document ID is stored in the existing documentation settings record. Previous
+static content is retained in storage but is no longer displayed. Until a valid
+source is configured, the Documentation page shows setup guidance. Only the
+Documentation page's content security policy allows frames from Google Docs.

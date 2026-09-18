@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+{% extends "modal_form_base.html" if request.headers.get("X-Modal-Form") == "1" else "base.html" %}
 
 {% block content %}
 

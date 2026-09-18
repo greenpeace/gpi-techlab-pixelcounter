@@ -23,7 +23,7 @@
         {% endwith %}
         <div class="card" id="output">
             <div class="card-body">
-                <a class="btn btn-sm btn-success" href="{{ url_for('nroblue.nro_add') }}" title="Add"><i
+                <a data-modal-form class="btn btn-sm btn-success" href="{{ url_for('nroblue.nro_add') }}" title="Add"><i
                         class="glyphicon glyphicon-pencil"></i> Add New NRO</a>
                 <br />
                 <br />
@@ -54,7 +54,7 @@
                             </td>
                             <td>{{ nro.name }}</td>
                             <td>
-                                <a class="btn btn-sm btn-success"
+                                <a data-modal-form class="btn btn-sm btn-success"
                                     href="{{ url_for('nroblue.nro_edit', nro_id=nro.id) }}" title="Edit"><i
                                         class="glyphicon glyphicon-pencil"></i> Edit</a>
                                 <form action="{{ url_for('nroblue.nro_delete', nro_id=nro.id) }}" method="post"

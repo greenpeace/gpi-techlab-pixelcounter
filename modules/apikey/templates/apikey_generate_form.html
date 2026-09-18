@@ -1,0 +1,9 @@
+{% extends "modal_form_base.html" if request.headers.get("X-Modal-Form") == "1" else "base.html" %}
+{% block content %}
+<div class="page-title"><h3>Generate API key</h3></div>
+<p>Create a new API key for your account. The full key will be shown once after creation.</p>
+<form data-submit-label="Generate key" method="post" action="{{ url_for('apikeyblue.generateapikey') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button type="submit" class="btn btn-success">Generate key</button>
+</form>
+{% endblock %}

@@ -1,3 +1,5 @@
+from system.modal_forms import form_success, form_error
+from system.documentation import google_doc_id, documentation_urls
 # Get the Flask Files Required
 from flask import (
     Blueprint,
@@ -58,60 +60,6 @@ logger = client.logger('pixelcounter')
 
 pixelcounterblue = Blueprint('pixelcounterblue',
                              __name__, template_folder='templates')
-
-DEFAULT_DOCUMENTATION_TITLE = 'Pixel Counter Documentation'
-DEFAULT_DOCUMENTATION_SUMMARY = 'Create, update, display, and integrate campaign counters.'
-DEFAULT_DOCUMENTATION_CONTENT = """## Introduction
-Pixel Counter combines petition signatures from Greenpeace campaigns and NROs into shared or local totals.
-
-## Increment a counter
-Send a GET request to:
-
-/count?id=<counter_name>
-
-You can optionally include donation=<amount> and email_hash=<encoded_hash>. The email hash prevents the same signup from being counted more than once.
-
-## Read a counter
-Send a GET request to:
-
-/signups?id=<counter_name>
-
-The response contains unique_count and id as JSON.
-
-## Create a counter through the API
-Send a POST request to /api/createcounter with JSON data and provide the API key in the X-API-Key header. Duplicate counter names return HTTP 409.
-
-## URL shortener
-Create short links from the URL Shortener screen. Short names cannot use an existing application route such as count, signup, or login.
-
-## QR codes
-Create downloadable QR codes from the QR Code screen. QR content is limited to 4096 characters.
-
-## Testing
-Use the testing tools in the Counters menu to verify display and increment integrations before publishing a campaign.
-"""
-
-
-def _documentation_sections(content):
-    """Parse safe `## Heading` sections without rendering user-provided HTML."""
-    sections = []
-    current = None
-    for line in str(content or '').splitlines():
-        if line.startswith('## '):
-            if current:
-                current['body'] = '\n'.join(current.pop('lines')).strip()
-                sections.append(current)
-            heading = line[3:].strip() or 'Section'
-            slug = re.sub(r'[^a-z0-9]+', '-', heading.casefold()).strip('-') or 'section'
-            current = {'heading': heading, 'slug': slug, 'lines': []}
-        else:
-            if current is None:
-                current = {'heading': 'Overview', 'slug': 'overview', 'lines': []}
-            current['lines'].append(line)
-    if current:
-        current['body'] = '\n'.join(current.pop('lines')).strip()
-        sections.append(current)
-    return sections
 
 CORS(pixelcounterblue, resources={
     r"/count_pixel": {"origins": "*"},
@@ -506,14 +454,13 @@ def addlist():
 @login_is_required
 def documentation():
     snapshot = documentation_ref.document('main').get()
-    stored = snapshot.to_dict() if snapshot.exists else {}
-    title = stored.get('title') or DEFAULT_DOCUMENTATION_TITLE
-    summary = stored.get('summary') or DEFAULT_DOCUMENTATION_SUMMARY
-    content = stored.get('content') or DEFAULT_DOCUMENTATION_CONTENT
-    return render_template('documentation.html', title=title, summary=summary,
-                           sections=_documentation_sections(content))
+    stored = (snapshot.to_dict() or {}) if snapshot.exists else {}
+    response = render_template('documentation.html', document=documentation_urls(stored.get('google_doc_id')))
+    return response, 200, {'Cache-Control': 'no-store'}
 
 
+@pixelcounterblue.route("/settings/documentation", methods=['GET', 'POST'],
+                        endpoint='documentation_settings')
 @pixelcounterblue.route("/documentation/edit", methods=['GET', 'POST'],
                         endpoint='documentation_edit')
 @login_is_required
@@ -521,32 +468,27 @@ def documentation():
 def documentation_edit():
     doc_ref = documentation_ref.document('main')
     snapshot = doc_ref.get()
-    stored = snapshot.to_dict() if snapshot.exists else {}
+    stored = (snapshot.to_dict() or {}) if snapshot.exists else {}
 
     if request.method == 'POST':
-        title = request.form.get('title', '').strip()
-        summary = request.form.get('summary', '').strip()
-        content = request.form.get('content', '').strip()
-        if not title or not content:
-            flash('A title and documentation content are required')
-        elif len(title) > 120 or len(summary) > 500 or len(content) > 50000:
-            flash('The documentation exceeds the allowed length')
-        else:
+        try:
+            document_id = google_doc_id(request.form.get('google_doc_id'))
+        except ValueError as error:
+            return form_error(error, 'pixelcounterblue.documentation_settings')
+        try:
             doc_ref.set({
-                'title': title, 'summary': summary, 'content': content,
+                'google_doc_id': document_id,
                 'updated_at': datetime.utcnow(),
                 'updated_by': (get_user_data_from_token() or {}).get('email', 'Administrator'),
-            })
-            log_activity('updated', 'documentation', 'main', title)
-            flash('Documentation updated successfully')
-            return redirect(url_for('pixelcounterblue.documentation'))
+            }, merge=True)
+            log_activity('updated', 'documentation settings', 'main', document_id)
+        except Exception:
+            logging.exception('Unable to save documentation settings')
+            return form_error('Unable to save documentation settings. Please try again.',
+                              'pixelcounterblue.documentation_settings', status=500)
+        return form_success('pixelcounterblue.documentation', 'Documentation source updated successfully')
 
-    return render_template(
-        'documentation_edit.html',
-        title=stored.get('title') or DEFAULT_DOCUMENTATION_TITLE,
-        summary=stored.get('summary') or DEFAULT_DOCUMENTATION_SUMMARY,
-        content=stored.get('content') or DEFAULT_DOCUMENTATION_CONTENT,
-    )
+    return render_template('documentation_edit.html', document_id=stored.get('google_doc_id', ''))
 
 
 #
@@ -610,8 +552,7 @@ def createlist():
                                      '==',
                                      request.form.get('name')).get()
         if (len(list(docshort))):
-            flash('An Error Occured: The counter name has already been taken')
-            return redirect(url_for('pixelcounterblue.read'))
+            return form_error('An Error Occured: The counter name has already been taken', 'pixelcounterblue.read')
         else:
             data = {
                 u'name': request.form.get('name'),
@@ -631,14 +572,12 @@ def createlist():
             doc_ref = counter_ref.document(_counter_document_id(data['name']))
             doc_ref.create(data)
             log_activity('created', 'pixel counter', doc_ref.id, data.get('name'))
-            flash('Data Succesfully Submitted')
-            return redirect(url_for('pixelcounterblue.read'))
+            return form_success('pixelcounterblue.read')
     except AlreadyExists:
-        flash('An Error Occured: The counter name has already been taken')
-        return redirect(url_for('pixelcounterblue.read'))
+        return form_error('An Error Occured: The counter name has already been taken', 'pixelcounterblue.read')
     except Exception as e:
-        flash('An Error Occvured', {e})
-        return redirect(url_for('pixelcounterblue.addlist'))
+        return form_error(f'Unable to save counter: {e}', 'pixelcounterblue.addlist')
+
 
 
 #
@@ -790,10 +729,10 @@ def updateform():
         }
         doc_ref.update(data)
         log_activity('updated', 'pixel counter', id, data.get('name'))
-        return redirect(url_for('pixelcounterblue.read'))
+        return form_success('pixelcounterblue.read')
     except Exception as e:
-        flash(f"An Error Occured: {e}")
-        return redirect(url_for('pixelcounterblue.listedit'))
+        return form_error(e, 'pixelcounterblue.listedit', status=500, id=request.form.get('id'))
+
 
 
 #
@@ -952,11 +891,10 @@ def allowedlistcreate():
         }
 
         allowedorigion_ref.document().set(data)
-        flash('Data Succesfully Submitted')
-        return redirect(url_for('pixelcounterblue.allowedlist'))
+        return form_success('pixelcounterblue.allowedlist')
     except Exception as e:
-        flash('An Error Occvured')
-        return f"An Error Occured: {e}"
+        return form_error(e, status=500)
+
 
 
 #
@@ -977,9 +915,10 @@ def allowedlistupdate():
             u'ipaddress': request.form.get('ipaddress')
         }
         allowedorigion_ref.document(id).update(data)
-        return redirect(url_for('pixelcounterblue.allowedlist'))
+        return form_success('pixelcounterblue.allowedlist')
     except Exception as e:
-        return f"An Error Occured: {e}"
+        return form_error(e, status=500)
+
 
 
 #
@@ -1080,11 +1019,10 @@ def disallowedlistcreate():
 
         # Write to Firestore DB
         disallowedorigion_ref.document().set(data)
-        flash('Data Succesfully Submitted')
-        return redirect(url_for('pixelcounterblue.disallowedlist'))
+        return form_success('pixelcounterblue.disallowedlist')
     except Exception as e:
-        flash('An Error Occvured')
-        return f"An Error Occured: {e}"
+        return form_error(e, status=500)
+
 
 
 #
@@ -1104,9 +1042,10 @@ def disallowedlistupdate():
             u'pattern': request.form.get('pattern')
         }
         disallowedorigion_ref.document(id).update(data)
-        return redirect(url_for('pixelcounterblue.disallowedlist'))
+        return form_success('pixelcounterblue.disallowedlist')
     except Exception as e:
-        return f"An Error Occured: {e}"
+        return form_error(e, status=500)
+
 
 
 #

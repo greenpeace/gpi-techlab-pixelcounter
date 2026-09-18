@@ -204,12 +204,16 @@ def inject_nonce():
 
 @app.after_request
 def add_security_headers(response):
+    frame_sources = "'self'"
+    if request.endpoint == 'pixelcounterblue.documentation':
+        frame_sources += " https://docs.google.com"
     response.headers['Content-Security-Policy'] = (
         "default-src 'self'; "
         "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; "
         "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; "
         "img-src 'self' data: https://storage.googleapis.com https://*.googleusercontent.com; "
         "font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; "
+        f"frame-src {frame_sources}; "
         "base-uri 'self'; form-action 'self'"
     )
     response.headers['X-Content-Type-Options'] = 'nosniff'

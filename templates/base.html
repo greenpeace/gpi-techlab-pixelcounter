@@ -61,6 +61,8 @@
     <script src="{{ url_for('static', filename='js/htmx.min.js') }}"></script>
 
 
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modal-forms.css') }}">
+
     {% block head %}
     <!-- This is for additional styles if needed by child templates -->
     {% endblock %}
@@ -119,6 +121,9 @@
                     {% include 'footer.html' %}
                 </div>
             </div>
+
+            {% include 'form_modal.html' %}
+            <script src="{{ url_for('static', filename='js/modal-forms.js') }}" defer></script>
 
             <!-- Toast Container -->
             <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1050;">
@@ -186,6 +191,7 @@
                 // Global form submit handler
                 $(document).on('submit', 'form', function () {
                     var $form = $(this);
+                    if (this.getAttribute('id') === 'app-modal-form') return;
                     var $btn = $form.find('button[type="submit"]');
 
                     if ($btn.length && !$btn.hasClass('no-spinner')) {

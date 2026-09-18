@@ -1,3 +1,4 @@
+from system.modal_forms import form_success, form_error
 from flask import Blueprint, render_template, request, redirect, flash, url_for, g, jsonify
 from system.firstoredb import nro_ref
 from modules.auth.auth import login_is_required, admin_required
@@ -30,12 +31,11 @@ def nro_list():
 @admin_required
 def nro_add():
     if request.method == "POST":
-        name = request.form.get("name")
+        name = request.form.get("name", "").strip()
         active = request.form.get("active") == "on"
         
         if not name:
-            flash("Name is required")
-            return redirect(url_for("nroblue.nro_add"))
+            return form_error("Name is required", "nroblue.nro_add")
             
         try:
             nro_ref.document().set({
@@ -43,10 +43,9 @@ def nro_add():
                 "active": active,
                 "created_at": datetime.datetime.utcnow()
             })
-            flash("NRO created successfully")
-            return redirect(url_for("nroblue.nro_list"))
+            return form_success("nroblue.nro_list", "NRO created successfully")
         except Exception as e:
-            flash(f"Error creating NRO: {e}")
+            return form_error(e, "nroblue.nro_add", status=500)
             
     return render_template("nro_form.html", nro=None, nonce=g.nonce)
 
@@ -57,32 +56,28 @@ def nro_edit(nro_id):
     try:
         doc = nro_ref.document(nro_id).get()
         if not doc.exists:
-            flash("NRO not found")
-            return redirect(url_for("nroblue.nro_list"))
+            return form_error("NRO not found", "nroblue.nro_list", status=404)
             
         nro = doc.to_dict()
         nro["id"] = doc.id
         
         if request.method == "POST":
-            name = request.form.get("name")
+            name = request.form.get("name", "").strip()
             active = request.form.get("active") == "on"
             
             if not name:
-                flash("Name is required")
-                return redirect(url_for("nroblue.nro_edit", nro_id=nro_id))
+                return form_error("Name is required", "nroblue.nro_edit", nro_id=nro_id)
                 
             nro_ref.document(nro_id).update({
                 "name": name,
                 "active": active,
                 "updated_at": datetime.datetime.utcnow()
             })
-            flash("NRO updated successfully")
-            return redirect(url_for("nroblue.nro_list"))
+            return form_success("nroblue.nro_list", "NRO updated successfully")
             
         return render_template("nro_form.html", nro=nro, nonce=g.nonce)
     except Exception as e:
-        flash(f"Error updating NRO: {e}")
-        return redirect(url_for("nroblue.nro_list"))
+        return form_error(e, "nroblue.nro_list", status=500)
 
 @nroblue.route("/nros/delete/<nro_id>", methods=["POST"])
 @login_is_required

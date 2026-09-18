@@ -1,36 +1,41 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="docs-page">
+<div class="docs-page docs-google-page">
   <header class="docs-hero">
     <div>
       <p class="docs-kicker">Help centre</p>
-      <h1>{{ title }}</h1>
-      <p>{{ summary }}</p>
+      <h1>Documentation</h1>
+      <p>Our documentation is maintained in Google Docs.</p>
     </div>
-    {% if session.get('role') == 'Administrator' %}
-    <a class="btn btn-success" href="{{ url_for('pixelcounterblue.documentation_edit') }}">
-      <i class="fa fa-pencil"></i> Edit documentation
-    </a>
-    {% endif %}
+    <div class="docs-google-actions">
+      {% if document %}
+      <button type="button" class="btn btn-default" id="refresh-documentation">Refresh</button>
+      <a class="btn btn-success" href="{{ document.view }}" target="_blank" rel="noopener noreferrer">Open in Google Docs</a>
+      {% endif %}
+      {% if session.get('role') == 'Administrator' %}
+      <a data-modal-form class="btn btn-default" href="{{ url_for('pixelcounterblue.documentation_settings') }}">Documentation settings</a>
+      {% endif %}
+    </div>
   </header>
 
-  <div class="docs-layout">
-    <nav class="docs-nav" aria-label="Documentation sections">
-      <strong>On this page</strong>
-      {% for section in sections %}
-      <a href="#{{ section.slug }}">{{ section.heading }}</a>
-      {% endfor %}
-    </nav>
-
-    <main class="docs-content">
-      {% for section in sections %}
-      <section id="{{ section.slug }}">
-        <h2>{{ section.heading }}</h2>
-        <div class="docs-body">{{ section.body }}</div>
-      </section>
-      {% endfor %}
-    </main>
+  {% if document %}
+  <p class="docs-access-note">You need access to this document in Google. If it does not load here, use <strong>Open in Google Docs</strong> to sign in or request access. Refresh to load recent edits.</p>
+  <iframe id="documentation-frame" class="docs-google-frame" src="{{ document.embed }}"
+          title="Documentation — Google Docs" referrerpolicy="no-referrer"></iframe>
+  {% else %}
+  <div class="docs-empty" role="status">
+    <h2>Documentation is not connected yet</h2>
+    {% if session.get('role') == 'Administrator' %}
+    <p>Open <strong>Settings → Documentation settings</strong> and paste the Google Doc ID or link.</p>
+    {% else %}
+    <p>An administrator needs to connect the documentation Google Doc.</p>
+    {% endif %}
   </div>
+  {% endif %}
 </div>
 {% endblock content %}
+
+{% block script %}
+<script src="{{ url_for('static', filename='js/documentation.js') }}" defer></script>
+{% endblock script %}

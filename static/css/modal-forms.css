@@ -1,0 +1,24 @@
+#app-form-modal .modal-body { padding: 1.25rem; }
+#app-form-fields .page-title,
+#app-form-fields .clearfix,
+#app-form-fields hr,
+#app-form-fields br,
+#app-form-fields .docs-editor-actions,
+#app-form-fields .docs-hero { display: none; }
+#app-form-fields .container,
+#app-form-fields .container-fluid,
+#app-form-fields .x_panel,
+#app-form-fields .x_content { width: 100%; padding: 0; margin: 0; border: 0; float: none; }
+#app-form-fields .form-group { margin-bottom: 1rem; }
+#app-form-fields label { display: block; margin-bottom: .35rem; }
+#app-form-fields .form-check-label { display: inline; }
+#app-form-fields input:not([type=checkbox]):not([type=hidden]):not([type=radio]),
+#app-form-fields textarea,
+#app-form-fields select { max-width: 100%; }
+#app-form-fields .docs-editor { display: grid; gap: .5rem; }
+#app-form-fields .docs-editor textarea { width: 100%; }
+#app-form-status:empty { display: none; }
+#app-form-modal [aria-busy=true] { opacity: .7; }
+/* The compact sidebar uses z-index 9999; dialogs must cover it. */
+.modal { z-index: 10050; }
+.modal-backdrop { z-index: 10040; }

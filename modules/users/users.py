@@ -1,3 +1,4 @@
+from system.modal_forms import form_success, form_error
 from flask import (
     Blueprint,
     g,
@@ -107,12 +108,11 @@ def users_create():
                 send_notification_email(user_email, subject, body, credentials)
             except Exception:
                 logging.exception('User created, but the notification email failed')
-        flash('Data Succesfully Submitted')
-        return redirect(url_for('usersblue.userslist'))
+        return form_success('usersblue.userslist')
     except Exception:
         logging.exception('Unable to create user')
-        flash('An error occurred while creating the user')
-        return redirect(url_for('usersblue.userslist'))
+        return form_error('An error occurred while creating the user', 'usersblue.userslist')
+
 
 #
 # the enable 2fa
@@ -482,9 +482,10 @@ def users_update():
                 'owner_email': request.form.get('email'),
             })
 
-        return redirect(url_for('usersblue.userslist'))
+        return form_success('usersblue.userslist')
     except Exception as e:
-        return f"An Error Occurred: {e}"
+        return form_error(e, status=500)
+
 
 #
 # API Route Update a counter by ID - requires json file body with id and count
