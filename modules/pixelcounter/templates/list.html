@@ -47,7 +47,12 @@
             <tr>
               <td>{{ ngo.name }}</td>
               <td>{{ ngo.nro }}</td>
-              <td>{{'{:,}'.format(ngo.count)}}</td>
+              <td>{{'{:,}'.format(ngo.count)}}
+                <button type="button" class="btn btn-sm btn-outline-primary mt-1" data-counter-usage
+                  data-usage-url="{{ url_for('pixelcounterblue.counter_usage', counter_id=ngo.id) }}"
+                  data-clear-url="{{ url_for('pixelcounterblue.clear_counter_usage', counter_id=ngo.id) }}"
+                  data-counter-name="{{ ngo.name }}">View usage</button>
+              </td>
               <td><a href="{{ ngo.url }}" target="new"><strong>Visit</strong></a></td>
               <td>{{ ngo.type }}</td>
               <td data-order="{{ ngo.updated_at_sort }}">{{ ngo.updated_at_display }}</td>
@@ -75,4 +80,49 @@
   </div>
 </div>
 <hr>
+<div class="modal fade" id="counter-usage-modal" role="dialog" tabindex="-1" aria-labelledby="usage-title" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h4 class="modal-title" id="usage-title">Counter usage</h4>
+        <button type="button" class="btn-close" data-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex flex-wrap gap-3 mb-3">
+          <div><label for="usage-range">Period</label>
+            <select id="usage-range" class="form-select">
+              <option value="24">Last 24 hours</option><option value="168">Last 7 days</option>
+              <option value="720">Last 30 days</option>
+            </select>
+          </div>
+          <div><label for="usage-metric">Show</label>
+            <select id="usage-metric" class="form-select">
+              <option value="uses">Successful uses</option><option value="amount">Amount added</option>
+            </select>
+          </div>
+        </div>
+        <p id="usage-status" role="status" aria-live="polite"></p>
+        <p id="usage-summary"></p>
+        <svg id="usage-chart" viewBox="0 0 760 260" class="w-100" role="img" aria-label="Hourly counter usage" hidden></svg>
+        <p class="small text-muted">Hourly totals in UTC, including the current partial hour. Only activity recorded while history is enabled is included.
+          Manual edits and earlier activity are not included. Up to 30 days are retained; clear history leaves the counter total unchanged.</p>
+        <details id="usage-details" hidden><summary>View hourly data</summary>
+          <div style="max-height: 240px; overflow: auto;">
+            <table class="table table-sm"><thead><tr><th>Hour (UTC)</th><th>Uses</th><th>Amount added</th></tr></thead>
+              <tbody id="usage-rows"></tbody>
+            </table>
+          </div>
+        </details>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-danger" id="usage-clear" hidden>Clear history</button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+<input type="hidden" id="usage-csrf-token" value="{{ csrf_token() }}">
 {% endblock content %}
+{% block script %}
+<script src="{{ url_for('static', filename='js/counter-history.js') }}" defer></script>
+{% endblock script %}

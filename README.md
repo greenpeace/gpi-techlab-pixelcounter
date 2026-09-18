@@ -415,3 +415,25 @@ gcloud projects get-iam-policy <project_id>
 gcloud iam service-accounts create pixelcounter-deploy@make-smthng-website.iam.gserviceaccount.com \
     --description="DESCRIPTION" \
     --display-name="DISPLAY_NAME"
+
+### Counter usage history
+
+Enable **Include counter history** when adding or editing a counter to collect
+hourly totals. It is off by default, including for existing counters. **View usage**
+next to the counter opens a chart for the last 24 hours, 7 days, or 30 days, with
+separate views for successful uses and the amount added. Times are UTC and the
+current hour is partial. Duplicate or rejected requests, display requests, manual
+count edits, and activity before tracking was enabled are not included.
+
+History stores at most 720 hourly buckets on the counter document; no per-click
+records or personal data are stored. Older buckets are pruned when new activity
+is recorded and excluded from charts even while tracking is off. Turning tracking
+off preserves existing history. **Clear history** permanently removes all saved
+buckets without changing the current count or tracking setting. Counter managers
+can clear history; users who can view a counter can view its usage.
+
+API creation (`/api/createcounter`) and authenticated JSON updates (`/update`)
+accept the optional boolean `history_enabled`. Count and history updates commit
+in a single Firestore transaction. No data migration or scheduled cleanup job is
+required. A history document is never created separately from its counter, so
+counter deletion also removes its history.

@@ -30,6 +30,13 @@
       <label for="count">Count</label>
       <input type="number" class="form-control" name="count" value="{{ ngo.count }}"></input>
     </div>
+    <div class="form-check form-switch my-3">
+      <input class="form-check-input" type="checkbox" role="switch" id="history_enabled"
+        name="history_enabled" value="on" aria-describedby="history-help" {% if ngo.history_enabled %}checked{% endif %}>
+      <label class="form-check-label" for="history_enabled">Include counter history</label>
+      <small id="history-help" class="d-block text-muted">Save hourly uses and amounts added for the last 30 days.
+        Turning this off stops recording; saved history can be cleared from View usage. Earlier activity and manual count edits are not included.</small>
+    </div>
     <div class="form-group">
       <label for="url">URL</label>
       <input type="url" class="form-control" name="url" value="{{ ngo.url }}"></input>

@@ -13,7 +13,7 @@ To perform these tests, you should ideally have access to:
 
 ---
 
-## 🧪 Test Suite 1: NRO Management (Admin Only)
+## Test Suite 1: NRO Management (Admin Only)
 **Goal**: Verify the administration of offices.
 
 | Step | Action | Expected Result |
@@ -27,7 +27,7 @@ To perform these tests, you should ideally have access to:
 
 ---
 
-## 🧪 Test Suite 2: Visibility Logic (Matrix Testing)
+## Test Suite 2: Visibility Logic (Matrix Testing)
 **Goal**: Verify that users see exactly what they are supposed to see based on the new logic.
 
 ### Scenario A: Ownership
@@ -48,7 +48,7 @@ To perform these tests, you should ideally have access to:
 
 ---
 
-## 🧪 Test Suite 3: Data Integrity (Dropdowns & Forms)
+## Test Suite 3: Data Integrity (Dropdowns & Forms)
 **Goal**: Verify that manual text entry is effectively replaced.
 
 | Step | Action | Expected Result |
@@ -60,7 +60,7 @@ To perform these tests, you should ideally have access to:
 
 ---
 
-## 🧪 Test Suite 4: UI/UX & Reliability
+## Test Suite 4: UI/UX & Reliability
 **Goal**: Verify components behave as expected.
 
 - [ ] **DataTables Pagination**: Verify that when you navigate to Page 2 of the NRO list, the toggle switches still work.
@@ -70,5 +70,5 @@ To perform these tests, you should ideally have access to:
 
 ---
 
-## 📝 Reporting Results
+## Reporting Results
 Please note any variations where the "Actual Result" does not match the "Expected Result".

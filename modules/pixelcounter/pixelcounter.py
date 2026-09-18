@@ -9,12 +9,14 @@ from flask import (
     redirect,
     render_template,
     flash,
+    abort,
     g
 )
 
 from flask_cors import CORS, cross_origin
 # firestore collection
 from system.firstoredb import (
+    db,
     emailhash_ref,
     counter_ref,
     allowedorigion_ref,
@@ -33,7 +35,8 @@ from modules.auth.auth import (
     validate_api_key
 )
 # Install Google Libraries
-from google.cloud.firestore import Increment, SERVER_TIMESTAMP
+from google.cloud.firestore import Increment, SERVER_TIMESTAMP, transactional
+from system.counter_history import history_enabled, record_hour, usage_series
 import google.cloud.logging
 # Import logging
 import logging
@@ -290,20 +293,57 @@ def increment_counter(name, amount=1):
     if not counter_docs:
         return False
 
-    counter_doc = counter_docs[0]
+    return _increment_counter_transaction(db.transaction(), counter_docs[0].reference, amount)
 
-    # totals_docs = counter_ref.where('name', '==', 'totals').limit(1).get()
-    # totals_doc = totals_docs[0] if totals_docs else None
 
-    counter_ref.document(counter_doc.id).update({
-        'count': Increment(amount),
-        'last_count_at': SERVER_TIMESTAMP,
-    })
-
-    # if totals_doc:
-        # counter_ref.document(totals_doc.id).update({'count': Increment(1)})
-
+@transactional
+def _increment_counter_transaction(transaction, doc_ref, amount):
+    snapshot = doc_ref.get(transaction=transaction)
+    if not snapshot.exists:
+        return False
+    data = snapshot.to_dict() or {}
+    updates = {'count': Increment(amount), 'last_count_at': SERVER_TIMESTAMP}
+    if data.get('history_enabled') is True:
+        updates['history_hours'] = record_hour(data.get('history_hours'), amount)
+    # The count and its history commit together. Concurrent clear/toggle operations
+    # conflict on this document and cause Firestore to retry the transaction.
+    transaction.update(doc_ref, updates)
     return True
+
+
+@pixelcounterblue.route('/counters/<counter_id>/usage', methods=['GET'])
+@login_is_required
+def counter_usage(counter_id):
+    snapshot = counter_ref.document(counter_id).get()
+    if not snapshot.exists:
+        abort(404)
+    data = snapshot.to_dict() or {}
+    if data.get('type') != 'global' and not can_manage_resource(data):
+        abort(403)
+    try:
+        hours = int(request.args.get('hours', 24))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'Choose 24, 168, or 720 hours.'}), 400
+    if hours not in (24, 168, 720):
+        return jsonify({'error': 'Choose 24, 168, or 720 hours.'}), 400
+    response = jsonify({
+        'name': data.get('name', ''),
+        'enabled': data.get('history_enabled') is True,
+        'can_manage': can_manage_resource(data),
+        'series': usage_series(data.get('history_hours'), hours),
+    })
+    response.headers['Cache-Control'] = 'no-store'
+    return response
+
+
+@pixelcounterblue.route('/counters/<counter_id>/usage/clear', methods=['POST'])
+@login_is_required
+def clear_counter_usage(counter_id):
+    doc_ref = counter_ref.document(counter_id)
+    data = require_resource_access(doc_ref.get())
+    doc_ref.update({'history_hours': {}})
+    log_activity('cleared history', 'pixel counter', counter_id, data.get('name'))
+    return jsonify({'success': True})
 
 
 def handle_count_request(is_pixel=False):
@@ -381,6 +421,8 @@ def create():
         data['uuid'] = user.get('google_id')
         data['user'] = user.get('name')
         data['updated_at'] = SERVER_TIMESTAMP
+        data['history_enabled'] = history_enabled(data.get('history_enabled'))
+        data.pop('history_hours', None)
         doc_ref = counter_ref.document(_counter_document_id(data['name']))
         doc_ref.create(data)
         log_activity('created', 'pixel counter', doc_ref.id, data.get('name'))
@@ -409,6 +451,8 @@ def createset():
         name = payload.get('name') or counter_id
         if counter_ref.where('name', '==', name).limit(1).get():
             return jsonify({'error': 'Counter ID already exists'}), 409
+        payload['history_enabled'] = history_enabled(payload.get('history_enabled'))
+        payload.pop('history_hours', None)
         payload['updated_at'] = SERVER_TIMESTAMP
         doc_ref = counter_ref.document(_counter_document_id(name))
         doc_ref.create(payload)
@@ -574,6 +618,7 @@ def createlist():
                 u'nro': request.form.get('nro'),
                 u'url': request.form.get('url'),
                 u'count': int(request.form.get('count')),
+                'history_enabled': history_enabled(request.form.get('history_enabled')),
                 u'contactpoint': request.form.get('contactpoint'),
                 u'campaign': request.form.get('campaign'),
                 u'type': request.form.get('type'),
@@ -696,8 +741,10 @@ def update():
         id = request.json['id']
         doc_ref = counter_ref.document(id)
         require_resource_access(doc_ref.get())
-        allowed_fields = {'name', 'nro', 'url', 'count', 'contactpoint', 'campaign', 'type'}
+        allowed_fields = {'name', 'nro', 'url', 'count', 'contactpoint', 'campaign', 'type', 'history_enabled'}
         updates = {key: value for key, value in request.json.items() if key in allowed_fields}
+        if 'history_enabled' in updates:
+            updates['history_enabled'] = history_enabled(updates['history_enabled'])
         updates['updated_at'] = SERVER_TIMESTAMP
         doc_ref.update(updates)
         updated = doc_ref.get().to_dict() or {}
@@ -728,6 +775,7 @@ def updateform():
             u'nro': request.form.get('nro'),
             u'url': request.form.get('url'),
             u'count': int(request.form.get('count')),
+            'history_enabled': history_enabled(request.form.get('history_enabled')),
             u'contactpoint': request.form.get('contactpoint'),
             u'campaign': request.form.get('campaign'),
             u'type': request.form.get('type'),
@@ -1158,6 +1206,7 @@ def create_counter():
             "campaign": data.get("campaign", ""),
             "contactpoint": data.get("contactpoint", ""),
             "count": data.get("count", 0),
+            "history_enabled": history_enabled(data.get("history_enabled")),
             "name": counter_name,
             "nro": data.get("nro", ""),
             "type": data.get("type", "global"),
