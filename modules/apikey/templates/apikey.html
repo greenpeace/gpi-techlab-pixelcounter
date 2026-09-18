@@ -30,9 +30,9 @@
 <script>
 function copyToClipboard(text) {
     navigator.clipboard.writeText(text).then(() => {
-        alert('API key copied to clipboard!');
+        showToast('API key copied to clipboard!', 'success');
     }).catch(err => {
-        console.error('Failed to copy:', err);
+        showToast('Unable to copy the API key. Please copy it manually.', 'error');
     });
 }
 </script>

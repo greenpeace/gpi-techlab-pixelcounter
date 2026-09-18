@@ -7,6 +7,23 @@
     const status = document.getElementById('app-form-status');
     const title = document.getElementById('app-form-title');
     const save = document.getElementById('app-form-save');
+    let discarding = false, editTitle, editFocus;
+    function showDiscard(show) {
+        if (show && !discarding) { editTitle = title.textContent; editFocus = document.activeElement; }
+        discarding = show;
+        document.getElementById('app-form-body').hidden = show;
+        document.getElementById('app-form-actions').hidden = show;
+        document.getElementById('app-form-discard').hidden = !show;
+        document.getElementById('app-form-discard-actions').hidden = !show;
+        title.textContent = show ? 'Discard changes?' : editTitle || title.textContent;
+        if (show) document.getElementById('app-form-keep').focus();
+        else editFocus?.focus();
+    }
+    document.getElementById('app-form-keep').addEventListener('click', () => showDiscard(false));
+    document.getElementById('app-form-discard-confirm').addEventListener('click', () => {
+        dirty = false;
+        $(modal).modal('hide');
+    });
     let controller, sequence = 0, dirty = false, saving = false, completed = false, opener;
     const scrollKey = `modal-scroll:${location.pathname}${location.search}`;
     try {
@@ -37,7 +54,7 @@
         const current = ++sequence;
         dirty = saving = completed = false;
         save.hidden = false;
-        modal.querySelector('.modal-footer [data-dismiss="modal"]').textContent = 'Cancel';
+        modal.querySelector('#app-form-actions [data-dismiss="modal"]').textContent = 'Cancel';
         fields.replaceChildren();
         title.textContent = link.dataset.modalTitle || link.textContent.trim().replace(/\s+/g, ' ');
         save.disabled = true;
@@ -102,13 +119,15 @@
     $(modal).on('shown.bs.modal', () => {
         fields.querySelector('input:not([type=hidden]), select, textarea')?.focus();
     }).on('hide.bs.modal', event => {
-        if (saving || (dirty && !window.confirm('Discard your unsaved changes?'))) {
+        if (saving || dirty) {
             event.preventDefault();
+            if (!saving) showDiscard(!discarding);
             return;
         }
         controller?.abort();
         ++sequence;
     }).on('hidden.bs.modal', () => {
+        if (discarding) showDiscard(false);
         fields.replaceChildren();
         if (completed) window.location.reload();
         dirty = false;
@@ -120,7 +139,7 @@
         if (form.getAttribute('id') !== 'app-modal-form') return;
         event.preventDefault();
         event.stopImmediatePropagation();
-        if (saving || !form.reportValidity()) return;
+        if (saving || discarding || !form.reportValidity()) return;
         const body = new FormData(form);
         const controls = [...form.elements];
         const disabledBefore = controls.map(control => control.disabled);
@@ -153,7 +172,7 @@
                 title.textContent = 'API key created';
                 message('Save your key before closing. It is shown only once.');
                 save.hidden = true;
-                modal.querySelector('.modal-footer [data-dismiss="modal"]').textContent = 'Done';
+                modal.querySelector('#app-form-actions [data-dismiss="modal"]').textContent = 'Done';
                 completed = true;
                 return;
             }

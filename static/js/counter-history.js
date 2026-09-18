@@ -9,7 +9,29 @@ document.addEventListener('DOMContentLoaded', () => {
     const chart = document.getElementById('usage-chart');
     const details = document.getElementById('usage-details');
     const clear = document.getElementById('usage-clear');
-    let selected, data, requestNumber = 0;
+    const content = document.getElementById('usage-content');
+    const confirmation = document.getElementById('usage-clear-confirmation');
+    const confirmClear = document.getElementById('usage-clear-confirm');
+    const cancelClear = document.getElementById('usage-clear-cancel');
+    const clearError = document.getElementById('usage-clear-error');
+    const close = document.getElementById('usage-close');
+    const headerClose = modal.querySelector('.modal-header [data-dismiss="modal"]');
+    let selected, data, requestNumber = 0, pendingClear = null, clearing = false;
+
+    function showClearConfirmation(target) {
+        pendingClear = target;
+        const confirming = Boolean(target);
+        content.hidden = confirming;
+        confirmation.hidden = !confirming;
+        confirmClear.hidden = cancelClear.hidden = !confirming;
+        close.hidden = confirming;
+        clear.hidden = confirming || !data?.can_manage;
+        clearError.hidden = true;
+        clearError.textContent = '';
+        document.getElementById('usage-title').textContent = confirming ? 'Clear counter history' :
+            `Usage: ${selected?.counterName || ''}`;
+        if (confirming) document.getElementById('usage-clear-name').textContent = target.counterName;
+    }
     const number = value => value.toLocaleString();
     const label = hour => hour.slice(5, 10) + ' ' + hour.slice(11, 16);
 
@@ -86,18 +108,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.addEventListener('click', event => {
         const button = event.target.closest('[data-counter-usage]');
-        if (!button) return;
+        if (!button || clearing) return;
         selected = {...button.dataset};
-        document.getElementById('usage-title').textContent = `Usage: ${selected.counterName}`;
+        data = null;
+        showClearConfirmation(null);
         $(modal).modal('show');
         load();
     });
     range.addEventListener('change', load);
     metric.addEventListener('change', render);
-    clear.addEventListener('click', async () => {
-        if (!selected || !window.confirm(`Clear all saved history for “${selected.counterName}”? This cannot be undone. The counter total will stay unchanged.`)) return;
-        const target = selected;
-        clear.disabled = true;
+    clear.addEventListener('click', () => {
+        if (!selected || !data?.can_manage || clearing) return;
+        showClearConfirmation(selected);
+        cancelClear.focus();
+    });
+    cancelClear.addEventListener('click', () => {
+        if (clearing) return;
+        showClearConfirmation(null);
+        clear.focus();
+    });
+    $(modal).on('hide.bs.modal', event => {
+        if (clearing) event.preventDefault();
+    }).on('hidden.bs.modal', () => {
+        ++requestNumber;
+        showClearConfirmation(null);
+    });
+    confirmClear.addEventListener('click', async () => {
+        if (!pendingClear || clearing) return;
+        const target = pendingClear;
+        clearing = true;
+        confirmClear.disabled = cancelClear.disabled = headerClose.disabled = true;
+        confirmClear.textContent = 'Clearing…';
+        clearError.hidden = true;
+        confirmation.setAttribute('aria-busy', 'true');
         try {
             const response = await fetch(target.clearUrl, {method: 'POST', headers: {
                 'X-CSRFToken': document.getElementById('usage-csrf-token').value,
@@ -105,11 +148,23 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) {
                 throw new Error('Unable to clear history. Please retry or sign in again.');
             }
-            if (selected === target) await load();
+            const result = await response.json();
+            if (result.success !== true) throw new Error(result.error || 'Unable to clear history. Please try again.');
+            if (selected === target) {
+                showClearConfirmation(null);
+                await load();
+                close.focus();
+            }
         } catch (error) {
-            if (selected === target) status.textContent = error.message;
+            if (selected === target) {
+                clearError.textContent = error.message;
+                clearError.hidden = false;
+            }
         } finally {
-            clear.disabled = false;
+            clearing = false;
+            confirmClear.disabled = cancelClear.disabled = headerClose.disabled = false;
+            confirmClear.textContent = 'Yes, clear history';
+            confirmation.removeAttribute('aria-busy');
         }
     });
 });

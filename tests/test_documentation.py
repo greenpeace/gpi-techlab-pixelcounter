@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 from bs4 import BeautifulSoup
-from flask import Flask, make_response, request
+from flask import Flask
 from jinja2 import ChoiceLoader, DictLoader, FileSystemLoader
 
 from system.documentation import documentation_urls, google_doc_id
@@ -141,20 +141,31 @@ def test_settings_route_aliases_keep_authentication(module):
             assert response.location == '/logout'
 
 
-def test_only_documentation_page_allows_google_frames():
-    # Execute the production header function without starting external app services.
+@pytest.mark.parametrize('production', [False, True])
+def test_security_headers_finalize_success_and_error_responses(production):
+    # Use app.py's real Flask imports, so a missing request import cannot be
+    # masked by injecting it from this test. Avoid starting external services.
     tree = ast.parse((ROOT / 'app.py').read_text())
+    imports = [node for node in tree.body if isinstance(node, ast.ImportFrom) and node.module == 'flask']
     function = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == 'add_security_headers')
     function.decorator_list = []
-    namespace = {'request': request, 'is_production': False}
-    exec(compile(ast.Module(body=[function], type_ignores=[]), 'app.py', 'exec'), namespace)
+    namespace = {'is_production': production}
+    exec(compile(ast.Module(body=imports + [function], type_ignores=[]), 'app.py', 'exec'), namespace)
     app = Flask(__name__)
+    app.after_request(namespace['add_security_headers'])
     app.add_url_rule('/documentation', endpoint='pixelcounterblue.documentation', view_func=lambda: '')
     app.add_url_rule('/list', endpoint='pixelcounterblue.read', view_func=lambda: '')
-    for path in ['/documentation', '/list']:
-        with app.test_request_context(path):
-            response = namespace['add_security_headers'](make_response(''))
-            policy = response.headers['Content-Security-Policy']
-            assert ('https://docs.google.com' in policy) == (path == '/documentation')
-            assert "frame-ancestors 'none'" in policy
-            assert response.headers['X-Frame-Options'] == 'DENY'
+
+    @app.route('/broken')
+    def broken():
+        raise RuntimeError('Simulated route failure')
+
+    client = app.test_client()
+    for path, status in [('/documentation', 200), ('/list', 200), ('/missing', 404), ('/broken', 500)]:
+        response = client.get(path)
+        assert response.status_code == status
+        policy = response.headers['Content-Security-Policy']
+        assert ('https://docs.google.com' in policy) == (path == '/documentation')
+        assert "frame-ancestors 'none'" in policy
+        assert response.headers['X-Frame-Options'] == 'DENY'
+        assert ('Strict-Transport-Security' in response.headers) is production

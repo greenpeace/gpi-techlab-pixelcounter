@@ -86,8 +86,7 @@
         }
     }
 
-    async function makeRequest(url, moduleName, action) {
-        const button = event.currentTarget;
+    async function makeRequest(url, moduleName, action, button = event.currentTarget) {
         const originalContent = showSpinner(button);
 
         try {
@@ -120,9 +119,10 @@
         makeRequest(`/modules/review/${moduleName}`, moduleName, 'reviewed');
     }
 
-    function deleteModule(moduleName) {
-        if (confirm(`Are you sure you want to delete ${moduleName}? This cannot be undone.`)) {
-            makeRequest(`/modules/delete/${moduleName}`, moduleName, 'deleted');
+    async function deleteModule(moduleName) {
+        const button = event.currentTarget;
+        if (await window.confirmAction(`Are you sure you want to delete ${moduleName}? This cannot be undone.`)) {
+            makeRequest(`/modules/delete/${moduleName}`, moduleName, 'deleted', button);
         }
     }
 

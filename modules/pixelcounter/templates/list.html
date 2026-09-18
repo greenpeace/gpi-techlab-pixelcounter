@@ -63,7 +63,7 @@
                 <a data-modal-form class="btn btn-sm btn-success" href="/listedit?id={{ ngo.id }}"
                   title="Edit"><i class="glyphicon glyphicon-pencil"></i> Edit</a>
                 <form action="{{ url_for('pixelcounterblue.listdelete', id=ngo.id) }}" method="post" class="d-inline"
-                  onsubmit="return confirm('Are you sure you want to delete this counter?');">
+                  data-confirm="Are you sure you want to delete this counter?">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button class="btn btn-sm btn-danger" type="submit" title="Delete"><i
                       class="glyphicon glyphicon-trash"></i> Delete</button>
@@ -88,6 +88,7 @@
         <button type="button" class="btn-close" data-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
+        <div id="usage-content">
         <div class="d-flex flex-wrap gap-3 mb-3">
           <div><label for="usage-range">Period</label>
             <select id="usage-range" class="form-select">
@@ -113,10 +114,18 @@
             </table>
           </div>
         </details>
+        </div>
+        <div id="usage-clear-confirmation" hidden>
+          <p>Clear all saved history for <strong id="usage-clear-name"></strong>?</p>
+          <p>This cannot be undone. The counter total will stay unchanged. If history tracking is on, new activity will continue to be recorded.</p>
+          <p id="usage-clear-error" class="alert alert-danger" role="alert" hidden></p>
+        </div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-outline-danger" id="usage-clear" hidden>Clear history</button>
-        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" id="usage-close">Close</button>
+        <button type="button" class="btn btn-secondary" id="usage-clear-cancel" hidden>Cancel</button>
+        <button type="button" class="btn btn-danger" id="usage-clear-confirm" hidden>Yes, clear history</button>
       </div>
     </div>
   </div>

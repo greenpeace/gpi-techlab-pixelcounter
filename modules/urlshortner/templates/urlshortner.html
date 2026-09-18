@@ -75,7 +75,7 @@
                 {% if ngo.can_manage %}
                 <a data-modal-form class="btn btn-sm btn-success" href="/urlshortneredit?id={{ ngo.docid }}" title="Edit"><i
                     class="glyphicon glyphicon-pencil"></i> Edit</a>
-                <form action="{{ url_for('urlshortnerblue.urlshortnerdelete', id=ngo.docid) }}" method="post" class="d-inline" onsubmit="return confirm('Delete this short URL?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-danger" type="submit">Delete</button></form>
+                <form action="{{ url_for('urlshortnerblue.urlshortnerdelete', id=ngo.docid) }}" method="post" class="d-inline" data-confirm="Delete this short URL?"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-sm btn-danger" type="submit">Delete</button></form>
                 {% endif %}
               </td>
             </tr>
