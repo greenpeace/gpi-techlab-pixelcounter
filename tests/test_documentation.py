@@ -72,6 +72,7 @@ def test_saves_normalized_id_without_overwriting_old_content(app, module):
             data={'google_doc_id': f'https://docs.google.com/document/d/{DOC_ID}/edit?usp=sharing'})
         assert response.status_code == 200
         assert response.json['success'] is True
+        assert response.json['saved_document_id'] == DOC_ID
         write = reference.document.return_value.set.call_args
         assert write.kwargs == {'merge': True}
         assert write.args[0]['google_doc_id'] == DOC_ID
@@ -125,8 +126,34 @@ def test_settings_modal_uses_new_field_instead_of_static_editor(app, module):
         html = BeautifulSoup(response.data, 'html.parser')
         assert html.select_one('[data-modal-fragment]')
         assert html.select_one('input[name=google_doc_id]')['value'] == DOC_ID
+        assert html.select_one('[data-documentation-id]').text == DOC_ID
+        assert 'hidden' not in html.select_one('[data-documentation-saved]').attrs
+        assert response.headers['Cache-Control'] == 'no-store'
         assert html.select_one('form')['action'] == '/settings/documentation'
         assert not html.select('textarea')
+
+
+def test_unconfigured_settings_show_empty_input(app, module):
+    with patch.object(module, 'documentation_ref') as reference:
+        reference.document.return_value.get.return_value.exists = False
+        response = app.test_client().get('/settings/documentation', headers=HEADERS)
+        html = BeautifulSoup(response.data, 'html.parser')
+        assert html.select_one('input[name=google_doc_id]')['value'] == ''
+        assert 'No document ID is set yet.' in html.text
+        assert 'hidden' in html.select_one('[data-documentation-saved]').attrs
+
+
+def test_save_without_javascript_returns_to_settings_with_saved_id(app, module):
+    with patch.object(module, 'documentation_ref') as reference, \
+            patch.object(module, 'get_user_data_from_token', return_value={}), \
+            patch.object(module, 'log_activity'):
+        reference.document.return_value.get.return_value.to_dict.return_value = {'google_doc_id': DOC_ID}
+        client = app.test_client()
+        response = client.post('/settings/documentation', data={'google_doc_id': DOC_ID})
+        assert response.location == '/settings/documentation'
+        html = BeautifulSoup(client.get(response.location).data, 'html.parser')
+        assert html.select_one('[data-documentation-id]').text == DOC_ID
+        assert 'Document ID saved successfully.' in html.text
 
 
 def test_settings_route_aliases_keep_authentication(module):

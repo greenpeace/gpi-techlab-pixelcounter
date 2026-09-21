@@ -114,7 +114,10 @@
         event.preventDefault();
         if (!saving) openForm(link);
     });
-    fields.addEventListener('input', () => { dirty = true; });
+    fields.addEventListener('input', () => {
+        dirty = true;
+        if (completed && fields.querySelector('[data-documentation-id]')) save.disabled = false;
+    });
     fields.addEventListener('change', () => { dirty = true; });
     $(modal).on('shown.bs.modal', () => {
         fields.querySelector('input:not([type=hidden]), select, textarea')?.focus();
@@ -163,6 +166,16 @@
             const result = await response.json();
             if (!response.ok || result.success !== true) throw new Error(result.error || 'Unable to save changes.');
             dirty = false;
+            if (typeof result.saved_document_id === 'string' && fields.querySelector('[data-documentation-id]')) {
+                fields.querySelector('[data-documentation-id]').textContent = result.saved_document_id;
+                fields.querySelector('[data-documentation-state]').textContent = 'Document ID is set.';
+                fields.querySelector('[data-documentation-saved]').hidden = false;
+                form.elements.google_doc_id.value = result.saved_document_id;
+                message(result.message || 'Document ID saved successfully.');
+                modal.querySelector('#app-form-actions [data-dismiss="modal"]').textContent = 'Done';
+                completed = true;
+                return;
+            }
             if (result.result_html) {
                 const resultDoc = new DOMParser().parseFromString(result.result_html, 'text/html');
                 const fragment = resultDoc.querySelector('[data-modal-fragment]');

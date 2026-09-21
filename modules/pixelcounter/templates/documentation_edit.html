@@ -8,6 +8,10 @@
   <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }}" role="alert">{{ message }}</div>
   {% endfor %}
   {% endwith %}
+  <p id="documentation-saved-status" role="status">
+    <span data-documentation-state>{{ 'Document ID is set.' if document_id else 'No document ID is set yet.' }}</span>
+    <span data-documentation-saved{% if not document_id %} hidden{% endif %}>Saved document ID: <code data-documentation-id>{{ document_id }}</code></span>
+  </p>
   <form method="post" action="{{ url_for('pixelcounterblue.documentation_settings') }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-group">
@@ -20,7 +24,7 @@
     <p>Changes are made in Google Docs. This app displays the document directly instead of keeping a separate copy.</p>
     <p class="text-muted">Share the document with the people who need to read it. Their Google permissions still apply; saving this setting does not change sharing.</p>
     <button type="submit" class="btn btn-success">Save</button>
-    <a class="btn btn-secondary" href="{{ url_for('pixelcounterblue.documentation') }}">Cancel</a>
+    <a class="btn btn-secondary" href="{{ url_for('pixelcounterblue.documentation') }}">View documentation</a>
   </form>
 </div>
 {% endblock content %}

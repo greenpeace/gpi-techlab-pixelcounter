@@ -486,9 +486,12 @@ def documentation_edit():
             logging.exception('Unable to save documentation settings')
             return form_error('Unable to save documentation settings. Please try again.',
                               'pixelcounterblue.documentation_settings', status=500)
-        return form_success('pixelcounterblue.documentation', 'Documentation source updated successfully')
+        if request.headers.get('X-Modal-Form') == '1':
+            return jsonify(success=True, message='Document ID saved successfully.',
+                           saved_document_id=document_id)
+        return form_success('pixelcounterblue.documentation_settings', 'Document ID saved successfully.')
 
-    return render_template('documentation_edit.html', document_id=stored.get('google_doc_id', ''))
+    return render_template('documentation_edit.html', document_id=stored.get('google_doc_id', '')), 200, {'Cache-Control': 'no-store'}
 
 
 #

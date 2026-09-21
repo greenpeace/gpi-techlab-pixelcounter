@@ -471,3 +471,18 @@ The document ID is stored in the existing documentation settings record. Previou
 static content is retained in storage but is no longer displayed. Until a valid
 source is configured, the Documentation page shows setup guidance. Only the
 Documentation page's content security policy allows frames from Google Docs.
+
+Saving this setting writes `google_doc_id` to Firestore, not to the container's
+filesystem or memory. It survives Cloud Run instance shutdowns and is read on
+each request. No Secret Manager entry or document-ID environment variable is
+required. The record is `documentation/main` when `IS_PRODUCTION_DB=true`, or
+`documentation-test/main` otherwise, in the default Firestore database of
+`GCP_PROJECT` (which currently falls back to `make-smthng-website` when unset).
+
+If the setting appears to disappear, verify that the serving Cloud Run revisions
+use the same `GCP_PROJECT` and `IS_PRODUCTION_DB`, and inspect that Firestore
+record's `google_doc_id`. Set `GCP_PROJECT` explicitly on the Cloud Run service
+to the intended database project. The build pipelines use `--update-env-vars`
+to preserve existing service configuration across deployments; `--set-env-vars`
+would remove variables not included in the deployment command. A value already
+removed by an earlier deployment must be restored on the service.

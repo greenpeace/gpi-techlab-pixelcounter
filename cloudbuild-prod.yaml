@@ -27,7 +27,8 @@ steps:
       - europe-north1
       - --platform
       - managed
-      - --set-env-vars
+      # Preserve service configuration, including the Firestore GCP_PROJECT.
+      - --update-env-vars
       - IS_PRODUCTION=true,IS_PRODUCTION_DB=true,APP_VERSION=${TAG_NAME}
       - --quiet
 
