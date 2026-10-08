@@ -11,12 +11,12 @@ from test_counter_history import counter_module
 @pytest.mark.parametrize('value,expected', [(None, True), (True, True), (False, False),
     ('true', True), ('false', False), ('', True), (0, True)])
 def test_default_is_enabled(counter_module, value, expected):
-    assert counter_module.whitelist_check_enabled(value) is expected
+    assert counter_module.allowed_list_check_enabled(value) is expected
 
 
 @pytest.mark.parametrize('enabled', [True, False])
 @pytest.mark.parametrize('path,blocked', [('/thanks', False), ('/preview/thanks', True)])
-def test_only_whitelist_is_bypassed(counter_module, enabled, path, blocked):
+def test_only_allowed_list_is_bypassed(counter_module, enabled, path, blocked):
     app = Flask(__name__)
     pattern = MagicMock()
     pattern.to_dict.return_value = {'pattern': '/preview'}
@@ -31,13 +31,13 @@ def test_only_whitelist_is_bypassed(counter_module, enabled, path, blocked):
             allowed.stream.assert_not_called()
 
 
-@pytest.mark.parametrize('stored,expected', [({}, 400), ({'whitelist_check_enabled': True}, 400),
-    ({'whitelist_check_enabled': False}, 200)])
+@pytest.mark.parametrize('stored,expected', [({}, 400), ({'allowed_list_check_enabled': True}, 400),
+    ({'allowed_list_check_enabled': False}, 200), ({'whitelist_check_enabled': False}, 200)])
 @pytest.mark.parametrize('referer', [None, 'https://other.org/thanks'])
 def test_handler_uses_saved_setting(counter_module, stored, expected, referer):
     app = Flask(__name__)
     headers = {'Referer': referer} if referer else {}
-    with app.test_request_context('/count?id=test&whitelist_check_enabled=false', headers=headers), \
+    with app.test_request_context('/count?id=test&allowed_list_check_enabled=false', headers=headers), \
             patch.object(counter_module, 'counter_ref') as counters, \
             patch.object(counter_module, 'allowedorigion_ref') as allowed, \
             patch.object(counter_module, 'disallowedorigion_ref') as denied, \
@@ -65,7 +65,7 @@ def test_other_checks_remain(counter_module, query, status, result):
             patch.object(counter_module, 'process_email_hash', return_value=status), \
             patch.object(counter_module, 'increment_counter') as increment:
         doc = MagicMock()
-        doc.to_dict.return_value = {'whitelist_check_enabled': False}
+        doc.to_dict.return_value = {'allowed_list_check_enabled': False}
         counters.where.return_value.limit.return_value.get.return_value = [doc]
         denied.stream.return_value = []
         assert counter_module.handle_count_request()[1] == result
@@ -82,15 +82,15 @@ def test_all_writes_persist_setting(counter_module, handler, setting):
     app.add_url_rule('/save', view_func=inspect.unwrap(getattr(counter_module, handler)), methods=['POST'])
     payload = {'name': 'test', 'id': 'test', 'count': 0}
     if setting is not None:
-        payload['whitelist_check_enabled'] = setting
+        payload['allowed_list_check_enabled'] = setting
     kwargs = {'json': payload}
     if handler in ('createlist', 'updateform'):
         form = MultiDict(payload)
-        form.pop('whitelist_check_enabled', None)
+        form.pop('allowed_list_check_enabled', None)
         if setting is True:
-            form.add('whitelist_check_enabled', 'true')
+            form.add('allowed_list_check_enabled', 'true')
         if setting is not None:
-            form.add('whitelist_check_enabled', 'false')
+            form.add('allowed_list_check_enabled', 'false')
         kwargs = {'data': form}
     with patch.object(counter_module, 'counter_ref') as counters, \
             patch.object(counter_module, 'log_activity'), \
@@ -105,9 +105,9 @@ def test_all_writes_persist_setting(counter_module, handler, setting):
         write = ref.update if handler in ('update', 'updateform') else ref.create
         saved = write.call_args.args[0]
         if handler == 'update' and setting is None:
-            assert 'whitelist_check_enabled' not in saved
+            assert 'allowed_list_check_enabled' not in saved
         else:
-            assert saved['whitelist_check_enabled'] is (setting is not False)
+            assert saved['allowed_list_check_enabled'] is (setting is not False)
 
 
 @pytest.mark.parametrize('enabled', [True, False])
@@ -125,8 +125,8 @@ def test_api_key_override_still_blocks_patterns(counter_module, enabled):
         assert not counter_module.is_allowed_request('other.org', '192.0.2.1', '/preview', enabled)[0]
 
 
-@pytest.mark.parametrize('record,checked', [({}, True), ({'whitelist_check_enabled': True}, True),
-    ({'whitelist_check_enabled': False}, False)])
+@pytest.mark.parametrize('record,checked', [({}, True), ({'allowed_list_check_enabled': True}, True),
+    ({'allowed_list_check_enabled': False}, False)])
 def test_edit_switch_reflects_saved_default(record, checked):
     from pathlib import Path
     from jinja2 import Template
@@ -135,3 +135,14 @@ def test_edit_switch_reflects_saved_default(record, checked):
     end = source.index('    <div class="form-check form-switch my-3">', start)
     rendered = Template(source[start:end]).render(ngo=record)
     assert ('checked' in rendered) is checked
+
+
+@pytest.mark.parametrize('record,expected', [
+    ({}, True),
+    ({'whitelist_check_enabled': False}, False),
+    ({'whitelist_check_enabled': True}, True),
+    ({'whitelist_check_enabled': False, 'allowed_list_check_enabled': True}, True),
+    ({'whitelist_check_enabled': True, 'allowed_list_check_enabled': False}, False),
+])
+def test_saved_older_settings_and_current_field_precedence(counter_module, record, expected):
+    assert counter_module.counter_allowed_list_enabled(record) is expected

@@ -41,11 +41,11 @@
     </div>
 
     <div class="form-check form-switch mb-3">
-      <input class="form-check-input" type="checkbox" role="switch" id="whitelist_check_enabled"
-        name="whitelist_check_enabled" value="true" aria-describedby="whitelist-help" {% if ngo.get('whitelist_check_enabled', true) is not sameas false %}checked{% endif %}>
-      <input type="hidden" name="whitelist_check_enabled" value="false">
-      <label class="form-check-label" for="whitelist_check_enabled">Check whitelist (recommended)</label>
-      <div id="whitelist-help" class="form-text">Only accept traffic from allowed domains or IP addresses. Turn off if your petition platform cannot provide a matching source. Other checks remain active, but copied counter links on other sites may add unwanted traffic and inflate totals.</div>
+      <input class="form-check-input" type="checkbox" role="switch" id="allowed_list_check_enabled"
+        name="allowed_list_check_enabled" value="true" aria-describedby="allowed-list-help" {% if ngo.get('allowed_list_check_enabled', true) is not sameas false %}checked{% endif %}>
+      <input type="hidden" name="allowed_list_check_enabled" value="false">
+      <label class="form-check-label" for="allowed_list_check_enabled">Check allowed list (recommended)</label>
+      <div id="allowed-list-help" class="form-text">Only accept traffic from allowed domains or IP addresses. Turn off if your petition platform cannot provide a matching source. Other checks remain active, but copied counter links on other sites may add unwanted traffic and inflate totals.</div>
     </div>
 
     <div class="form-check form-switch my-3">

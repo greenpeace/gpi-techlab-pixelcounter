@@ -5,7 +5,7 @@ A pixel-based API app for CRUD counters, duplicate-safe petition/form tracking, 
 Counter manual chapters:
 
 1. [Email hash validation — Strict and Legacy compatibility](docs/email-hash-compatibility.md)
-2. [Allowed referrer and IP checking](docs/counter-whitelist.md)
+2. [Allowed referrer and IP checking](docs/counter-allowed-list.md)
 
                     ┌────────────────────────┐
                     │ Incoming request       │
