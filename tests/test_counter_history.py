@@ -115,6 +115,7 @@ def test_clear_preserves_count_and_toggle_and_requires_csrf(counter_module, usag
 def test_duplicate_and_rejected_requests_do_not_record_activity(counter_module):
     app = Flask(__name__)
     with app.test_request_context('/count?id=test'), \
+            patch.object(counter_module, 'counter_ref'), \
             patch.object(counter_module, 'get_request_context', return_value=('', '', '', '')), \
             patch.object(counter_module, 'is_allowed_request', return_value=(True, None)), \
             patch.object(counter_module, 'process_email_hash', return_value=('duplicate', 'already counted')), \
@@ -122,6 +123,7 @@ def test_duplicate_and_rejected_requests_do_not_record_activity(counter_module):
         assert counter_module.handle_count_request()[1] == 200
         increment.assert_not_called()
     with app.test_request_context('/count?id=test'), \
+            patch.object(counter_module, 'counter_ref'), \
             patch.object(counter_module, 'get_request_context', return_value=('', '', '', '')), \
             patch.object(counter_module, 'is_allowed_request', return_value=(False, 'blocked')), \
             patch.object(counter_module, 'increment_counter') as increment:

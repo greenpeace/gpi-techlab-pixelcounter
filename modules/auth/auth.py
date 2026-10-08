@@ -14,6 +14,7 @@ from flask import (
 )
 import hashlib
 from google.cloud import firestore
+from google.api_core.exceptions import InvalidArgument
 import requests
 import json
 import secrets
@@ -526,8 +527,6 @@ def rate_limit(limit=RATE_LIMIT, window=RATE_WINDOW):
                 f'{request.endpoint}:{identity}:{bucket}'.encode('utf-8')
             ).hexdigest()
             doc_ref = rate_limit_ref.document(key)
-            transaction = db.transaction()
-
             @firestore.transactional
             def increment_rate_limit(txn):
                 snapshot = doc_ref.get(transaction=txn)
@@ -540,7 +539,18 @@ def rate_limit(limit=RATE_LIMIT, window=RATE_WINDOW):
                 })
                 return True
 
-            if not increment_rate_limit(transaction):
+            try:
+                allowed = increment_rate_limit(db.transaction())
+            except InvalidArgument as exc:
+                # Firestore occasionally invalidates an otherwise short-lived
+                # transaction. Retry once with a new transaction; an expired
+                # transaction ID cannot be reused.
+                if 'transaction has expired or is no longer valid' not in str(exc).lower():
+                    raise
+                logging.warning('Retrying expired Firestore rate-limit transaction')
+                allowed = increment_rate_limit(db.transaction())
+
+            if not allowed:
                 return jsonify({"error": "Too many requests"}), 429
             return func(*args, **kwargs)
         return _rate_limiter

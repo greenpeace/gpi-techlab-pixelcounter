@@ -38,6 +38,7 @@ from modules.auth.auth import (
 )
 # Install Google Libraries
 from google.cloud.firestore import Increment, SERVER_TIMESTAMP, transactional
+from system.email_hash import hash_validation_mode, normalize_email_hash, historical_hash_values
 from system.counter_history import history_enabled, record_hour, usage_series
 import google.cloud.logging
 # Import logging
@@ -68,6 +69,11 @@ CORS(pixelcounterblue, resources={
     r"/signups": {"origins": "*"},
     r"/api/createcounter": {"origins": "*"},
 })
+
+
+def whitelist_check_enabled(value=None):
+    """Keep the whitelist enabled unless explicitly disabled by a saved setting."""
+    return not (value is False or (isinstance(value, str) and value.lower() == 'false'))
 
 
 def _counter_document_id(name):
@@ -164,9 +170,10 @@ def normalize_ip(ip):
         return ip
 
 
-def is_allowed_request(referrer_domain, remote_address, referrer_path):
-    """Check Firestore allowed/disallowed lists, allowing API key override but still validating disallowed patterns."""
-    allowed_origins = [d.to_dict() for d in allowedorigion_ref.stream()]
+def is_allowed_request(referrer_domain, remote_address, referrer_path, check_whitelist=True):
+    """Optionally check allowed origins; always enforce blocked URL patterns."""
+    allowed_origins = ([d.to_dict() for d in allowedorigion_ref.stream()]
+                       if check_whitelist else [])
     disallowed_patterns = [
         d.to_dict().get('pattern') for d in disallowedorigion_ref.stream()
         if d.to_dict().get('pattern')
@@ -193,7 +200,7 @@ def is_allowed_request(referrer_domain, remote_address, referrer_path):
         for o in allowed_origins
     )
 
-    if not allowed:
+    if check_whitelist and not allowed:
         return False, "Not in allowed list"
 
     # --- Step 4: Always check disallowed patterns ---
@@ -219,10 +226,20 @@ def process_email_hash(name, email_hash):
     if not email_hash:
         return "ok", None
 
-    if not re.fullmatch(r'[A-Za-z0-9_-]{16,128}', email_hash):
+    mode = hash_validation_mode((counter_docs[0].to_dict() or {}).get('email_hash_mode'), default='legacy')
+    email_hash = normalize_email_hash(email_hash, mode)
+    if email_hash is None:
         return "invalid_hash", "email_hash must be a 16-128 character encoded hash"
 
-    # 2. Check if (name + email_hash) already registered
+    # Historical records may use random IDs or the older Base64 spelling.
+    # Check them in both modes so switching an integration to strict is safe.
+    existing = (emailhash_ref.where('name', '==', name)
+                .where('email_hash', 'in', historical_hash_values(email_hash))
+                .limit(1).get())
+    if existing:
+        return "duplicate", "Counter + Email_Hash already counted"
+
+    # All new representations share one atomic create, including concurrent requests.
     hash_id = hashlib.sha256(f'{name.casefold()}:{email_hash}'.encode('utf-8')).hexdigest()
     try:
         emailhash_ref.document(hash_id).create({
@@ -298,11 +315,16 @@ def handle_count_request(is_pixel=False):
     try:
         remote_address, domain, path, referrer = get_request_context()
 
-        allowed, reason = is_allowed_request(domain, remote_address, path)
+        name = request.args.get('id')
+        counter_docs = counter_ref.where('name', '==', name).limit(1).get() if name else []
+        counter_data = (counter_docs[0].to_dict() or {}) if counter_docs else {}
+        allowed, reason = is_allowed_request(
+            domain, remote_address, path,
+            check_whitelist=whitelist_check_enabled(counter_data.get('whitelist_check_enabled')),
+        )
         if not allowed:
             return jsonify({"error": reason}), 400
 
-        name = request.args.get('id')
         amount = int(request.args.get('donation', 1))
         if amount < 1 or amount > 1_000_000:
             return jsonify({"error": "donation must be between 1 and 1000000"}), 422
@@ -369,6 +391,8 @@ def create():
         data['uuid'] = user.get('google_id')
         data['user'] = user.get('name')
         data['updated_at'] = SERVER_TIMESTAMP
+        data['email_hash_mode'] = hash_validation_mode(data.get('email_hash_mode'))
+        data['whitelist_check_enabled'] = whitelist_check_enabled(data.get('whitelist_check_enabled'))
         data['history_enabled'] = history_enabled(data.get('history_enabled'))
         data.pop('history_hours', None)
         doc_ref = counter_ref.document(_counter_document_id(data['name']))
@@ -399,6 +423,8 @@ def createset():
         name = payload.get('name') or counter_id
         if counter_ref.where('name', '==', name).limit(1).get():
             return jsonify({'error': 'Counter ID already exists'}), 409
+        payload['email_hash_mode'] = hash_validation_mode(payload.get('email_hash_mode'))
+        payload['whitelist_check_enabled'] = whitelist_check_enabled(payload.get('whitelist_check_enabled'))
         payload['history_enabled'] = history_enabled(payload.get('history_enabled'))
         payload.pop('history_hours', None)
         payload['updated_at'] = SERVER_TIMESTAMP
@@ -562,7 +588,9 @@ def createlist():
                 u'nro': request.form.get('nro'),
                 u'url': request.form.get('url'),
                 u'count': int(request.form.get('count')),
+                'email_hash_mode': hash_validation_mode(request.form.get('email_hash_mode')),
                 'history_enabled': history_enabled(request.form.get('history_enabled')),
+                'whitelist_check_enabled': whitelist_check_enabled(request.form.get('whitelist_check_enabled')),
                 u'contactpoint': request.form.get('contactpoint'),
                 u'campaign': request.form.get('campaign'),
                 u'type': request.form.get('type'),
@@ -683,8 +711,12 @@ def update():
         id = request.json['id']
         doc_ref = counter_ref.document(id)
         require_resource_access(doc_ref.get())
-        allowed_fields = {'name', 'nro', 'url', 'count', 'contactpoint', 'campaign', 'type', 'history_enabled'}
+        allowed_fields = {'name', 'nro', 'url', 'count', 'contactpoint', 'campaign', 'type', 'history_enabled', 'whitelist_check_enabled', 'email_hash_mode'}
         updates = {key: value for key, value in request.json.items() if key in allowed_fields}
+        if 'email_hash_mode' in updates:
+            updates['email_hash_mode'] = hash_validation_mode(updates['email_hash_mode'])
+        if 'whitelist_check_enabled' in updates:
+            updates['whitelist_check_enabled'] = whitelist_check_enabled(updates['whitelist_check_enabled'])
         if 'history_enabled' in updates:
             updates['history_enabled'] = history_enabled(updates['history_enabled'])
         updates['updated_at'] = SERVER_TIMESTAMP
@@ -717,7 +749,10 @@ def updateform():
             u'nro': request.form.get('nro'),
             u'url': request.form.get('url'),
             u'count': int(request.form.get('count')),
+            'email_hash_mode': hash_validation_mode(request.form.get('email_hash_mode'),
+                                                   default=hash_validation_mode(old_data.get('email_hash_mode'), default='legacy')),
             'history_enabled': history_enabled(request.form.get('history_enabled')),
+            'whitelist_check_enabled': whitelist_check_enabled(request.form.get('whitelist_check_enabled')),
             u'contactpoint': request.form.get('contactpoint'),
             u'campaign': request.form.get('campaign'),
             u'type': request.form.get('type'),
@@ -1148,7 +1183,9 @@ def create_counter():
             "campaign": data.get("campaign", ""),
             "contactpoint": data.get("contactpoint", ""),
             "count": data.get("count", 0),
+            "email_hash_mode": hash_validation_mode(data.get("email_hash_mode")),
             "history_enabled": history_enabled(data.get("history_enabled")),
+            "whitelist_check_enabled": whitelist_check_enabled(data.get("whitelist_check_enabled")),
             "name": counter_name,
             "nro": data.get("nro", ""),
             "type": data.get("type", "global"),
