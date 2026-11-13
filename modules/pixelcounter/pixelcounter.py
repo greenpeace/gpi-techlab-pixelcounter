@@ -1170,7 +1170,7 @@ def create_counter():
         return jsonify({"error": "Invalid request payload. 'name' is required."}), 400
 
     counter_name = data["name"]
-    if not re.match(r"^[A-Za-z0-9_]+$", counter_name):
+    if not re.fullmatch(r"[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)*", counter_name):
         return jsonify({"error": "Invalid counter name. Only alphanumeric characters and underscores allowed."}), 422
 
     # --- 3. Check if a counter with this name already exists ---
